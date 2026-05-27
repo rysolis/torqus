@@ -1,0 +1,13 @@
+FROM ubuntu:24.04
+
+RUN apt-get update && \
+    apt-get install -y \
+    wget \
+    vim  \
+    build-essential \
+    cmake \
+    libgtest-dev
+
+WORKDIR /work
+
+COPY . .

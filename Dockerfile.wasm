@@ -1,0 +1,5 @@
+FROM emscripten/emsdk:4.0.7
+
+WORKDIR /work
+
+COPY . .
