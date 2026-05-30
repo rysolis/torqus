@@ -3,6 +3,7 @@
 #include <random>
 
 #include "algebra/poly.hpp"
+#include "algebra/utility.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 #include "tfhe/cryptor/cryptor.hpp"
@@ -10,7 +11,7 @@
 
 namespace trlwe_operation_test {
 struct Ctx1 {
-  using torus_type = ModTorus;
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
 };
 
@@ -27,19 +28,21 @@ class TrlweOperationFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
+  using Torus = typename Ctx::Torus;
+
   void SetUp() override {
     this->eng_.seed(std::random_device{}());
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
-    std::uniform_int_distribution<ModTorus::raw_value_type> torus_dist(
-        0, Torus::Q - 1);
+    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
+        Torus::raw_min(), Torus::raw_max());
 
     this->secret_ = std::make_shared<const Poly<UInt>>(
         Ctx::N, [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
-    this->cryptor_ = std::make_unique<trlwe::Cryptor<Ctx>>(
-        this->secret_, this->eng_, torus_dist);
+    this->cryptor_ =
+        std::make_unique<trlwe::Cryptor<Ctx>>(this->secret_, this->eng_);
   }
 };
 
@@ -47,22 +50,21 @@ TYPED_TEST_SUITE(TrlweOperationFixture, trlwe_operation_test::TestContexts);
 
 TYPED_TEST(TrlweOperationFixture, AdditionCorrectness) {
   using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
 
-  Poly<ModTorus> lhs(Ctx::N), rhs(Ctx::N);
-  lhs[0] = ModTorus(1);
-  rhs[0] = ModTorus(2);
+  Poly<ModTorus<16>> lhs(Ctx::N), rhs(Ctx::N);
+  lhs[0] = Torus(1);
+  rhs[0] = Torus(2);
 
-  Poly<ModTorus> expected = lhs + rhs;
+  Poly<Torus> expected = lhs + rhs;
 
-  TRLWE<ModTorus> encrypted_lhs =
-      this->cryptor_->template encrypt<ModTorus>(lhs);
-  TRLWE<ModTorus> encrypted_rhs =
-      this->cryptor_->template encrypt<ModTorus>(lhs);
+  TRLWE<Torus> encrypted_lhs = this->cryptor_->template encrypt<Torus>(lhs);
+  TRLWE<Torus> encrypted_rhs = this->cryptor_->template encrypt<Torus>(rhs);
 
-  TRLWE<ModTorus> encrypted_add = encrypted_lhs + encrypted_rhs;
+  TRLWE<Torus> encrypted_add = encrypted_lhs + encrypted_rhs;
 
-  Poly<ModTorus> decrypted =
-      this->cryptor_->template decrypt<ModTorus>(encrypted_add);
+  Poly<Torus> decrypted =
+      this->cryptor_->template decrypt<Torus>(encrypted_add);
 
   double norm = infinity_norm(decrypted - expected);
 

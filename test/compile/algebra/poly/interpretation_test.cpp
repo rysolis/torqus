@@ -7,14 +7,14 @@
 
 // clang-format off
 static_assert(
-  requires(Poly<ModTorus> p) {
+  requires(Poly<ModTorus<16>> p) {
     { interpret_as<UInt>(p) }
       -> std::same_as<Poly<UInt>>;
   }
 );
 
 static_assert(
-  requires(Poly<ModTorus> p) {
+  requires(Poly<ModTorus<16>> p) {
     { interpret_as<UInt>(std::move(p)) }
       -> std::same_as<Poly<UInt>>;
   }

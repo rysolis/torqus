@@ -5,30 +5,30 @@
 
 // clang-format off
 static_assert(
-  requires(Poly<ModTorus> p) {
-    { convert_to<Torus>(p) } 
-        -> std::same_as<Poly<Torus>>;
+  requires(Poly<ModTorus<16>> p) {
+    { convert_to<detail::Torus>(p) } 
+        -> std::same_as<Poly<detail::Torus>>;
   }
 );
 
 static_assert(
-  requires(Poly<ModTorus> p) {
-    { convert_to<Torus>(std::move(p)) }
-        -> std::same_as<Poly<Torus>>;
+  requires(Poly<ModTorus<16>> p) {
+    { convert_to<detail::Torus>(std::move(p)) }
+        -> std::same_as<Poly<detail::Torus>>;
   }
 );
 
 static_assert(
-  requires(Poly<Torus> p) {
-    { convert_to<ModTorus>(p) }
-        -> std::same_as<Poly<ModTorus>>;
+  requires(Poly<detail::Torus> p) {
+    { convert_to<ModTorus<16>>(p) }
+        -> std::same_as<Poly<ModTorus<16>>>;
   }
 );
 
 static_assert(
-  requires(Poly<Torus> p) {
-    { convert_to<ModTorus>(std::move(p)) }
-        -> std::same_as<Poly<ModTorus>>;
+  requires(Poly<detail::Torus> p) {
+    { convert_to<ModTorus<16>>(std::move(p)) }
+        -> std::same_as<Poly<ModTorus<16>>>;
   }
 );
 // clang-format on

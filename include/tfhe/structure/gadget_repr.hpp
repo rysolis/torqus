@@ -9,19 +9,23 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 #include "tfhe/adapter/adapter.hpp"
-#include "tfhe/params.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
 template <typename Ctx, typename params = decompose::params<Ctx>>
   requires std::derived_from<params, decompose::tag>
 class GadgetRepr {
  public:
-  explicit GadgetRepr(const Poly<ModTorus>& poly)
+  // Torus shoule be ModTorus<QBit> !!
+  template <TorusType Torus>
+  explicit GadgetRepr(const Poly<Torus>& poly)
       : repr_(params::l, Poly<UInt>(params::N)) {
+    static_assert(Torus::qbit >= Bbit_ * params::l,
+                  "Torus qbit must be greater than or equal to Bbit * l");
+
     auto extract = [Bbit = Bbit_](const UInt::raw_value_type m,
                                   const size_t idx) -> UInt {
-      size_t shift = Torus::BIT - (Bbit * (idx + 1));
-      assert(shift <= (Torus::BIT - Bbit));
+      size_t shift = Torus::qbit - (Bbit * (idx + 1));
+      assert(shift <= (Torus::qbit - Bbit));
       UInt::raw_value_type tmp = (m >> shift) & (params::B - 1);
       assert(tmp < params::B);
       return static_cast<UInt>(tmp);
@@ -29,26 +33,27 @@ class GadgetRepr {
 
     for (size_t j = 0; j < params::N; ++j) {
       for (size_t i = 0; i < params::l; ++i) {
-        ModTorus v = poly[j];
+        Torus v = poly[j];
         UInt w = UInt(static_cast<UInt::raw_value_type>(
-            static_cast<ModTorus::raw_value_type>(v)));
+            static_cast<Torus::raw_value_type>(v)));
         repr_[i][j] = extract(static_cast<UInt::raw_value_type>(w), i);
       }
     }
   }
 
-  inline Poly<ModTorus> reconstruct() const {
-    Poly<ModTorus> poly(params::N);
+  template <typename Torus>
+  inline Poly<Torus> reconstruct() const {
+    Poly<Torus> poly(params::N);
 
     for (size_t j = 0; j < params::N; ++j) {
       UInt::raw_value_type m = 0;
       for (size_t i = 0; i < params::l; ++i) {
-        size_t shift = Torus::BIT - (Bbit_ * (i + 1));
-        assert(shift <= (Torus::BIT - Bbit_));
+        size_t shift = Torus::qbit - (Bbit_ * (i + 1));
+        assert(shift <= (Torus::qbit - Bbit_));
         UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr_[i][j]);
         m |= v << shift;
       }
-      poly[j] = ModTorus(m);
+      poly[j] = Torus(m);
     }
 
     return poly;
@@ -79,7 +84,8 @@ class GadgetTRLWE {
   GadgetTRLWE(GadgetRepr<Ctx> a, GadgetRepr<Ctx> b)
       : a_(std::move(a)), b_(std::move(b)) {}
 
-  explicit GadgetTRLWE(const TRLWE<ModTorus>& trlwe)
+  template <typename Torus>
+  explicit GadgetTRLWE(const TRLWE<Torus>& trlwe)
       : a_(trlwe.a()), b_(trlwe.b()) {}
 
   [[nodiscard]]

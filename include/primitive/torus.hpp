@@ -18,9 +18,6 @@ template <typename Derived>
 class TorusBase {
  public:
   friend Derived;
-  static constexpr uint32_t BIT = 16;
-  static constexpr uint32_t Q = 1 << BIT;
-
   constexpr const Derived& self() const {
     return static_cast<const Derived&>(*this);
   }
@@ -35,7 +32,10 @@ class TorusBase {
   TorusBase() = default;
 };
 
+template <uint32_t QBit>
 class ModTorus;
+
+namespace detail {
 
 /**
  * \brief Represents the discrete torus $(1/q)\mathbb{R}/\mathbb{Z}$.
@@ -49,7 +49,11 @@ class Torus : public TorusBase<Torus> {
   constexpr explicit Torus(raw_value_type t = 0) noexcept
       : r_(t - std::floor(t)) {}
 
-  constexpr explicit operator ModTorus() const noexcept;
+  static constexpr raw_value_type raw_min() { return 0.0; }
+  static constexpr raw_value_type raw_max() { return 1.0; }
+
+  template <uint32_t QBit>
+  constexpr explicit operator ModTorus<QBit>() const noexcept;
 
   constexpr explicit operator raw_value_type() const noexcept { return r_; }
   constexpr raw_value_type value() const noexcept { return r_; }
@@ -72,6 +76,8 @@ class Torus : public TorusBase<Torus> {
   raw_value_type r_;
 };
 
+}  // namespace detail
+
 /**
  * \brief Represents the integer torus $\hat{\mathbb{T}}$.
  *
@@ -79,31 +85,37 @@ class Torus : public TorusBase<Torus> {
  *
  * $\hat{\mathbb{T}} \ni c \sim q \cdot t \in (1/q)\mathbb{R}/\mathbb{Z}$.
  */
-class ModTorus : public TorusBase<ModTorus> {
+template <uint32_t QBit>
+class ModTorus : public TorusBase<ModTorus<QBit>> {
  public:
   using raw_value_type = uint32_t;
+  constexpr static uint32_t qbit = QBit;
+  constexpr static uint32_t q = 1 << QBit;
 
-  constexpr explicit ModTorus(raw_value_type m = 0) noexcept : m_(m % Q) {}
+  constexpr explicit ModTorus(raw_value_type m = 0) noexcept : m_(m % q) {}
 
-  constexpr explicit operator Torus() const noexcept;
+  static constexpr raw_value_type raw_min() { return 0; }
+  static constexpr raw_value_type raw_max() { return q - 1; }
+
+  constexpr explicit operator detail::Torus() const noexcept;
 
   constexpr explicit operator raw_value_type() const noexcept { return m_; }
   constexpr raw_value_type value() const noexcept { return m_; }
 
-  bool operator==(const ModTorus& other) const noexcept {
-    return self().value() == other.value();
+  bool operator==(const ModTorus<QBit>& other) const noexcept {
+    return this->self().value() == other.value();
   }
 
-  constexpr ModTorus& operator+=(const ModTorus& other) noexcept {
+  constexpr ModTorus<QBit>& operator+=(const ModTorus<QBit>& other) noexcept {
     m_ += other.m_;
-    m_ %= Q;
+    m_ %= q;
     return *this;
   }
 
-  constexpr ModTorus& operator-=(const ModTorus& other) noexcept {
+  constexpr ModTorus<QBit>& operator-=(const ModTorus<QBit>& other) noexcept {
     m_ -= other.m_;  // Since Q is a power of two, using an unsigned
                      // integer for m_ is safe.
-    m_ %= Q;
+    m_ %= q;
     return *this;
   }
 
@@ -111,61 +123,76 @@ class ModTorus : public TorusBase<ModTorus> {
   raw_value_type m_;
 };
 
-inline constexpr Torus::operator ModTorus() const noexcept {
-  return ModTorus(static_cast<ModTorus::raw_value_type>(Q * this->value()));
+template <uint32_t QBit>
+inline constexpr detail::Torus::operator ModTorus<QBit>() const noexcept {
+  return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(
+      ModTorus<QBit>::q * this->value()));
 }
 
-inline constexpr ModTorus::operator Torus() const noexcept {
-  return Torus(static_cast<Torus::raw_value_type>(this->value()) / Q);
+template <uint32_t QBit>
+inline constexpr ModTorus<QBit>::operator detail::Torus() const noexcept {
+  return detail::Torus(
+      static_cast<detail::Torus::raw_value_type>(this->value()) /
+      ModTorus<QBit>::q);
 }
 
-inline constexpr Torus operator+(Torus lhs, const Torus& rhs) noexcept {
+inline constexpr detail::Torus operator+(detail::Torus lhs,
+                                         const detail::Torus& rhs) noexcept {
   return lhs += rhs;
 }
 
-inline constexpr Torus operator-(Torus lhs, const Torus& rhs) noexcept {
+inline constexpr detail::Torus operator-(detail::Torus lhs,
+                                         const detail::Torus& rhs) noexcept {
   return lhs -= rhs;
 }
 
-inline constexpr Torus operator*(UInt lhs, const Torus& rhs) noexcept {
-  return Torus(static_cast<UInt::raw_value_type>(lhs) * rhs.value());
+inline constexpr detail::Torus operator*(UInt lhs,
+                                         const detail::Torus& rhs) noexcept {
+  return detail::Torus(static_cast<UInt::raw_value_type>(lhs) * rhs.value());
 }
 
-inline constexpr ModTorus operator*(UInt lhs, const ModTorus& rhs) noexcept {
-  return ModTorus(static_cast<ModTorus::raw_value_type>(lhs) * rhs.value());
+template <uint32_t QBit>
+inline constexpr ModTorus<QBit> operator*(UInt lhs,
+                                          const ModTorus<QBit>& rhs) noexcept {
+  return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(lhs) *
+                        rhs.value());
 }
 
-inline constexpr ModTorus operator+(ModTorus lhs,
-                                    const ModTorus& rhs) noexcept {
+template <uint32_t QBit>
+inline constexpr ModTorus<QBit> operator+(ModTorus<QBit> lhs,
+                                          const ModTorus<QBit>& rhs) noexcept {
   return lhs += rhs;
 }
 
-inline constexpr ModTorus operator-(ModTorus lhs,
-                                    const ModTorus& rhs) noexcept {
+template <uint32_t QBit>
+inline constexpr ModTorus<QBit> operator-(ModTorus<QBit> lhs,
+                                          const ModTorus<QBit>& rhs) noexcept {
   return lhs -= rhs;
 }
 
-template <typename T>
-  requires std::same_as<std::decay_t<T>, Torus>
-inline constexpr double infinity_norm(const T& torus) {
+inline constexpr double infinity_norm(const detail::Torus& torus) {
   double tmp = static_cast<double>(torus);
   return std::min(tmp, 1 - tmp);
 }
 
-template <typename T>
-  requires std::same_as<std::decay_t<T>, ModTorus>
-inline constexpr double infinity_norm(const T& mod_torus) {
-  Torus::raw_value_type tmp =
-      static_cast<Torus::raw_value_type>(static_cast<Torus>(mod_torus));
+template <uint32_t QBit>
+inline constexpr double infinity_norm(const ModTorus<QBit>& mod_torus) {
+  typename detail::Torus::raw_value_type tmp =
+      detail::Torus::raw_value_type(static_cast<detail::Torus>(mod_torus));
   return std::min(tmp, 1 - tmp);
 }
 
-// Torus::operator== depends on infinity_norm, which is defined in utility.hpp,
-// so we define it here to avoid circular dependency
-inline bool Torus::operator==(const Torus& other) const noexcept {
+// Torus::operator== depends on infinity_norm, which is defined in
+// utility.hpp, so we define it here to avoid circular dependency
+inline bool detail::Torus::operator==(
+    const detail::Torus& other) const noexcept {
   const double eps = 1e-9;
   double norm = infinity_norm((*this) - other);
   return norm < eps;
 }
+
+template <typename Torus>
+concept TorusType = std::derived_from<std::remove_cvref_t<Torus>,
+                                      TorusBase<std::remove_cvref_t<Torus>>>;
 
 #endif

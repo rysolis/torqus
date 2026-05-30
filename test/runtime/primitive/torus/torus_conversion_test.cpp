@@ -2,32 +2,51 @@
 
 #include "primitive/torus.hpp"
 
-// Convert Torus to ModTorus and back, and check if the value is
-// preserved
-TEST(ModTorusConvertTest, ConvertTorusLValue2ModTorus) {
-  Torus dt(0.5);
-  ModTorus mt = static_cast<ModTorus>(dt);
+namespace torus_conversion_test {
+struct Ctx1 {
+  using Torus = ModTorus<16>;
+};
+}  // namespace torus_conversion_test
 
-  EXPECT_EQ(static_cast<ModTorus::raw_value_type>(mt), Torus::Q / 2);
+template <typename Ctx>
+class ModTorusConvertTest : public ::testing::Test {};
+
+using TestContexts = ::testing::Types<torus_conversion_test::Ctx1>;
+
+TYPED_TEST_SUITE(ModTorusConvertTest, TestContexts);
+
+TYPED_TEST(ModTorusConvertTest, ConvertTorusLValue2ModTorus) {
+  using Torus = typename TypeParam::Torus;
+
+  detail::Torus dt(0.5);
+  Torus mt = static_cast<Torus>(dt);
+
+  EXPECT_EQ(static_cast<Torus::raw_value_type>(mt), Torus::q / 2);
 }
 
-TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
-  ModTorus mt = static_cast<ModTorus>(Torus(0.5));
+TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
+  using Torus = typename TypeParam::Torus;
 
-  EXPECT_EQ(static_cast<ModTorus::raw_value_type>(mt), Torus::Q / 2);
+  Torus mt = static_cast<Torus>(detail::Torus(0.5));
+
+  EXPECT_EQ(static_cast<Torus::raw_value_type>(mt), Torus::q / 2);
 }
 
 // Convert ModTorus to Torus and back, and check if the value is
 // preserved
-TEST(TorusConvertTest, ConvertModTorusLValue2Torus) {
-  ModTorus mt(Torus::Q / 2);
-  Torus dt = static_cast<Torus>(mt);
+TYPED_TEST(ModTorusConvertTest, ConvertModTorusLValue2Torus) {
+  using Torus = typename TypeParam::Torus;
 
-  EXPECT_NEAR(static_cast<Torus::raw_value_type>(dt), 0.5, 1e-9);
+  Torus mt(Torus::q / 2);
+  detail::Torus dt = static_cast<detail::Torus>(mt);
+
+  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(dt), 0.5, 1e-9);
 }
 
-TEST(TorusConvertTest, ConvertModTorusRValue2Torus) {
-  Torus dt = static_cast<Torus>(ModTorus(Torus::Q / 2));
+TYPED_TEST(ModTorusConvertTest, ConvertModTorusRValue2Torus) {
+  using Torus = typename TypeParam::Torus;
 
-  EXPECT_NEAR(static_cast<Torus::raw_value_type>(dt), 0.5, 1e-9);
+  detail::Torus dt = static_cast<detail::Torus>(Torus(Torus::q / 2));
+
+  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(dt), 0.5, 1e-9);
 }

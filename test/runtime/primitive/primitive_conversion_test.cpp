@@ -28,18 +28,11 @@ TEST(PrimitiveConversionTest, ModInt2UInt) {
   EXPECT_EQ(a, UInt(4));
 }
 
-TEST(PrimitiveConversionTest, ModTorus2ModInt) {
-  using Zp = ModInt<12289>;
-  ModTorus t(Torus::Q - 1);
-  Zp x = static_cast<ModTorus::raw_value_type>(t);
-  EXPECT_EQ(t, ModTorus(Torus::Q - 1));
-  EXPECT_EQ(x, Zp(Torus::Q - 1));
-}
-
 TEST(PrimitiveConversionTest, ModInt2ModTorus) {
   using Zp = ModInt<7>;
+  using Torus = ModTorus<16>;
   Zp x(10);
-  ModTorus t = static_cast<ModTorus>(static_cast<Zp::raw_value_type>(x));
+  Torus t = static_cast<Torus>(static_cast<Zp::raw_value_type>(x));
   EXPECT_EQ(x, Zp(10));
-  EXPECT_EQ(t, ModTorus(3));
+  EXPECT_EQ(t, Torus(3));
 }

@@ -55,26 +55,27 @@ concept PolyUniquePtrConstructible = std::constructible_from<
 // Torus
 // ============================================================
 
-static_assert(PolyRegular<Torus>);
-static_assert(PolySizeConstructible<Torus>);
-static_assert(PolyInitializerListConstructible<Torus>);
-static_assert(
-    PolyGeneratorConstructible<Torus, decltype([]() { return Torus{}; })>);
-static_assert(PolyRawPointerConstructible<Torus>);
-static_assert(PolyUniquePtrConstructible<Torus>);
+static_assert(PolyRegular<detail::Torus>);
+static_assert(PolySizeConstructible<detail::Torus>);
+static_assert(PolyInitializerListConstructible<detail::Torus>);
+static_assert(PolyGeneratorConstructible<detail::Torus, decltype([]() {
+                                           return detail::Torus{};
+                                         })>);
+static_assert(PolyRawPointerConstructible<detail::Torus>);
+static_assert(PolyUniquePtrConstructible<detail::Torus>);
 
 // ============================================================
 // ModTorus
 // ============================================================
 
-static_assert(PolyRegular<ModTorus>);
-static_assert(PolySizeConstructible<ModTorus>);
-static_assert(PolyInitializerListConstructible<ModTorus>);
-static_assert(PolyGeneratorConstructible<ModTorus, decltype([]() {
-                                           return ModTorus{};
+static_assert(PolyRegular<ModTorus<16>>);
+static_assert(PolySizeConstructible<ModTorus<16>>);
+static_assert(PolyInitializerListConstructible<ModTorus<16>>);
+static_assert(PolyGeneratorConstructible<ModTorus<16>, decltype([]() {
+                                           return ModTorus<16>{};
                                          })>);
-static_assert(PolyRawPointerConstructible<ModTorus>);
-static_assert(PolyUniquePtrConstructible<ModTorus>);
+static_assert(PolyRawPointerConstructible<ModTorus<16>>);
+static_assert(PolyUniquePtrConstructible<ModTorus<16>>);
 
 // ============================================================
 // ModInt

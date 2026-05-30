@@ -7,18 +7,19 @@
 namespace encrypt_torus_test {
 
 struct Ctx1 {
-  using torus_type = Torus;
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
 };
 
 struct Ctx2 {
-  using torus_type = ModTorus;
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
 };
 
 }  // namespace encrypt_torus_test
 
-using TestContexts = ::testing::Types<encrypt_torus_test::Ctx1>;
+using TestContexts =
+    ::testing::Types<encrypt_torus_test::Ctx1, encrypt_torus_test::Ctx2>;
 
 template <typename Ctx>
 class TrlweEncryptionTest : public ::testing::Test {
@@ -26,38 +27,29 @@ class TrlweEncryptionTest : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using torus_type = Ctx::torus_type;
+  using Torus = typename Ctx::Torus;
 
   static inline std::shared_ptr<const Poly<UInt>> secret_;
   std::unique_ptr<trlwe::Cryptor<Ctx>> cryptor_;
 
-  static inline Poly<torus_type> plaintext_;
+  static inline Poly<Torus> plaintext_;
 
   void SetUp() override {
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
-    auto torus_dist = [&] {
-      if constexpr (std::same_as<torus_type, ModTorus>) {
-        return std::uniform_int_distribution<ModTorus::raw_value_type>(
-            0, Torus::Q - 1);
-      }
-      if constexpr (std::same_as<torus_type, Torus>) {
-        return std::uniform_real_distribution<Torus::raw_value_type>(0.0, 1.0);
-      } else {
-        static_assert(false, "unsupported torus_type");
-      }
-    }();
+    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
+        Torus::raw_min(), Torus::raw_max());
 
     this->secret_ = std::make_shared<const Poly<UInt>>(
         Ctx::N, [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
-    this->cryptor_ = std::make_unique<trlwe::Cryptor<Ctx>>(
-        this->secret_, this->eng_, torus_dist);
+    this->cryptor_ =
+        std::make_unique<trlwe::Cryptor<Ctx>>(this->secret_, this->eng_);
 
     this->plaintext_ =
-        Poly<torus_type>(Ctx::N, [&eng = this->eng_, &dist = torus_dist]() {
-          return static_cast<torus_type>(dist(eng));
+        Poly<Torus>(Ctx::N, [&eng = this->eng_, &dist = torus_dist]() {
+          return static_cast<Torus>(dist(eng));
         });
   }
 };
@@ -65,13 +57,12 @@ class TrlweEncryptionTest : public ::testing::Test {
 TYPED_TEST_SUITE(TrlweEncryptionTest, TestContexts);
 
 TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
-  using torus_type = TypeParam::torus_type;
+  using Torus = typename TypeParam::Torus;
 
-  TRLWE<torus_type> ciphertext =
-      this->cryptor_->template encrypt<torus_type>(this->plaintext_);
+  TRLWE<Torus> ciphertext =
+      this->cryptor_->template encrypt<Torus>(this->plaintext_);
 
-  Poly<torus_type> decrypted =
-      this->cryptor_->template decrypt<torus_type>(ciphertext);
+  Poly<Torus> decrypted = this->cryptor_->template decrypt<Torus>(ciphertext);
 
   std::cout << "\n=== TRLWE Encryption Test ===\n";
   std::cout << "expected : " << this->plaintext_ << "\n";

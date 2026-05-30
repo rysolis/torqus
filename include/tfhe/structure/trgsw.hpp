@@ -10,14 +10,16 @@
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
-template <typename T = Torus>
+template <TorusType Torus>
 class TRGSW {
  public:
   TRGSW() = default;
-  TRGSW(uint32_t N, uint32_t l) : trgsw_(2 * l, TRLWE<T>(N)), l_(l) {}
+  TRGSW(uint32_t N, uint32_t l) : trgsw_(2 * l, TRLWE<Torus>(N)), l_(l) {}
 
-  TRLWE<T>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
-  const TRLWE<T>& operator[](size_t idx) const noexcept { return trgsw_[idx]; }
+  TRLWE<Torus>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
+  const TRLWE<Torus>& operator[](size_t idx) const noexcept {
+    return trgsw_[idx];
+  }
 
   uint32_t level() const noexcept { return 2 * l_; }
 
@@ -31,7 +33,7 @@ class TRGSW {
   }
 
  private:
-  std::vector<TRLWE<T>> trgsw_;
+  std::vector<TRLWE<Torus>> trgsw_;
   uint32_t l_;
 };
 

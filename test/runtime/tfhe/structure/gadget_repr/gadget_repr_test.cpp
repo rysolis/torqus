@@ -5,23 +5,26 @@
 #include <random>
 
 #include "algebra/poly.hpp"
-#include "tfhe/params.hpp"
+#include "algebra/utility.hpp"
 
 namespace gadget_repr_test {
 
 struct Ctx1 {
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
   static constexpr uint32_t B = 4;
   static constexpr uint32_t l = 3;
 };
 
 struct Ctx2 {
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 8;
   static constexpr uint32_t B = 4;
   static constexpr uint32_t l = 3;
 };
 
 struct Ctx3 {
+  using Torus = ModTorus<16>;
   static constexpr uint32_t N = 1024;
   static constexpr uint32_t B = 2;
   static constexpr uint32_t l = 4;
@@ -40,16 +43,20 @@ TYPED_TEST_SUITE(GadgetReprTest, TestContexts);
 
 TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
   using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
 
-  std::mt19937 eng{std::random_device{}()};
-  std::uniform_int_distribution<ModTorus::raw_value_type> dist(0, Torus::Q - 1);
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{0};
+  std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
+      Torus::raw_min(), Torus::raw_max());
 
-  Poly<ModTorus> poly(
-      Ctx::N, [&eng, &dist]() { return static_cast<ModTorus>(dist(eng)); });
+  Poly<Torus> poly(Ctx::N, [&eng = eng_, &dist = torus_dist]() {
+    return static_cast<Torus>(dist(eng));
+  });
 
   GadgetRepr<Ctx> repr(poly);
 
-  Poly<ModTorus> reconstructed_poly = repr.reconstruct();
+  Poly<Torus> reconstructed_poly = repr.template reconstruct<Torus>();
 
   double error_norm = infinity_norm(poly - reconstructed_poly);
 
@@ -68,5 +75,5 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
   std::cout << "=====================================================\n\n";
   // clang-format on
 
-  EXPECT_LT(error_norm, GadgetRepr<Ctx>::threshold);
+  EXPECT_LT(error_norm, (GadgetRepr<Ctx>::threshold));
 }

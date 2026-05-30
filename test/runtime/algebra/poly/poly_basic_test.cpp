@@ -7,7 +7,7 @@
 template <typename T>
 class PolyBasicTest : public ::testing::Test {};
 
-using PolyTestTypes = ::testing::Types<UInt, ModTorus>;
+using PolyTestTypes = ::testing::Types<UInt, ModTorus<16>>;
 
 TYPED_TEST_SUITE(PolyBasicTest, PolyTestTypes);
 
@@ -157,7 +157,7 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
 
   Poly<T> p{T(0), T(1), T(2), T(3)};
 
-  T add = p[0] + p[1];
+  T add = static_cast<T>(p[0]) + static_cast<T>(p[1]);
   EXPECT_EQ(p[0], T(0));
   EXPECT_EQ(p[1], T(1));
   EXPECT_EQ(add, T(1));
@@ -165,7 +165,7 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
   if constexpr (std::same_as<T, UInt>) {
     EXPECT_THROW({ p[2] - p[3]; }, std::underflow_error);
   } else {
-    T sub = p[2] - p[3];
+    T sub = static_cast<T>(p[2]) - static_cast<T>(p[3]);
     EXPECT_EQ(p[2], T(2));
     EXPECT_EQ(sub, T(static_cast<T::raw_value_type>(-1)));
   }

@@ -8,24 +8,23 @@
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
-template <typename T = Torus>
-  requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
+template <TorusType Torus>
 class TRLWE {
  public:
   TRLWE(uint32_t N) : a_(N), b_(N) {}
   // NOLINT(bugprone-easily-swappable-parameters)
-  TRLWE(const Poly<T>& a, const Poly<T>& b) : a_(a), b_(b) {}
+  TRLWE(const Poly<Torus>& a, const Poly<Torus>& b) : a_(a), b_(b) {}
 
   template <typename F>
     requires requires(F& f) {
-      { std::invoke(f) } -> castable<T>;
+      { std::invoke(f) } -> castable<Torus>;
     }
   TRLWE(uint32_t N, F&& f) : a_(N, std::forward<F>(f)), b_(N) {}
 
-  Poly<T>& a() { return a_; }
-  const Poly<T>& a() const { return a_; }
-  Poly<T>& b() { return b_; }
-  const Poly<T>& b() const { return b_; }
+  Poly<Torus>& a() { return a_; }
+  const Poly<Torus>& a() const { return a_; }
+  Poly<Torus>& b() { return b_; }
+  const Poly<Torus>& b() const { return b_; }
 
   TRLWE& operator+=(const TRLWE& other) {
     a_ += other.a_;
@@ -45,8 +44,8 @@ class TRLWE {
   }
 
  private:
-  Poly<T> a_;
-  Poly<T> b_;
+  Poly<Torus> a_;
+  Poly<Torus> b_;
 };
 
 template <typename To, typename From>
@@ -62,16 +61,16 @@ inline TRLWE<To> convert_to(const TRLWE<From>& src) {
   return TRLWE<To>(convert_to<To>(src.a()), convert_to<To>(src.b()));
 }
 
-template <typename T>
-  requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
-inline TRLWE<T> operator+(TRLWE<T> lhs, const TRLWE<T>& rhs) {
+template <TorusType Torus>
+// requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
+inline TRLWE<Torus> operator+(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs += rhs;
   return lhs;
 }
 
-template <typename T>
-  requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
-inline TRLWE<T> operator-(TRLWE<T> lhs, const TRLWE<T>& rhs) {
+template <TorusType Torus>
+// requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
+inline TRLWE<Torus> operator-(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs -= rhs;
   return lhs;
 }

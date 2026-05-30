@@ -5,22 +5,28 @@
 // Torus
 // ============================================================
 
-static_assert(TrivialScalar<Torus>);
-static_assert(CompactScalar<Torus, Torus::raw_value_type>);
+static_assert(TrivialScalar<detail::Torus>);
+static_assert(
+    CompactScalar<detail::Torus, typename detail::Torus::raw_value_type>);
 
-static_assert(NothrowConstructible<Torus, Torus::raw_value_type>);
+static_assert(NothrowConstructible<detail::Torus,
+                                   typename detail::Torus::raw_value_type>);
 
-static_assert(NothrowExplicitlyConvertible<Torus, ModTorus>);
-static_assert(NothrowExplicitlyConvertible<Torus, Torus::raw_value_type>);
+static_assert(NothrowExplicitlyConvertible<detail::Torus, ModTorus<16>>);
+static_assert(NothrowExplicitlyConvertible<
+              detail::Torus, typename detail::Torus::raw_value_type>);
 
 // ============================================================
 // ModTorus
 // ============================================================
 
-static_assert(TrivialScalar<ModTorus>);
-static_assert(CompactScalar<ModTorus, ModTorus::raw_value_type>);
+static_assert(TrivialScalar<ModTorus<16>>);
+static_assert(
+    CompactScalar<ModTorus<16>, typename ModTorus<16>::raw_value_type>);
 
-static_assert(NothrowConstructible<ModTorus, ModTorus::raw_value_type>);
+static_assert(
+    NothrowConstructible<ModTorus<16>, typename ModTorus<16>::raw_value_type>);
 
-static_assert(NothrowExplicitlyConvertible<ModTorus, Torus>);
-static_assert(NothrowExplicitlyConvertible<ModTorus, ModTorus::raw_value_type>);
+static_assert(NothrowExplicitlyConvertible<ModTorus<16>, detail::Torus>);
+static_assert(NothrowExplicitlyConvertible<
+              ModTorus<16>, typename ModTorus<16>::raw_value_type>);

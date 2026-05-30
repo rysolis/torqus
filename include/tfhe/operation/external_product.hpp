@@ -10,11 +10,11 @@
 template <typename Ctx>
 class ExternalProduct {
  public:
-  template <typename TorusT>
-  TRLWE<TorusT> operator()(const TRGSW<TorusT>& bk,
-                           const TRLWE<ModTorus>& trlwe) const {
+  template <TorusType Torus>
+  TRLWE<Torus> operator()(const TRGSW<Torus>& bk,
+                          const TRLWE<Torus>& trlwe) const {
     GadgetTRLWE<Ctx> gd(trlwe);
-    TRLWE<TorusT> res(Ctx::N);
+    TRLWE<Torus> res(Ctx::N);
     for (size_t i = 0; i < Ctx::l; ++i) {
       res.a() += gd.a()[i] * bk[i].a();
       res.a() += gd.b()[i] * bk[Ctx::l + i].a();
