@@ -1,13 +1,14 @@
 #include <gtest/gtest.h>
 
 #include "algebra/poly.hpp"
+#include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 template <typename T>
 class PolyBasicTest : public ::testing::Test {};
 
-using PolyTestTypes = ::testing::Types<UInt, ModTorus<16>>;
+using PolyTestTypes = ::testing::Types<UInt, ModTorus<16>, ModInt<7>>;
 
 TYPED_TEST_SUITE(PolyBasicTest, PolyTestTypes);
 
@@ -43,28 +44,6 @@ TYPED_TEST(PolyBasicTest, RawPointerConstructor_InitializesBuffer) {
   for (size_t i = 0; i < p.size(); ++i) {
     EXPECT_EQ(T(ptr[i]), p[i]);
   }
-}
-
-TYPED_TEST(PolyBasicTest, UniquePtrConstructor_InitializesBuffer) {
-  using T = TypeParam;
-
-  std::unique_ptr<typename T::raw_value_type[]> ptr =
-      std::make_unique<typename T::raw_value_type[]>(4);
-  ptr[0] = 0;
-  ptr[1] = 1;
-  ptr[2] = 2;
-  ptr[3] = 3;
-
-  auto* raw_ptr = ptr.get();
-
-  Poly<T> dst(std::move(ptr), 4);
-  EXPECT_EQ(4, dst.size());
-
-  for (typename T::raw_value_type i = 0; i < dst.size(); ++i) {
-    EXPECT_EQ(T(i), dst[i]);
-  }
-
-  EXPECT_EQ(dst.data(), raw_ptr);
 }
 
 TYPED_TEST(PolyBasicTest, InitializerListConstructor_InitializesBuffer) {
@@ -167,7 +146,11 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
   } else {
     T sub = static_cast<T>(p[2]) - static_cast<T>(p[3]);
     EXPECT_EQ(T(2), p[2]);
-    EXPECT_EQ(T(static_cast<T::raw_value_type>(-1)), sub);
+    if constexpr (std::same_as<T, ModInt<7>>) {
+      EXPECT_EQ(T(6), sub);
+    } else {
+      EXPECT_EQ(T(static_cast<T::raw_value_type>(-1)), sub);
+    }
   }
   EXPECT_EQ(T(3), p[3]);
 

@@ -18,7 +18,7 @@ TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
   EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))), dst[1]);
   EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))), dst[2]);
 
-  EXPECT_NE(dst.data(), raw_ptr);
+  EXPECT_NE(raw_ptr, dst.data());
 }
 
 TEST(PolyInterpretationTest, MoveBuffersPolyByInterpretation) {
@@ -35,5 +35,5 @@ TEST(PolyInterpretationTest, MoveBuffersPolyByInterpretation) {
   EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))), dst[1]);
   EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))), dst[2]);
 
-  EXPECT_EQ(dst.data(), raw_ptr);
+  EXPECT_EQ(raw_ptr, dst.data());
 }
