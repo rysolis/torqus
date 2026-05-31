@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "algebra/poly.hpp"
+#include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 #include "tfhe/adapter/adapter.hpp"

@@ -2,6 +2,7 @@
 #define EXTERNAL_PRODUCT_HPP
 
 #include "arithmetic/multiplication.hpp"
+#include "primitive/concept/torus.hpp"
 #include "tfhe/adapter/adapter.hpp"
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"

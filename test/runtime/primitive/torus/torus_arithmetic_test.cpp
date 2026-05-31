@@ -9,7 +9,8 @@ TEST(TorusArithmeticTest, Addition_WrapsIntoUnitInterval) {
 
   detail::Torus c = a + b;
 
-  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(c), 0.25, 1e-9);
+  EXPECT_NEAR(0.25, static_cast<detail::Torus::raw_value_type>(c),
+              std::numeric_limits<double>::epsilon());
 }
 
 TEST(TorusArithmeticTest, Subtraction_WrapsIntoUnitInterval) {
@@ -18,7 +19,8 @@ TEST(TorusArithmeticTest, Subtraction_WrapsIntoUnitInterval) {
 
   detail::Torus c = a - b;
 
-  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(c), 0.75, 1e-9);
+  EXPECT_NEAR(0.75, static_cast<detail::Torus::raw_value_type>(c),
+              std::numeric_limits<double>::epsilon());
 }
 
 TEST(TorusArithmeticTest, ScalarMultiplication_WrapsCorrectly) {
@@ -26,5 +28,6 @@ TEST(TorusArithmeticTest, ScalarMultiplication_WrapsCorrectly) {
 
   detail::Torus result = UInt(7) * t;
 
-  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(result), 0.4, 1e-9);
+  EXPECT_NEAR(0.4, static_cast<detail::Torus::raw_value_type>(result),
+              10 * std::numeric_limits<double>::epsilon());
 }

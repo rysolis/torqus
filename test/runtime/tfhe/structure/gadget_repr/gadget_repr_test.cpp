@@ -10,6 +10,7 @@
 namespace gadget_repr_test {
 
 struct Ctx1 {
+  static constexpr bool verbose = true;
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
   static constexpr uint32_t B = 4;
@@ -17,6 +18,7 @@ struct Ctx1 {
 };
 
 struct Ctx2 {
+  static constexpr bool verbose = true;
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 8;
   static constexpr uint32_t B = 4;
@@ -24,6 +26,7 @@ struct Ctx2 {
 };
 
 struct Ctx3 {
+  static constexpr bool verbose = false;
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 1024;
   static constexpr uint32_t B = 2;
@@ -62,12 +65,10 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
 
   // clang-format off
   std::cout << "\n=== GadgetRepr Decomposition & Reconstruction Test ===\n";
-  // std::cout << "Original poly (Torus):    " << poly << "\n";
-  // std::cout << "Original poly (ModTorus): " << poly_mod << "\n";
-
-  // std::cout << "Reconstructed poly (ModTorus): " << reconstructed_poly_mod <<
-  // "\n"; std::cout << "Reconstructed poly (Torus): " << reconstructed_poly <<
-  // "\n";
+  if (Ctx::verbose) {
+    std::cout << "Original:      " << poly << "\n";
+    std::cout << "Reconstructed: " << reconstructed_poly << "\n";
+  }
 
   std::cout << "Error Analysis:\n";
   std::cout << "  Infinity norm: " << error_norm << "\n";

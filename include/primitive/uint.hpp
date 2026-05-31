@@ -10,7 +10,12 @@ class UInt {
  public:
   using raw_value_type = uint32_t;
 
-  constexpr UInt(raw_value_type v = 0) noexcept : v_(v) {}
+  explicit UInt() noexcept = default;
+
+  template <std::integral Raw>
+    requires std::convertible_to<Raw, raw_value_type>
+  constexpr explicit UInt(Raw v = 0) noexcept
+      : v_(static_cast<raw_value_type>(v)) {}
 
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
 

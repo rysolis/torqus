@@ -12,11 +12,11 @@ TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
 
   Poly<ModInt<100>> dst = interpret_as<ModInt<100>>(src);
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(1))));
-  EXPECT_EQ(dst[1], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))));
-  EXPECT_EQ(dst[2], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))));
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(1))), dst[0]);
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))), dst[1]);
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))), dst[2]);
 
   EXPECT_NE(dst.data(), raw_ptr);
 }
@@ -29,11 +29,11 @@ TEST(PolyInterpretationTest, MoveBuffersPolyByInterpretation) {
 
   Poly<ModInt<100>> dst = interpret_as<ModInt<100>>(std::move(src));
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(1))));
-  EXPECT_EQ(dst[1], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))));
-  EXPECT_EQ(dst[2], ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))));
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(1))), dst[0]);
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(2))), dst[1]);
+  EXPECT_EQ(ModInt<100>(static_cast<Torus::raw_value_type>(Torus(3))), dst[2]);
 
   EXPECT_EQ(dst.data(), raw_ptr);
 }

@@ -4,7 +4,9 @@
 #include <concepts>
 
 #include "algebra/poly.hpp"
-#include "primitive/concept/castable.hpp"
+#include "primitive/concept/convertible.hpp"
+#include "primitive/concept/primitive.hpp"
+#include "primitive/concept/torus.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
@@ -17,7 +19,7 @@ class TRLWE {
 
   template <typename F>
     requires requires(F& f) {
-      { std::invoke(f) } -> castable<Torus>;
+      { std::invoke(f) } -> explicitly_convertible_to<Torus>;
     }
   TRLWE(uint32_t N, F&& f) : a_(N, std::forward<F>(f)), b_(N) {}
 
@@ -49,27 +51,25 @@ class TRLWE {
 };
 
 template <typename To, typename From>
-  requires castable<To, From>
+  requires explicitly_convertible_to<To, From>
 inline TRLWE<To> convert_to(TRLWE<From>&& src) {
   return TRLWE<To>(convert_to<To>(std::move(src.a())),
                    convert_to<To>(std::move(src.b())));
 }
 
 template <typename To, typename From>
-  requires castable<To, From>
+  requires explicitly_convertible_to<To, From>
 inline TRLWE<To> convert_to(const TRLWE<From>& src) {
   return TRLWE<To>(convert_to<To>(src.a()), convert_to<To>(src.b()));
 }
 
 template <TorusType Torus>
-// requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
 inline TRLWE<Torus> operator+(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs += rhs;
   return lhs;
 }
 
 template <TorusType Torus>
-// requires std::same_as<T, Torus> || std::same_as<T, ModTorus>
 inline TRLWE<Torus> operator-(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs -= rhs;
   return lhs;

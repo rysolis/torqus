@@ -10,7 +10,12 @@ class ModInt {
   static constexpr uint32_t MOD = P;
   using raw_value_type = uint32_t;
 
-  constexpr ModInt(raw_value_type v = 0) noexcept : v_(v % MOD) {}
+  constexpr ModInt() noexcept = default;
+
+  template <std::integral Raw>
+    requires std::convertible_to<Raw, raw_value_type>
+  constexpr explicit ModInt(Raw v = 0) noexcept
+      : v_(static_cast<raw_value_type>(v) % MOD) {}
 
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
 

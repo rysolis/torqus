@@ -8,7 +8,7 @@ TEST(ModIntArithmeticTest, Addition) {
 
   ModInt<7> c = a + b;
 
-  EXPECT_EQ(static_cast<ModInt<7>::raw_value_type>(c), 2);
+  EXPECT_EQ(2, static_cast<ModInt<7>::raw_value_type>(c));
 }
 
 TEST(ModIntArithmeticTest, Addition_WrapsIntoModIntInterval) {
@@ -17,7 +17,7 @@ TEST(ModIntArithmeticTest, Addition_WrapsIntoModIntInterval) {
 
   ModInt<7> c = a + b;
 
-  EXPECT_EQ(static_cast<ModInt<7>::raw_value_type>(c), 1);
+  EXPECT_EQ(1, static_cast<ModInt<7>::raw_value_type>(c));
 }
 
 TEST(ModIntArithmeticTest, Subtraction) {
@@ -26,7 +26,7 @@ TEST(ModIntArithmeticTest, Subtraction) {
 
   ModInt<7> c = a - b;
 
-  EXPECT_EQ(static_cast<ModInt<7>::raw_value_type>(c), 3);
+  EXPECT_EQ(3, static_cast<ModInt<7>::raw_value_type>(c));
 }
 
 TEST(ModIntArithmeticTest, Subtraction_WrapsIntoModIntInterval) {
@@ -35,5 +35,5 @@ TEST(ModIntArithmeticTest, Subtraction_WrapsIntoModIntInterval) {
 
   ModInt<7> c = a - b;
 
-  EXPECT_EQ(static_cast<ModInt<7>::raw_value_type>(c), 4);
+  EXPECT_EQ(4, static_cast<ModInt<7>::raw_value_type>(c));
 }

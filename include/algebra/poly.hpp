@@ -10,7 +10,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "primitive/concept/castable.hpp"
+#include "primitive/concept/convertible.hpp"
+#include "primitive/concept/interpretable.hpp"
+#include "primitive/concept/primitive.hpp"
 
 template <typename T>
 class Poly {
@@ -28,7 +30,7 @@ class Poly {
 
   template <typename F>
     requires requires(F& f) {
-      { std::invoke(f) } -> castable<T>;
+      { std::invoke(f) } -> explicitly_convertible_to<T>;
     }
   explicit Poly(size_t N, F&& f) : Poly(N) {
     for (size_t i = 0; i < size_; ++i) {
@@ -110,19 +112,19 @@ class Poly {
   }
 
   template <typename To, typename From>
-    requires castable<To, From>
+    requires explicitly_convertible_to<To, From>
   friend Poly<To> convert_to(const Poly<From>& poly);
 
   template <typename To, typename From>
-    requires castable<To, From>
+    requires explicitly_convertible_to<To, From>
   friend Poly<To> convert_to(Poly<From>&& poly);
 
   template <typename To, typename From>
-    requires same_representation<To, From>
+    requires interpretable_to<To, From>
   friend Poly<To> interpret_as(const Poly<From>&);
 
   template <typename To, typename From>
-    requires same_representation<To, From>
+    requires interpretable_to<To, From>
   friend Poly<To> interpret_as(Poly<From>&&);
 
   friend std::ostream& operator<<(std::ostream& os, const Poly& poly) {
@@ -143,7 +145,7 @@ class Poly {
 };
 
 template <typename To, typename From>
-  requires castable<To, From>
+  requires explicitly_convertible_to<To, From>
 inline Poly<To> convert_to(const Poly<From>& poly) {
   Poly<To> dst(poly.size());
   for (size_t i = 0; i < poly.size(); ++i) {
@@ -153,7 +155,7 @@ inline Poly<To> convert_to(const Poly<From>& poly) {
 }
 
 template <typename To, typename From>
-  requires castable<To, From>
+  requires explicitly_convertible_to<To, From>
 inline Poly<To> convert_to(Poly<From>&& poly) {
   Poly<To> dst(poly.size());
   for (size_t i = 0; i < poly.size(); ++i) {
@@ -163,7 +165,7 @@ inline Poly<To> convert_to(Poly<From>&& poly) {
 }
 
 template <typename To, typename From>
-  requires same_representation<To, From>
+  requires interpretable_to<To, From>
 inline Poly<To> interpret_as(const Poly<From>& src) {
   std::unique_ptr<typename To::raw_value_type[]> ptr =
       std::make_unique<typename From::raw_value_type[]>(src.size());
@@ -172,7 +174,7 @@ inline Poly<To> interpret_as(const Poly<From>& src) {
 }
 
 template <typename To, typename From>
-  requires same_representation<To, From>
+  requires interpretable_to<To, From>
 inline Poly<To> interpret_as(Poly<From>&& src) {
   size_t N = src.size_;
   return Poly<To>(std::move(src.coeffs_), N);

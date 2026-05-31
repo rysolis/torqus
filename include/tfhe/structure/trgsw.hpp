@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include "primitive/concept/castable.hpp"
+#include "primitive/concept/primitive.hpp"
 #include "primitive/torus.hpp"
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"
@@ -38,7 +38,7 @@ class TRGSW {
 };
 
 template <typename To, typename From>
-  requires castable<To, From>
+  requires explicitly_convertible_to<To, From>
 inline TRGSW<To> convert_to(const TRGSW<From>& src) {
   TRGSW<To> dst(static_cast<uint32_t>(src[0].a().size()), src.level() >> 1);
   for (size_t i = 0; i < src.level(); ++i) {

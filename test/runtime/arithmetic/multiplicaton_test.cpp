@@ -10,10 +10,8 @@ TEST(MultiplicationTest, IdentityCorrectly) {
   Poly<Torus> expected{Torus(2), Torus(2), Torus(2), Torus(2)};
   Poly<Torus> result = lhs * rhs;
 
-  EXPECT_EQ(result.size(), expected.size());
-  for (size_t i = 0; i < result.size(); ++i) {
-    EXPECT_EQ(Torus(result[i]), Torus(expected[i]));
-  }
+  EXPECT_EQ(expected.size(), result.size());
+  EXPECT_EQ(expected, result);
 }
 
 TEST(MultiplicationTest, ZeroPolynomial) {
@@ -24,10 +22,8 @@ TEST(MultiplicationTest, ZeroPolynomial) {
   Poly<Torus> expected{Torus(0), Torus(0), Torus(0), Torus(0)};
   Poly<Torus> result = lhs * rhs;
 
-  EXPECT_EQ(result.size(), expected.size());
-  for (size_t i = 0; i < result.size(); ++i) {
-    EXPECT_EQ(Torus(result[i]), Torus(expected[i]));
-  }
+  EXPECT_EQ(expected.size(), result.size());
+  EXPECT_EQ(expected, result);
 }
 
 TEST(MultiplicationTest, DifferentSizes) {
@@ -49,8 +45,6 @@ TEST(MultiplicationTest, WrapAround) {
 
   Poly<Torus> result = lhs * rhs;
 
-  EXPECT_EQ(result.size(), expected.size());
-  for (size_t i = 0; i < result.size(); ++i) {
-    EXPECT_EQ(Torus(result[i]), Torus(expected[i]));
-  }
+  EXPECT_EQ(expected.size(), result.size());
+  EXPECT_EQ(expected, result);
 }

@@ -21,7 +21,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertTorusLValue2ModTorus) {
   detail::Torus dt(0.5);
   Torus mt = static_cast<Torus>(dt);
 
-  EXPECT_EQ(static_cast<Torus::raw_value_type>(mt), Torus::q / 2);
+  EXPECT_EQ(Torus::q / 2, static_cast<Torus::raw_value_type>(mt));
 }
 
 TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
@@ -29,7 +29,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
 
   Torus mt = static_cast<Torus>(detail::Torus(0.5));
 
-  EXPECT_EQ(static_cast<Torus::raw_value_type>(mt), Torus::q / 2);
+  EXPECT_EQ(Torus::q / 2, static_cast<Torus::raw_value_type>(mt));
 }
 
 // Convert ModTorus to Torus and back, and check if the value is
@@ -40,7 +40,8 @@ TYPED_TEST(ModTorusConvertTest, ConvertModTorusLValue2Torus) {
   Torus mt(Torus::q / 2);
   detail::Torus dt = static_cast<detail::Torus>(mt);
 
-  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(dt), 0.5, 1e-9);
+  EXPECT_NEAR(0.5, static_cast<detail::Torus::raw_value_type>(dt),
+              std::numeric_limits<double>::epsilon());
 }
 
 TYPED_TEST(ModTorusConvertTest, ConvertModTorusRValue2Torus) {
@@ -48,5 +49,6 @@ TYPED_TEST(ModTorusConvertTest, ConvertModTorusRValue2Torus) {
 
   detail::Torus dt = static_cast<detail::Torus>(Torus(Torus::q / 2));
 
-  EXPECT_NEAR(static_cast<detail::Torus::raw_value_type>(dt), 0.5, 1e-9);
+  EXPECT_NEAR(0.5, static_cast<detail::Torus::raw_value_type>(dt),
+              std::numeric_limits<double>::epsilon());
 }

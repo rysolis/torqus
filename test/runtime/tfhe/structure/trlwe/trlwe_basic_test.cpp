@@ -40,9 +40,9 @@ TYPED_TEST(TrlweBasicTest, Generator_InitializedBuffer) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  TRLWE<Torus> trlwe(Ctx::N, []() { return Torus(10); });
+  TRLWE<Torus> trlwe(Ctx::N, []() { return Torus(10u); });
   EXPECT_EQ(trlwe.a().size(), Ctx::N);
-  EXPECT_EQ(trlwe.a(), Poly<Torus>(Ctx::N, []() { return Torus(10); }));
+  EXPECT_EQ(trlwe.a(), Poly<Torus>(Ctx::N, []() { return Torus(10u); }));
   EXPECT_EQ(trlwe.b().size(), Ctx::N);
   EXPECT_EQ(trlwe.b(), Poly<Torus>(Ctx::N));
 }

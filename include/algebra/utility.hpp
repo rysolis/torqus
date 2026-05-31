@@ -1,4 +1,5 @@
 #include "algebra/poly.hpp"
+#include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 
 template <TorusType Torus>

@@ -6,6 +6,7 @@
 
 #include "arithmetic/multiplication.hpp"
 #include "arithmetic/utility.hpp"
+#include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
 #include "tfhe/adapter/adapter.hpp"
 #include "tfhe/structure/trgsw.hpp"

@@ -37,9 +37,9 @@ struct Ctx3 {
 };
 
 struct Ctx4 {
-  static constexpr bool verbose = true;
+  static constexpr bool verbose = false;
   using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
+  static constexpr uint32_t N = 16;
   static constexpr uint32_t B = 4;
   static constexpr uint32_t l = 3;
 };
@@ -57,8 +57,6 @@ class ExternalProductFixture : public ::testing::Test {
   static inline std::shared_ptr<const Poly<UInt>> secret_;
   std::unique_ptr<trlwe::Cryptor<Ctx>> trlwe_cryptor_;
   std::unique_ptr<trgsw::Cryptor<Ctx>> trgsw_cryptor_;
-
-  bool verbose = Ctx::verbose;
 
   // ============================================================
   // shared test inputs
@@ -106,7 +104,7 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {};
 
 using TestContextsCorrectness =
     ::testing::Types<external_product_test::Ctx1, external_product_test::Ctx2,
-                     external_product_test::Ctx3>;
+                     external_product_test::Ctx3, external_product_test::Ctx4>;
 
 TYPED_TEST_SUITE(ExternalProductCorrectnessTest, TestContextsCorrectness);
 
@@ -130,17 +128,17 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
 
   double norm = infinity_norm(decrypted - expected);
 
-  if (this->verbose) {
-    std::cout << "\n=== External Product Test ===\n";
+  std::cout << "\n=== External Product Test ===\n";
+  if (Ctx::verbose) {
     std::cout << "secret    : " << *(this->secret_) << "\n";
     std::cout << "plaintext : " << this->plaintext_ << "\n";
     std::cout << "multiplier: " << this->multiplier_ << "\n\n";
 
     std::cout << "decrypted : " << decrypted << "\n";
     std::cout << "expected  : " << expected << "\n";
-    std::cout << "infinity_norm: " << norm << "\n";
-    std::cout << "===============================\n\n";
   }
+  std::cout << "infinity_norm: " << norm << "\n";
+  std::cout << "===============================\n\n";
 
   EXPECT_LE(norm, ExternalProduct<Ctx>::threshold);
 }

@@ -46,8 +46,13 @@ class Torus : public TorusBase<Torus> {
  public:
   using raw_value_type = double;
 
-  constexpr explicit Torus(raw_value_type t = 0) noexcept
-      : r_(t - std::floor(t)) {}
+  explicit Torus() noexcept = default;
+
+  template <std::floating_point Raw>
+    requires std::convertible_to<Raw, raw_value_type>
+  constexpr explicit Torus(Raw t = 0.0) noexcept
+      : r_(static_cast<raw_value_type>(t) -
+           std::floor(static_cast<raw_value_type>(t))) {}
 
   static constexpr raw_value_type raw_min() { return 0.0; }
   static constexpr raw_value_type raw_max() { return 1.0; }
@@ -92,7 +97,11 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   constexpr static uint32_t qbit = QBit;
   constexpr static uint32_t q = 1 << QBit;
 
-  constexpr explicit ModTorus(raw_value_type m = 0) noexcept : m_(m % q) {}
+  explicit ModTorus() noexcept = default;
+
+  template <std::integral Raw>
+  constexpr explicit ModTorus(Raw m = 0) noexcept
+      : m_(static_cast<raw_value_type>(m) % q) {}
 
   static constexpr raw_value_type raw_min() { return 0; }
   static constexpr raw_value_type raw_max() { return q - 1; }
@@ -190,9 +199,5 @@ inline bool detail::Torus::operator==(
   double norm = infinity_norm((*this) - other);
   return norm < eps;
 }
-
-template <typename Torus>
-concept TorusType = std::derived_from<std::remove_cvref_t<Torus>,
-                                      TorusBase<std::remove_cvref_t<Torus>>>;
 
 #endif

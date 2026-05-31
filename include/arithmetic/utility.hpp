@@ -1,5 +1,5 @@
-#ifndef UTILITY_HPP
-#define UTILITY_HPP
+#ifndef ARITHMETIC_UTILITY_HPP
+#define ARITHMETIC_UTILITY_HPP
 
 #include <concepts>
 

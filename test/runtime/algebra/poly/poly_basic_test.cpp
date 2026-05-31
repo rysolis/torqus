@@ -15,10 +15,10 @@ TYPED_TEST(PolyBasicTest, SizeConstructor_InitializesBuffer) {
   using T = TypeParam;
 
   Poly<T> p(4);
-  EXPECT_EQ(p.size(), 4);
+  EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
-    EXPECT_EQ(p[i], T(0));
+    EXPECT_EQ(T(0), p[i]);
   }
 }
 
@@ -26,10 +26,10 @@ TYPED_TEST(PolyBasicTest, Generator_InitializedBuffer) {
   using T = TypeParam;
 
   Poly<T> p(4, []() { return static_cast<T>(1); });
-  EXPECT_EQ(p.size(), 4);
+  EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
-    EXPECT_EQ(p[i], T(1));
+    EXPECT_EQ(T(1), p[i]);
   }
 }
 
@@ -38,10 +38,10 @@ TYPED_TEST(PolyBasicTest, RawPointerConstructor_InitializesBuffer) {
 
   UInt::raw_value_type ptr[] = {1, 2, 3, 4};
   Poly<T> p(ptr, 4);
-  EXPECT_EQ(p.size(), 4);
+  EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
-    EXPECT_EQ(p[i], T(ptr[i]));
+    EXPECT_EQ(T(ptr[i]), p[i]);
   }
 }
 
@@ -58,10 +58,10 @@ TYPED_TEST(PolyBasicTest, UniquePtrConstructor_InitializesBuffer) {
   auto* raw_ptr = ptr.get();
 
   Poly<T> dst(std::move(ptr), 4);
-  EXPECT_EQ(dst.size(), 4);
+  EXPECT_EQ(4, dst.size());
 
   for (typename T::raw_value_type i = 0; i < dst.size(); ++i) {
-    EXPECT_EQ(dst[i], T(i));
+    EXPECT_EQ(T(i), dst[i]);
   }
 
   EXPECT_EQ(dst.data(), raw_ptr);
@@ -71,10 +71,10 @@ TYPED_TEST(PolyBasicTest, InitializerListConstructor_InitializesBuffer) {
   using T = TypeParam;
 
   Poly<T> p{T(0), T(1), T(2), T(3)};
-  EXPECT_EQ(p.size(), 4);
+  EXPECT_EQ(4, p.size());
 
   for (typename T::raw_value_type i = 0; i < p.size(); ++i) {
-    EXPECT_EQ(p[i], T(i));
+    EXPECT_EQ(T(i), p[i]);
   }
 }
 
@@ -87,11 +87,11 @@ TYPED_TEST(PolyBasicTest, CopyConstructor_CopiesBuffer) {
 
   Poly<T> dst = src;
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], T(1));
-  EXPECT_EQ(dst[1], T(2));
-  EXPECT_EQ(dst[2], T(3));
+  EXPECT_EQ(T(1), dst[0]);
+  EXPECT_EQ(T(2), dst[1]);
+  EXPECT_EQ(T(3), dst[2]);
 
   EXPECT_NE(dst.data(), raw_ptr);
 }
@@ -106,11 +106,11 @@ TYPED_TEST(PolyBasicTest, CopyAssignOperator_CopiesBuffer) {
   Poly<T> dst(3);
   dst = src;
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], T(1));
-  EXPECT_EQ(dst[1], T(2));
-  EXPECT_EQ(dst[2], T(3));
+  EXPECT_EQ(T(1), dst[0]);
+  EXPECT_EQ(T(2), dst[1]);
+  EXPECT_EQ(T(3), dst[2]);
 
   EXPECT_NE(dst.data(), raw_ptr);
 }
@@ -124,11 +124,11 @@ TYPED_TEST(PolyBasicTest, MoveConstructor_MovesBuffer) {
 
   Poly<T> dst = std::move(src);
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], T(1));
-  EXPECT_EQ(dst[1], T(2));
-  EXPECT_EQ(dst[2], T(3));
+  EXPECT_EQ(T(1), dst[0]);
+  EXPECT_EQ(T(2), dst[1]);
+  EXPECT_EQ(T(3), dst[2]);
 
   EXPECT_EQ(dst.data(), raw_ptr);
 }
@@ -143,11 +143,11 @@ TYPED_TEST(PolyBasicTest, MoveAssignOperator_MovesBuffer) {
   Poly<T> dst(3);
   dst = std::move(src);
 
-  EXPECT_EQ(dst.size(), 3);
+  EXPECT_EQ(3, dst.size());
 
-  EXPECT_EQ(dst[0], T(1));
-  EXPECT_EQ(dst[1], T(2));
-  EXPECT_EQ(dst[2], T(3));
+  EXPECT_EQ(T(1), dst[0]);
+  EXPECT_EQ(T(2), dst[1]);
+  EXPECT_EQ(T(3), dst[2]);
 
   EXPECT_EQ(dst.data(), raw_ptr);
 }
@@ -158,20 +158,20 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
   Poly<T> p{T(0), T(1), T(2), T(3)};
 
   T add = static_cast<T>(p[0]) + static_cast<T>(p[1]);
-  EXPECT_EQ(p[0], T(0));
-  EXPECT_EQ(p[1], T(1));
-  EXPECT_EQ(add, T(1));
+  EXPECT_EQ(T(0), p[0]);
+  EXPECT_EQ(T(1), p[1]);
+  EXPECT_EQ(T(1), add);
 
   if constexpr (std::same_as<T, UInt>) {
     EXPECT_THROW({ p[2] - p[3]; }, std::underflow_error);
   } else {
     T sub = static_cast<T>(p[2]) - static_cast<T>(p[3]);
-    EXPECT_EQ(p[2], T(2));
-    EXPECT_EQ(sub, T(static_cast<T::raw_value_type>(-1)));
+    EXPECT_EQ(T(2), p[2]);
+    EXPECT_EQ(T(static_cast<T::raw_value_type>(-1)), sub);
   }
-  EXPECT_EQ(p[3], T(3));
+  EXPECT_EQ(T(3), p[3]);
 
   p[2] = static_cast<T>(p[3]);
-  EXPECT_EQ(p[2], T(3));
-  EXPECT_EQ(p[3], T(3));
+  EXPECT_EQ(T(3), p[2]);
+  EXPECT_EQ(T(3), p[3]);
 }

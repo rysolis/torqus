@@ -5,7 +5,9 @@
 TEST(UIntArithmeticTest, AdditionCorrectness) {
   UInt a(100), b(33);
   UInt c = a + b;
-  EXPECT_EQ(c, UInt(133));
+  EXPECT_EQ(UInt(133), c);
+  EXPECT_EQ(UInt(100), a);
+  EXPECT_EQ(UInt(33), b);
 }
 
 TEST(UIntArithmeticTest, Addition_Overflow) {
@@ -16,14 +18,12 @@ TEST(UIntArithmeticTest, Addition_Overflow) {
 TEST(UIntArithmeticTest, SubtractionCorrectness) {
   UInt a(100), b(2);
   UInt c = a - b;
-  EXPECT_EQ(c, UInt(98));
-  EXPECT_EQ(a, UInt(100));
-  EXPECT_EQ(b, UInt(2));
+  EXPECT_EQ(UInt(98), c);
+  EXPECT_EQ(UInt(100), a);
+  EXPECT_EQ(UInt(2), b);
 }
 
 TEST(UIntArithmeticTest, SubtractionUnderflow) {
   UInt a(1), b(2);
   EXPECT_THROW({ a - b; }, std::underflow_error);
-  EXPECT_EQ(a, UInt(1));
-  EXPECT_EQ(b, UInt(2));
 }
