@@ -4,16 +4,21 @@
 
 namespace torus_conversion_test {
 struct Ctx1 {
+  using Torus = ModTorus<8>;
+};
+struct Ctx2 {
   using Torus = ModTorus<16>;
 };
-}  // namespace torus_conversion_test
+struct Ctx3 {
+  using Torus = ModTorus<32>;
+};
+using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3>;
+};  // namespace torus_conversion_test
 
 template <typename Ctx>
 class ModTorusConvertTest : public ::testing::Test {};
 
-using TestContexts = ::testing::Types<torus_conversion_test::Ctx1>;
-
-TYPED_TEST_SUITE(ModTorusConvertTest, TestContexts);
+TYPED_TEST_SUITE(ModTorusConvertTest, torus_conversion_test::TestContexts);
 
 TYPED_TEST(ModTorusConvertTest, ConvertTorusLValue2ModTorus) {
   using Torus = typename TypeParam::Torus;
@@ -21,7 +26,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertTorusLValue2ModTorus) {
   detail::Torus dt(0.5);
   Torus mt = static_cast<Torus>(dt);
 
-  EXPECT_EQ(Torus::q / 2, static_cast<Torus::raw_value_type>(mt));
+  EXPECT_EQ((1 << (Torus::qbit - 1)), static_cast<Torus::raw_value_type>(mt));
 }
 
 TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
@@ -29,7 +34,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
 
   Torus mt = static_cast<Torus>(detail::Torus(0.5));
 
-  EXPECT_EQ(Torus::q / 2, static_cast<Torus::raw_value_type>(mt));
+  EXPECT_EQ((1 << (Torus::qbit - 1)), static_cast<Torus::raw_value_type>(mt));
 }
 
 // Convert ModTorus to Torus and back, and check if the value is
@@ -37,7 +42,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertTorusRValue2ModTorus) {
 TYPED_TEST(ModTorusConvertTest, ConvertModTorusLValue2Torus) {
   using Torus = typename TypeParam::Torus;
 
-  Torus mt(Torus::q / 2);
+  Torus mt(1 << (Torus::qbit - 1));
   detail::Torus dt = static_cast<detail::Torus>(mt);
 
   EXPECT_NEAR(0.5, static_cast<detail::Torus::raw_value_type>(dt),
@@ -47,7 +52,7 @@ TYPED_TEST(ModTorusConvertTest, ConvertModTorusLValue2Torus) {
 TYPED_TEST(ModTorusConvertTest, ConvertModTorusRValue2Torus) {
   using Torus = typename TypeParam::Torus;
 
-  detail::Torus dt = static_cast<detail::Torus>(Torus(Torus::q / 2));
+  detail::Torus dt = static_cast<detail::Torus>(Torus(1 << (Torus::qbit - 1)));
 
   EXPECT_NEAR(0.5, static_cast<detail::Torus::raw_value_type>(dt),
               std::numeric_limits<double>::epsilon());

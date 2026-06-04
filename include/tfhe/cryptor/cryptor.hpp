@@ -39,7 +39,7 @@ class Cryptor {
   Cryptor(const Cryptor&) = default;
   Cryptor& operator=(const Cryptor&) = default;
 
-  template <TorusType Torus>
+  template <torus_type Torus>
   TRLWE<Torus> encrypt(const Poly<Torus>& message) {
     auto dist =
         default_distribution_t<Torus>(Torus::raw_min(), Torus::raw_max());
@@ -50,7 +50,7 @@ class Cryptor {
     return ciphertext;
   }
 
-  template <TorusType Torus>
+  template <torus_type Torus>
   Poly<Torus> decrypt(const TRLWE<Torus>& ciphertext) {
     Poly<Torus> decrypted(ciphertext.a().size());
 
@@ -80,7 +80,7 @@ class Cryptor {
   Cryptor(const Cryptor&) = default;
   Cryptor& operator=(const Cryptor&) = default;
 
-  template <TorusType Torus>
+  template <torus_type Torus>
   TRGSW<Torus> encrypt(const Poly<UInt>& message) {
     TRGSW<Torus> ciphertext(params::N, params::l);
     auto dist =

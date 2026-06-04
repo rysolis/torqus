@@ -2,7 +2,7 @@
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 
-template <TorusType Torus>
+template <torus_type Torus>
 inline constexpr double infinity_norm(const Poly<Torus>& poly) {
   double max_norm = 0.0;
   for (size_t i = 0; i < poly.size(); ++i) {

@@ -7,7 +7,7 @@ template <typename Torus>
 class TorusBase;
 
 template <typename Torus>
-concept TorusType = std::derived_from<std::remove_cvref_t<Torus>,
-                                      TorusBase<std::remove_cvref_t<Torus>>>;
+concept torus_type = std::derived_from<std::remove_cvref_t<Torus>,
+                                       TorusBase<std::remove_cvref_t<Torus>>>;
 
 #endif

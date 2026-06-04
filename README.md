@@ -27,9 +27,10 @@ The build system is based on CMake and Docker.
 │   │   ├── torus.hpp
 │   │   └── uint.hpp
 │   └── tfhe/
-│       ├── cryptor/
-│       ├── operation/
-│       └── structure/
+│   │   ├── cryptor/
+│   │   ├── operation/
+│   │   └── structure/
+│   └── encoding/
 ├── test/
 │   ├── compile/
 │   ├── runtime/

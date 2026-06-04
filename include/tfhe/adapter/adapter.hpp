@@ -11,6 +11,7 @@ template <typename Ctx>
 struct params : tag {
   static constexpr uint32_t N = Ctx::N;
   static constexpr uint32_t B = Ctx::B;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = Ctx::l;
 };
 

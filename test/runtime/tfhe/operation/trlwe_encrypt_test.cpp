@@ -4,7 +4,7 @@
 
 #include "tfhe/cryptor/cryptor.hpp"
 
-namespace encrypt_torus_test {
+namespace trlwe_encrypt_test {
 
 struct Ctx1 {
   using Torus = ModTorus<16>;
@@ -16,10 +16,9 @@ struct Ctx2 {
   static constexpr uint32_t N = 4;
 };
 
-}  // namespace encrypt_torus_test
+using TestContexts = ::testing::Types<Ctx1, Ctx2>;
 
-using TestContexts =
-    ::testing::Types<encrypt_torus_test::Ctx1, encrypt_torus_test::Ctx2>;
+}  // namespace trlwe_encrypt_test
 
 template <typename Ctx>
 class TrlweEncryptionTest : public ::testing::Test {
@@ -54,7 +53,7 @@ class TrlweEncryptionTest : public ::testing::Test {
   }
 };
 
-TYPED_TEST_SUITE(TrlweEncryptionTest, TestContexts);
+TYPED_TEST_SUITE(TrlweEncryptionTest, trlwe_encrypt_test::TestContexts);
 
 TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename TypeParam::Torus;
@@ -70,5 +69,5 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   std::cout << "diff      : " << decrypted - this->plaintext_ << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_EQ(decrypted, this->plaintext_);
+  EXPECT_EQ(this->plaintext_, decrypted);
 }

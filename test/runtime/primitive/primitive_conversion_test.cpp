@@ -31,10 +31,10 @@ TEST(PrimitiveConversionTest, ModInt2UInt) {
 TEST(PrimitiveConversionTest, ModTorus2ModInt) {
   using Zp = ModInt<12289>;
   using Torus = ModTorus<16>;
-  Torus t(Torus::q - 1);
+  Torus t(Torus::raw_max());
   Zp x(static_cast<Torus::raw_value_type>(t));
-  EXPECT_EQ(Torus(Torus::q - 1), t);
-  EXPECT_EQ(Zp(Torus::q - 1), x);
+  EXPECT_EQ(Torus(Torus::raw_max()), t);
+  EXPECT_EQ(Zp(Torus::raw_max()), x);
 }
 
 TEST(PrimitiveConversionTest, ModInt2ModTorus) {

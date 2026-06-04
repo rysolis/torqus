@@ -11,7 +11,7 @@
 template <typename Ctx>
 class ExternalProduct {
  public:
-  template <TorusType Torus>
+  template <torus_type Torus>
   TRLWE<Torus> operator()(const TRGSW<Torus>& bk,
                           const TRLWE<Torus>& trlwe) const {
     GadgetTRLWE<Ctx> gd(trlwe);

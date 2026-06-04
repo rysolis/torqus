@@ -2,7 +2,9 @@
 #define GADGET_REPR_HPP
 
 #include <bit>
+#include <bitset>
 #include <concepts>
+#include <iostream>
 #include <vector>
 
 #include "algebra/poly.hpp"
@@ -12,32 +14,101 @@
 #include "tfhe/adapter/adapter.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
+namespace {
+
+namespace classical {
+
+template <typename Ctx, torus_type Torus,
+          typename params = decompose::params<Ctx>>
+UInt decompose(const Torus& v, size_t i) {
+  size_t shift = Torus::qbit - (params::Bbit * (i + 1));
+  assert(shift <= (Torus::qbit - params::Bbit));
+
+  UInt::raw_value_type w =
+      UInt::raw_value_type(static_cast<Torus::raw_value_type>(v));
+  UInt::raw_value_type tmp = (w >> shift) & (params::B - 1);
+  return UInt(tmp);
+}
+
+template <typename Ctx, torus_type Torus,
+          typename params = decompose::params<Ctx>>
+Torus reconstruct(const std::vector<Poly<UInt>>& repr, size_t j) {
+  typename Torus::raw_value_type m = 0;
+  for (size_t i = 0; i < params::l; ++i) {
+    size_t shift = Torus::qbit - (params::Bbit * (i + 1));
+    assert(shift <= (Torus::qbit - params::Bbit));
+    UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
+    m |= v << shift;
+  }
+  return Torus(m);
+}
+
+}  // namespace classical
+
+namespace balanced {
+
+// Compute {d_i} s.t. v = sum_i (d_i * B^i), where d_i in [-B/2, B/2).
+//  v = sum_i (d_i * B^i) = sum_i (e_i - (Bg/2)) * B^i = sum_i (e_i * B^i) -
+// (Bg/2) * sum_i (B^i).
+// Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
+template <typename Ctx, torus_type Torus,
+          typename params = decompose::params<Ctx>>
+UInt decompose(const Torus& v, size_t i) {
+  size_t shift = Torus::qbit - (params::Bbit * (i + 1));
+  assert(shift <= (Torus::qbit - params::Bbit));
+
+  // To mitigate the effect of quantization error, we add a rounding offset
+  // before extraction.
+  UInt::raw_value_type round = 0;
+  if constexpr (Torus::qbit - (params::Bbit * params::l) > 0) {
+    round = 1u << (Torus::qbit - (params::Bbit * params::l) - 1);
+  }
+  UInt::raw_value_type offset = 0;
+  for (size_t i = 0; i < params::l; ++i) {
+    offset += (params::B / 2) << (Torus::qbit - (params::Bbit * (i + 1)));
+  }
+  UInt::raw_value_type w = UInt::raw_value_type(
+      static_cast<Torus::raw_value_type>(v) + offset + round);
+  UInt::raw_value_type tmp = ((w >> shift) & (params::B - 1)) - (params::B / 2);
+  return UInt(tmp);
+}
+
+template <typename Ctx, torus_type Torus,
+          typename params = decompose::params<Ctx>>
+Torus reconstruct(const std::vector<Poly<UInt>>& repr, size_t j) {
+  UInt::raw_value_type offset = 0;
+  for (size_t i = 0; i < params::l; ++i) {
+    offset += (params::B / 2) << (Torus::qbit - (params::Bbit * (i + 1)));
+  }
+  typename Torus::raw_value_type m = 0;
+  for (size_t i = 0; i < params::l; ++i) {
+    size_t shift = Torus::qbit - (params::Bbit * (i + 1));
+    assert(shift <= (Torus::qbit - params::Bbit));
+
+    UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
+    m |= ((v + (params::B / 2)) & (params::B - 1)) << shift;
+  }
+  m -= offset;
+  return Torus(m);
+}
+
+}  // namespace balanced
+
+}  // namespace
+
 template <typename Ctx, typename params = decompose::params<Ctx>>
   requires std::derived_from<params, decompose::tag>
 class GadgetRepr {
  public:
   // Torus shoule be ModTorus<QBit> !!
-  template <TorusType Torus>
+  template <torus_type Torus>
   explicit GadgetRepr(const Poly<Torus>& poly)
       : repr_(params::l, Poly<UInt>(params::N)) {
-    static_assert(Torus::qbit >= Bbit_ * params::l,
+    static_assert(Torus::qbit >= params::Bbit * params::l,
                   "Torus qbit must be greater than or equal to Bbit * l");
-
-    auto extract = [Bbit = Bbit_](const UInt::raw_value_type m,
-                                  const size_t idx) -> UInt {
-      size_t shift = Torus::qbit - (Bbit * (idx + 1));
-      assert(shift <= (Torus::qbit - Bbit));
-      UInt::raw_value_type tmp = (m >> shift) & (params::B - 1);
-      assert(tmp < params::B);
-      return static_cast<UInt>(tmp);
-    };
-
     for (size_t j = 0; j < params::N; ++j) {
       for (size_t i = 0; i < params::l; ++i) {
-        Torus v = poly[j];
-        UInt w = UInt(static_cast<UInt::raw_value_type>(
-            static_cast<Torus::raw_value_type>(v)));
-        repr_[i][j] = extract(static_cast<UInt::raw_value_type>(w), i);
+        repr_[i][j] = balanced::decompose<Ctx>(poly[j], i);
       }
     }
   }
@@ -47,14 +118,7 @@ class GadgetRepr {
     Poly<Torus> poly(params::N);
 
     for (size_t j = 0; j < params::N; ++j) {
-      UInt::raw_value_type m = 0;
-      for (size_t i = 0; i < params::l; ++i) {
-        size_t shift = Torus::qbit - (Bbit_ * (i + 1));
-        assert(shift <= (Torus::qbit - Bbit_));
-        UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr_[i][j]);
-        m |= v << shift;
-      }
-      poly[j] = Torus(m);
+      poly[j] = balanced::reconstruct<Ctx, Torus>(repr_, j);
     }
 
     return poly;
@@ -70,12 +134,14 @@ class GadgetRepr {
     return os;
   }
 
+  // 2^(qbit-Bbit*l) / 2^qbit
+  // = 2^(-(Bbit*l))
+  template <torus_type Torus>
   static constexpr double threshold =
-      1.0 / (1ULL << (std::bit_width(params::B - 1) * params::l));
+      1.0 / (1ULL << (params::Bbit * params::l));
 
  private:
   std::vector<Poly<UInt>> repr_;
-  static constexpr size_t Bbit_{std::bit_width(params::B - 1)};
 };
 
 template <typename Ctx>

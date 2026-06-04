@@ -15,15 +15,14 @@ struct Ctx2 {
   static constexpr uint32_t N = 32;
 };
 
+using TestContexts = ::testing::Types<Ctx1, Ctx2>;
+
 }  // namespace trlwe_basic_test
 
 template <typename Ctx>
 class TrlweBasicTest : public ::testing::Test {};
 
-using TestContexts =
-    ::testing::Types<trlwe_basic_test::Ctx1, trlwe_basic_test::Ctx2>;
-
-TYPED_TEST_SUITE(TrlweBasicTest, TestContexts);
+TYPED_TEST_SUITE(TrlweBasicTest, trlwe_basic_test::TestContexts);
 
 TYPED_TEST(TrlweBasicTest, SizeConstructor_initializesBuffer) {
   using Ctx = TypeParam;

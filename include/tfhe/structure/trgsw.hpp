@@ -10,7 +10,7 @@
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
-template <TorusType Torus>
+template <torus_type Torus>
 class TRGSW {
  public:
   TRGSW() = default;

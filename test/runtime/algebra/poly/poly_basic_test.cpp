@@ -5,12 +5,14 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
+namespace poly_basic_test {
+using TestContexts = ::testing::Types<UInt, ModTorus<16>, ModInt<7>>;
+}
+
 template <typename T>
 class PolyBasicTest : public ::testing::Test {};
 
-using PolyTestTypes = ::testing::Types<UInt, ModTorus<16>, ModInt<7>>;
-
-TYPED_TEST_SUITE(PolyBasicTest, PolyTestTypes);
+TYPED_TEST_SUITE(PolyBasicTest, poly_basic_test::TestContexts);
 
 TYPED_TEST(PolyBasicTest, SizeConstructor_InitializesBuffer) {
   using T = TypeParam;

@@ -41,7 +41,8 @@ TEST(MultiplicationTest, WrapAround) {
   Poly<UInt> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};
   Poly<Torus> rhs{Torus(5), Torus(6), Torus(7), Torus(8)};
 
-  Poly<Torus> expected{Torus(Torus::q - 8), Torus(5), Torus(6), Torus(7)};
+  Poly<Torus> expected{Torus(Torus::raw_max() - 7), Torus(5), Torus(6),
+                       Torus(7)};
 
   Poly<Torus> result = lhs * rhs;
 

@@ -10,7 +10,7 @@
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
-template <TorusType Torus>
+template <torus_type Torus>
 class TRLWE {
  public:
   TRLWE(uint32_t N) : a_(N), b_(N) {}
@@ -63,13 +63,13 @@ inline TRLWE<To> convert_to(const TRLWE<From>& src) {
   return TRLWE<To>(convert_to<To>(src.a()), convert_to<To>(src.b()));
 }
 
-template <TorusType Torus>
+template <torus_type Torus>
 inline TRLWE<Torus> operator+(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs += rhs;
   return lhs;
 }
 
-template <TorusType Torus>
+template <torus_type Torus>
 inline TRLWE<Torus> operator-(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
   lhs -= rhs;
   return lhs;

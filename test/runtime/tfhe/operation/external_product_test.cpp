@@ -38,11 +38,13 @@ struct Ctx3 {
 
 struct Ctx4 {
   static constexpr bool verbose = false;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 16;
+  using Torus = ModTorus<32>;
+  static constexpr uint32_t N = 1024;
   static constexpr uint32_t B = 4;
-  static constexpr uint32_t l = 3;
+  static constexpr uint32_t l = 7;
 };
+
+using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3, Ctx4>;
 
 }  // namespace external_product_test
 
@@ -59,15 +61,15 @@ class ExternalProductFixture : public ::testing::Test {
   std::unique_ptr<trgsw::Cryptor<Ctx>> trgsw_cryptor_;
 
   // ============================================================
-  // shared test inputs
+  // test inputs
   // ============================================================
 
-  static inline Poly<UInt> multiplier_;
-  static inline TRGSW<Torus> encrypted_multiplier_;
+  Poly<UInt> multiplier_;
+  TRGSW<Torus> encrypted_multiplier_;
 
-  static inline Poly<Torus> plaintext_;
+  Poly<Torus> plaintext_;
 
-  static inline ExternalProduct<Ctx> extprod_;
+  ExternalProduct<Ctx> extprod_;
 
   void SetUp() override {
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
@@ -102,11 +104,8 @@ class ExternalProductFixture : public ::testing::Test {
 template <typename Ctx>
 class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {};
 
-using TestContextsCorrectness =
-    ::testing::Types<external_product_test::Ctx1, external_product_test::Ctx2,
-                     external_product_test::Ctx3, external_product_test::Ctx4>;
-
-TYPED_TEST_SUITE(ExternalProductCorrectnessTest, TestContextsCorrectness);
+TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
+                 external_product_test::TestContexts);
 
 TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   using Ctx = TypeParam;
@@ -118,12 +117,9 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   // ==================================
   Poly<Torus> expected = this->multiplier_ * this->plaintext_;
   // ----------------------------------
-  Poly<Torus> decrypted = [&] {
-    TRLWE<Torus> hom_mul = this->extprod_(this->encrypted_multiplier_,
-                                          convert_to<Torus>(encrypted));
-
-    return this->trlwe_cryptor_->template decrypt<Torus>(hom_mul);
-  }();
+  TRLWE<Torus> hom_mul = this->extprod_(this->encrypted_multiplier_, encrypted);
+  Poly<Torus> decrypted =
+      this->trlwe_cryptor_->template decrypt<Torus>(hom_mul);
   // ==================================
 
   double norm = infinity_norm(decrypted - expected);

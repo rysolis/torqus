@@ -94,17 +94,18 @@ template <uint32_t QBit>
 class ModTorus : public TorusBase<ModTorus<QBit>> {
  public:
   using raw_value_type = uint32_t;
-  constexpr static uint32_t qbit = QBit;
-  constexpr static uint32_t q = 1 << QBit;
+  static constexpr uint32_t qbit = QBit;
 
   explicit ModTorus() noexcept = default;
 
   template <std::integral Raw>
   constexpr explicit ModTorus(Raw m = 0) noexcept
-      : m_(static_cast<raw_value_type>(m) % q) {}
+      : m_(static_cast<raw_value_type>(m) & mask()) {}
 
   static constexpr raw_value_type raw_min() { return 0; }
-  static constexpr raw_value_type raw_max() { return q - 1; }
+  static constexpr raw_value_type raw_max() {
+    return static_cast<raw_value_type>(-1) & mask();
+  }
 
   constexpr explicit operator detail::Torus() const noexcept;
 
@@ -117,32 +118,36 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
 
   constexpr ModTorus<QBit>& operator+=(const ModTorus<QBit>& other) noexcept {
     m_ += other.m_;
-    m_ %= q;
+    m_ &= mask();
     return *this;
   }
 
   constexpr ModTorus<QBit>& operator-=(const ModTorus<QBit>& other) noexcept {
     m_ -= other.m_;  // Since Q is a power of two, using an unsigned
                      // integer for m_ is safe.
-    m_ %= q;
+    m_ &= mask();
     return *this;
   }
 
  private:
+  static constexpr raw_value_type mask() noexcept {
+    return std::numeric_limits<raw_value_type>::max() >>
+           (std::numeric_limits<raw_value_type>::digits - qbit);
+  }
   raw_value_type m_;
 };
 
 template <uint32_t QBit>
 inline constexpr detail::Torus::operator ModTorus<QBit>() const noexcept {
   return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(
-      ModTorus<QBit>::q * this->value()));
+      std::pow(2, ModTorus<QBit>::qbit) * this->value()));
 }
 
 template <uint32_t QBit>
 inline constexpr ModTorus<QBit>::operator detail::Torus() const noexcept {
   return detail::Torus(
       static_cast<detail::Torus::raw_value_type>(this->value()) /
-      ModTorus<QBit>::q);
+      std::pow(2, ModTorus<QBit>::qbit));
 }
 
 inline constexpr detail::Torus operator+(detail::Torus lhs,
