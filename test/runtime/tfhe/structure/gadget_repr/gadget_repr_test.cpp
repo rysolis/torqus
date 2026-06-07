@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <bit>
 #include <random>
 
 #include "algebra/poly.hpp"
@@ -14,6 +15,7 @@ struct Ctx1 {
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
   static constexpr uint32_t B = 4;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 3;
 };
 
@@ -22,6 +24,7 @@ struct Ctx2 {
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 8;
   static constexpr uint32_t B = 4;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 3;
 };
 
@@ -30,6 +33,7 @@ struct Ctx3 {
   using Torus = ModTorus<32>;
   static constexpr uint32_t N = 1024;
   static constexpr uint32_t B = 2;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 4;
 };
 
@@ -49,14 +53,14 @@ class GadgetReprTest : public ::testing::Test {
   // test inputs
   // ============================================================
 
-  Poly<Torus> plaintext_;
+  Poly<Torus, Ctx::N> plaintext_;
 
   void SetUp() override {
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
     this->plaintext_ =
-        Poly<Torus>(Ctx::N, [&eng = this->eng_, &dist = torus_dist]() {
+        Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
           return static_cast<Torus>(dist(eng));
         });
   }
@@ -68,27 +72,29 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
-      Torus::raw_min(), Torus::raw_max());
+  Poly<Torus, Ctx::N> poly = this->plaintext_;
 
-  Poly<Torus> poly = this->plaintext_;
+  EXPECT_EQ(poly.size(), Ctx::N);
 
   GadgetRepr<Ctx> repr(poly);
-  Poly<Torus> reconstructed = repr.template reconstruct<Torus>();
+  Poly<Torus, Ctx::N> reconstructed = repr.template reconstruct<Torus>();
 
   double error_norm = infinity_norm(poly - reconstructed);
+
+  EXPECT_LE(error_norm, GadgetRepr<Ctx>::template threshold<Torus>);
 
   // clang-format off
   std::cout << "\n=== GadgetRepr Decomposition & Reconstruction Test ===\n";
   if (Ctx::verbose) {
-    std::cout << "Original:      " << poly << "\n";
-    std::cout << "Reconstructed: " << reconstructed << "\n";
+  std::cout << "Original:      " << poly << "\n";
+  std::cout << "Reconstructed: " << reconstructed << "\n";
   }
 
   std::cout << "Analysis:\n";
   std::cout << "  Infinity norm: " << error_norm << "\n";
-  std::cout << "  Threshold: " << GadgetRepr<Ctx>::template threshold<Torus> << "\n";
-  std::cout << "=====================================================\n\n";
+  std::cout << "  Threshold: " << GadgetRepr<Ctx>::template threshold<Torus>
+  << "\n"; std::cout <<
+  "=====================================================\n\n";
   // clang-format on
 
   EXPECT_LT(error_norm, (GadgetRepr<Ctx>::template threshold<Torus>));

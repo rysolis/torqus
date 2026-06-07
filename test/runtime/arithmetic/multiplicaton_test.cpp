@@ -1,50 +1,79 @@
 #include <gtest/gtest.h>
 
-#include "arithmetic/multiplication.hpp"
+#include "algebra/poly.hpp"
+#include "arithmetic/negacyclic_convolution.hpp"
+#include "primitive/torus.hpp"
+#include "primitive/uint.hpp"
 
-TEST(MultiplicationTest, IdentityCorrectly) {
+namespace multiplication_test {
+
+struct Ctx1 {
   using Torus = ModTorus<16>;
-  Poly<UInt> lhs{UInt(1), UInt(0), UInt(0), UInt(0)};
-  Poly<Torus> rhs{Torus(2), Torus(2), Torus(2), Torus(2)};
+  static constexpr uint32_t N = 4;
+};
 
-  Poly<Torus> expected{Torus(2), Torus(2), Torus(2), Torus(2)};
-  Poly<Torus> result = lhs * rhs;
+using TestContests = ::testing::Types<Ctx1>;
+
+}  // namespace multiplication_test
+
+template <typename Ctx>
+class ConvolutionTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(ConvolutionTest, multiplication_test::TestContests);
+
+TYPED_TEST(ConvolutionTest, IdentityCorrectly) {
+  using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
+
+  Poly<UInt, Ctx::N> lhs{UInt(1), UInt(0), UInt(0), UInt(0)};
+  Poly<Torus, Ctx::N> rhs{Torus(2), Torus(2), Torus(2), Torus(2)};
+
+  Poly<Torus, Ctx::N> expected{Torus(2), Torus(2), Torus(2), Torus(2)};
+  Poly<Torus, Ctx::N> result = negacyclic_convolution(lhs, rhs);
 
   EXPECT_EQ(expected.size(), result.size());
   EXPECT_EQ(expected, result);
 }
 
-TEST(MultiplicationTest, ZeroPolynomial) {
-  using Torus = ModTorus<16>;
-  Poly<UInt> lhs{UInt(0), UInt(0), UInt(0), UInt(0)};
-  Poly<Torus> rhs{Torus(2), Torus(2), Torus(2), Torus(2)};
+TYPED_TEST(ConvolutionTest, ZeroPolynomial) {
+  using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
+  Poly<UInt, Ctx::N> lhs{UInt(0), UInt(0), UInt(0), UInt(0)};
+  Poly<Torus, Ctx::N> rhs{Torus(2), Torus(2), Torus(2), Torus(2)};
 
-  Poly<Torus> expected{Torus(0), Torus(0), Torus(0), Torus(0)};
-  Poly<Torus> result = lhs * rhs;
+  Poly<Torus, Ctx::N> expected{Torus(0), Torus(0), Torus(0), Torus(0)};
+  Poly<Torus, Ctx::N> result = negacyclic_convolution(lhs, rhs);
 
   EXPECT_EQ(expected.size(), result.size());
   EXPECT_EQ(expected, result);
 }
 
-TEST(MultiplicationTest, DifferentSizes) {
-  using Torus = ModTorus<16>;
-  Poly<UInt> lhs{UInt(1), UInt(2), UInt(3), UInt(4), UInt(5)};
-  Poly<Torus> rhs{Torus(5), Torus(6), Torus(7), Torus(8)};
+TYPED_TEST(ConvolutionTest, WrapAround) {
+  using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
+  Poly<UInt, Ctx::N> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};
+  Poly<Torus, Ctx::N> rhs{Torus(5), Torus(6), Torus(7), Torus(8)};
 
-  Poly<Torus> expected{Torus(5), Torus(16), Torus(34), Torus(60)};
+  Poly<Torus, Ctx::N> expected{Torus(Torus::raw_max() - 7), Torus(5), Torus(6),
+                               Torus(7)};
 
-  EXPECT_DEBUG_DEATH({ Poly<Torus> result = lhs * rhs; }, ".*");
+  Poly<Torus, Ctx::N> result = negacyclic_convolution(lhs, rhs);
+
+  EXPECT_EQ(expected.size(), result.size());
+  EXPECT_EQ(expected, result);
 }
 
-TEST(MultiplicationTest, WrapAround) {
-  using Torus = ModTorus<16>;
-  Poly<UInt> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};
-  Poly<Torus> rhs{Torus(5), Torus(6), Torus(7), Torus(8)};
+TYPED_TEST(ConvolutionTest, DoubleApply) {
+  using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
+  Poly<UInt, Ctx::N> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};
+  Poly<Torus, Ctx::N> rhs{Torus(5), Torus(6), Torus(7), Torus(8)};
 
-  Poly<Torus> expected{Torus(Torus::raw_max() - 7), Torus(5), Torus(6),
-                       Torus(7)};
+  Poly<Torus, Ctx::N> expected{Torus(Torus::raw_max() - 6),
+                               Torus(Torus::raw_max() - 7), Torus(5), Torus(6)};
 
-  Poly<Torus> result = lhs * rhs;
+  Poly<Torus, Ctx::N> result =
+      negacyclic_convolution(lhs, negacyclic_convolution(lhs, rhs));
 
   EXPECT_EQ(expected.size(), result.size());
   EXPECT_EQ(expected, result);

@@ -1,16 +1,17 @@
 #include <gtest/gtest.h>
 
 #include "algebra/poly.hpp"
+#include "algebra/utility.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
 TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
   using Torus = ModTorus<16>;
-  Poly<Torus> src{Torus(1), Torus(2), Torus(3)};
+  Poly<Torus, 3> src{Torus(1), Torus(2), Torus(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<ModInt<100>> dst = interpret_as<ModInt<100>>(src);
+  Poly<ModInt<100>, 3> dst = interpret_as<ModInt<100>>(src);
 
   EXPECT_EQ(3, dst.size());
 
@@ -23,11 +24,11 @@ TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
 
 TEST(PolyInterpretationTest, MoveBuffersPolyByInterpretation) {
   using Torus = ModTorus<16>;
-  Poly<Torus> src{Torus(1), Torus(2), Torus(3)};
+  Poly<Torus, 3> src{Torus(1), Torus(2), Torus(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<ModInt<100>> dst = interpret_as<ModInt<100>>(std::move(src));
+  Poly<ModInt<100>, 3> dst = interpret_as<ModInt<100>>(std::move(src));
 
   EXPECT_EQ(3, dst.size());
 

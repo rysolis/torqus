@@ -3,11 +3,11 @@
 
 #include <iostream>
 
-template <typename T>
+template <typename T, uint32_t N>
 class Poly;
 
-template <typename T>
-class Poly<T>::Proxy {
+template <typename T, uint32_t N>
+class Poly<T, N>::Proxy {
  public:
   using value_type = T;
   using raw_value_type = typename T::raw_value_type;

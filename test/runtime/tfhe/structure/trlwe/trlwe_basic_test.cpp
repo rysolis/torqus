@@ -28,20 +28,20 @@ TYPED_TEST(TrlweBasicTest, SizeConstructor_initializesBuffer) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  TRLWE<Torus> trlwe(Ctx::N);
+  TRLWE<Torus, Ctx::N> trlwe;
   EXPECT_EQ(trlwe.a().size(), Ctx::N);
-  EXPECT_EQ(trlwe.a(), Poly<Torus>(Ctx::N));
+  EXPECT_EQ(trlwe.a(), (Poly<Torus, Ctx::N>()));
   EXPECT_EQ(trlwe.b().size(), Ctx::N);
-  EXPECT_EQ(trlwe.b(), Poly<Torus>(Ctx::N));
+  EXPECT_EQ(trlwe.b(), (Poly<Torus, Ctx::N>()));
 }
 
 TYPED_TEST(TrlweBasicTest, Generator_InitializedBuffer) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  TRLWE<Torus> trlwe(Ctx::N, []() { return Torus(10u); });
+  TRLWE<Torus, Ctx::N> trlwe([]() { return Torus(10u); });
   EXPECT_EQ(trlwe.a().size(), Ctx::N);
-  EXPECT_EQ(trlwe.a(), Poly<Torus>(Ctx::N, []() { return Torus(10u); }));
+  EXPECT_EQ(trlwe.a(), (Poly<Torus, Ctx::N>([]() { return Torus(10u); })));
   EXPECT_EQ(trlwe.b().size(), Ctx::N);
-  EXPECT_EQ(trlwe.b(), Poly<Torus>(Ctx::N));
+  EXPECT_EQ(trlwe.b(), (Poly<Torus, Ctx::N>()));
 }

@@ -28,18 +28,18 @@ class TrlweEncryptionTest : public ::testing::Test {
 
   using Torus = typename Ctx::Torus;
 
-  static inline std::shared_ptr<const Poly<UInt>> secret_;
+  static inline std::shared_ptr<const Poly<UInt, Ctx::N>> secret_;
   std::unique_ptr<trlwe::Cryptor<Ctx>> cryptor_;
 
-  static inline Poly<Torus> plaintext_;
+  static inline Poly<Torus, Ctx::N> plaintext_;
 
   void SetUp() override {
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
-    this->secret_ = std::make_shared<const Poly<UInt>>(
-        Ctx::N, [&eng = this->eng_, &dist = binary_dist]() {
+    this->secret_ = std::make_shared<const Poly<UInt, Ctx::N>>(
+        [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
@@ -47,7 +47,7 @@ class TrlweEncryptionTest : public ::testing::Test {
         std::make_unique<trlwe::Cryptor<Ctx>>(this->secret_, this->eng_);
 
     this->plaintext_ =
-        Poly<Torus>(Ctx::N, [&eng = this->eng_, &dist = torus_dist]() {
+        Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
           return static_cast<Torus>(dist(eng));
         });
   }
@@ -56,12 +56,14 @@ class TrlweEncryptionTest : public ::testing::Test {
 TYPED_TEST_SUITE(TrlweEncryptionTest, trlwe_encrypt_test::TestContexts);
 
 TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
-  using Torus = typename TypeParam::Torus;
+  using Ctx = TypeParam;
+  using Torus = typename Ctx::Torus;
 
-  TRLWE<Torus> ciphertext =
+  TRLWE<Torus, Ctx::N> ciphertext =
       this->cryptor_->template encrypt<Torus>(this->plaintext_);
 
-  Poly<Torus> decrypted = this->cryptor_->template decrypt<Torus>(ciphertext);
+  Poly<Torus, Ctx::N> decrypted =
+      this->cryptor_->template decrypt<Torus>(ciphertext);
 
   std::cout << "\n=== TRLWE Encryption Test ===\n";
   std::cout << "expected : " << this->plaintext_ << "\n";

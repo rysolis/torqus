@@ -10,23 +10,23 @@
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
-template <torus_type Torus>
+template <torus_type Torus, uint32_t N>
 class TRLWE {
  public:
-  TRLWE(uint32_t N) : a_(N), b_(N) {}
+  TRLWE() = default;
   // NOLINT(bugprone-easily-swappable-parameters)
-  TRLWE(const Poly<Torus>& a, const Poly<Torus>& b) : a_(a), b_(b) {}
+  TRLWE(const Poly<Torus, N>& a, const Poly<Torus, N>& b) : a_(a), b_(b) {}
 
   template <typename F>
     requires requires(F& f) {
       { std::invoke(f) } -> explicitly_convertible_to<Torus>;
     }
-  TRLWE(uint32_t N, F&& f) : a_(N, std::forward<F>(f)), b_(N) {}
+  TRLWE(F&& f) : a_(std::forward<F>(f)) {}
 
-  Poly<Torus>& a() { return a_; }
-  const Poly<Torus>& a() const { return a_; }
-  Poly<Torus>& b() { return b_; }
-  const Poly<Torus>& b() const { return b_; }
+  Poly<Torus, N>& a() { return a_; }
+  const Poly<Torus, N>& a() const { return a_; }
+  Poly<Torus, N>& b() { return b_; }
+  const Poly<Torus, N>& b() const { return b_; }
 
   TRLWE& operator+=(const TRLWE& other) {
     a_ += other.a_;
@@ -46,31 +46,33 @@ class TRLWE {
   }
 
  private:
-  Poly<Torus> a_;
-  Poly<Torus> b_;
+  Poly<Torus, N> a_;
+  Poly<Torus, N> b_;
 };
 
-template <typename To, typename From>
+template <typename To, typename From, uint32_t N>
   requires explicitly_convertible_to<To, From>
-inline TRLWE<To> convert_to(TRLWE<From>&& src) {
-  return TRLWE<To>(convert_to<To>(std::move(src.a())),
-                   convert_to<To>(std::move(src.b())));
+inline TRLWE<To, N> convert_to(TRLWE<From, N>&& src) {
+  return TRLWE<To, N>(convert_to<To, N>(std::move(src.a())),
+                      convert_to<To, N>(std::move(src.b())));
 }
 
-template <typename To, typename From>
+template <typename To, typename From, uint32_t N>
   requires explicitly_convertible_to<To, From>
-inline TRLWE<To> convert_to(const TRLWE<From>& src) {
-  return TRLWE<To>(convert_to<To>(src.a()), convert_to<To>(src.b()));
+inline TRLWE<To, N> convert_to(const TRLWE<From, N>& src) {
+  return TRLWE<To, N>(convert_to<To, N>(src.a()), convert_to<To, N>(src.b()));
 }
 
-template <torus_type Torus>
-inline TRLWE<Torus> operator+(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
+template <torus_type Torus, uint32_t N>
+inline TRLWE<Torus, N> operator+(TRLWE<Torus, N> lhs,
+                                 const TRLWE<Torus, N>& rhs) {
   lhs += rhs;
   return lhs;
 }
 
-template <torus_type Torus>
-inline TRLWE<Torus> operator-(TRLWE<Torus> lhs, const TRLWE<Torus>& rhs) {
+template <torus_type Torus, uint32_t N>
+inline TRLWE<Torus, N> operator-(TRLWE<Torus, N> lhs,
+                                 const TRLWE<Torus, N>& rhs) {
   lhs -= rhs;
   return lhs;
 }

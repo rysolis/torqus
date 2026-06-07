@@ -17,6 +17,7 @@ struct Ctx1 {
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
   static constexpr uint32_t B = 4;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 3;
 };
 
@@ -25,6 +26,7 @@ struct Ctx2 {
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 4;
   static constexpr uint32_t B = 4;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 3;
 };
 
@@ -33,6 +35,7 @@ struct Ctx3 {
   using Torus = ModTorus<16>;
   static constexpr uint32_t N = 8;
   static constexpr uint32_t B = 8;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 3;
 };
 
@@ -41,6 +44,7 @@ struct Ctx4 {
   using Torus = ModTorus<32>;
   static constexpr uint32_t N = 1024;
   static constexpr uint32_t B = 4;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = 7;
 };
 
@@ -56,7 +60,7 @@ class ExternalProductFixture : public ::testing::Test {
 
   using Torus = typename Ctx::Torus;
 
-  static inline std::shared_ptr<const Poly<UInt>> secret_;
+  static inline std::shared_ptr<const Poly<UInt, Ctx::N>> secret_;
   std::unique_ptr<trlwe::Cryptor<Ctx>> trlwe_cryptor_;
   std::unique_ptr<trgsw::Cryptor<Ctx>> trgsw_cryptor_;
 
@@ -64,10 +68,10 @@ class ExternalProductFixture : public ::testing::Test {
   // test inputs
   // ============================================================
 
-  Poly<UInt> multiplier_;
-  TRGSW<Torus> encrypted_multiplier_;
+  Poly<UInt, Ctx::N> multiplier_;
+  TRGSW<Torus, Ctx::N> encrypted_multiplier_;
 
-  Poly<Torus> plaintext_;
+  Poly<Torus, Ctx::N> plaintext_;
 
   ExternalProduct<Ctx> extprod_;
 
@@ -77,13 +81,13 @@ class ExternalProductFixture : public ::testing::Test {
         Torus::raw_min(), Torus::raw_max());
 
     this->plaintext_ =
-        Poly<Torus>(Ctx::N, [&eng = this->eng_, &dist = torus_dist]() {
+        Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
           return static_cast<Torus>(dist(eng));
         });
 
     // secret
-    this->secret_ = std::make_shared<const Poly<UInt>>(
-        Ctx::N, [&eng = this->eng_, &dist = binary_dist]() {
+    this->secret_ = std::make_shared<const Poly<UInt, Ctx::N>>(
+        [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
@@ -93,7 +97,6 @@ class ExternalProductFixture : public ::testing::Test {
     this->trgsw_cryptor_ =
         std::make_unique<trgsw::Cryptor<Ctx>>(this->secret_, this->eng_);
 
-    this->multiplier_ = Poly<UInt>(Ctx::N);
     this->multiplier_[0] = UInt(1);
 
     this->encrypted_multiplier_ =
@@ -111,14 +114,16 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  TRLWE<Torus> encrypted =
+  TRLWE<Torus, Ctx::N> encrypted =
       this->trlwe_cryptor_->template encrypt<Torus>(this->plaintext_);
 
   // ==================================
-  Poly<Torus> expected = this->multiplier_ * this->plaintext_;
+  Poly<Torus, Ctx::N> expected =
+      negacyclic_convolution(this->multiplier_, this->plaintext_);
   // ----------------------------------
-  TRLWE<Torus> hom_mul = this->extprod_(this->encrypted_multiplier_, encrypted);
-  Poly<Torus> decrypted =
+  TRLWE<Torus, Ctx::N> hom_mul =
+      this->extprod_(this->encrypted_multiplier_, encrypted);
+  Poly<Torus, Ctx::N> decrypted =
       this->trlwe_cryptor_->template decrypt<Torus>(hom_mul);
   // ==================================
 

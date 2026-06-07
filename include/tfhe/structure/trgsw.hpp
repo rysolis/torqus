@@ -10,14 +10,14 @@
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
-template <torus_type Torus>
+template <torus_type Torus, uint32_t N>
 class TRGSW {
  public:
   TRGSW() = default;
-  TRGSW(uint32_t N, uint32_t l) : trgsw_(2 * l, TRLWE<Torus>(N)), l_(l) {}
+  TRGSW(uint32_t l) : trgsw_(2 * l, TRLWE<Torus, N>()), l_(l) {}
 
-  TRLWE<Torus>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
-  const TRLWE<Torus>& operator[](size_t idx) const noexcept {
+  TRLWE<Torus, N>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
+  const TRLWE<Torus, N>& operator[](size_t idx) const noexcept {
     return trgsw_[idx];
   }
 
@@ -33,14 +33,14 @@ class TRGSW {
   }
 
  private:
-  std::vector<TRLWE<Torus>> trgsw_;
+  std::vector<TRLWE<Torus, N>> trgsw_;
   uint32_t l_;
 };
 
-template <typename To, typename From>
+template <typename To, typename From, uint32_t N>
   requires explicitly_convertible_to<To, From>
-inline TRGSW<To> convert_to(const TRGSW<From>& src) {
-  TRGSW<To> dst(static_cast<uint32_t>(src[0].a().size()), src.level() >> 1);
+inline TRGSW<To, N> convert_to(const TRGSW<From, N>& src) {
+  TRGSW<To, N> dst(static_cast<uint32_t>(src[0].a().size()), src.level() >> 1);
   for (size_t i = 0; i < src.level(); ++i) {
     dst[i] = convert_to<To>(src[i]);
   }

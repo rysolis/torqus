@@ -17,7 +17,7 @@ TYPED_TEST_SUITE(PolyBasicTest, poly_basic_test::TestContexts);
 TYPED_TEST(PolyBasicTest, SizeConstructor_InitializesBuffer) {
   using T = TypeParam;
 
-  Poly<T> p(4);
+  Poly<T, 4> p;
   EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
@@ -28,7 +28,7 @@ TYPED_TEST(PolyBasicTest, SizeConstructor_InitializesBuffer) {
 TYPED_TEST(PolyBasicTest, Generator_InitializedBuffer) {
   using T = TypeParam;
 
-  Poly<T> p(4, []() { return static_cast<T>(1); });
+  Poly<T, 4> p([]() { return static_cast<T>(1); });
   EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
@@ -39,8 +39,8 @@ TYPED_TEST(PolyBasicTest, Generator_InitializedBuffer) {
 TYPED_TEST(PolyBasicTest, RawPointerConstructor_InitializesBuffer) {
   using T = TypeParam;
 
-  UInt::raw_value_type ptr[] = {1, 2, 3, 4};
-  Poly<T> p(ptr, 4);
+  typename T::raw_value_type ptr[] = {1, 2, 3, 4};
+  Poly<T, 4> p(std::begin(ptr), std::end(ptr));
   EXPECT_EQ(4, p.size());
 
   for (size_t i = 0; i < p.size(); ++i) {
@@ -51,7 +51,7 @@ TYPED_TEST(PolyBasicTest, RawPointerConstructor_InitializesBuffer) {
 TYPED_TEST(PolyBasicTest, InitializerListConstructor_InitializesBuffer) {
   using T = TypeParam;
 
-  Poly<T> p{T(0), T(1), T(2), T(3)};
+  Poly<T, 4> p{T(0), T(1), T(2), T(3)};
   EXPECT_EQ(4, p.size());
 
   for (typename T::raw_value_type i = 0; i < p.size(); ++i) {
@@ -62,11 +62,11 @@ TYPED_TEST(PolyBasicTest, InitializerListConstructor_InitializesBuffer) {
 TYPED_TEST(PolyBasicTest, CopyConstructor_CopiesBuffer) {
   using T = TypeParam;
 
-  Poly<T> src{T(1), T(2), T(3)};
+  Poly<T, 3> src{T(1), T(2), T(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<T> dst = src;
+  Poly<T, 3> dst = src;
 
   EXPECT_EQ(3, dst.size());
 
@@ -80,11 +80,11 @@ TYPED_TEST(PolyBasicTest, CopyConstructor_CopiesBuffer) {
 TYPED_TEST(PolyBasicTest, CopyAssignOperator_CopiesBuffer) {
   using T = TypeParam;
 
-  Poly<T> src{T(1), T(2), T(3)};
+  Poly<T, 3> src{T(1), T(2), T(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<T> dst(3);
+  Poly<T, 3> dst;
   dst = src;
 
   EXPECT_EQ(3, dst.size());
@@ -99,11 +99,11 @@ TYPED_TEST(PolyBasicTest, CopyAssignOperator_CopiesBuffer) {
 TYPED_TEST(PolyBasicTest, MoveConstructor_MovesBuffer) {
   using T = TypeParam;
 
-  Poly<T> src{T(1), T(2), T(3)};
+  Poly<T, 3> src{T(1), T(2), T(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<T> dst = std::move(src);
+  Poly<T, 3> dst = std::move(src);
 
   EXPECT_EQ(3, dst.size());
 
@@ -117,11 +117,11 @@ TYPED_TEST(PolyBasicTest, MoveConstructor_MovesBuffer) {
 TYPED_TEST(PolyBasicTest, MoveAssignOperator_MovesBuffer) {
   using T = TypeParam;
 
-  Poly<T> src{T(1), T(2), T(3)};
+  Poly<T, 3> src{T(1), T(2), T(3)};
 
   auto* raw_ptr = src.data();
 
-  Poly<T> dst(3);
+  Poly<T, 3> dst;
   dst = std::move(src);
 
   EXPECT_EQ(3, dst.size());
@@ -136,7 +136,7 @@ TYPED_TEST(PolyBasicTest, MoveAssignOperator_MovesBuffer) {
 TYPED_TEST(PolyBasicTest, SubscriptOperator) {
   using T = TypeParam;
 
-  Poly<T> p{T(0), T(1), T(2), T(3)};
+  Poly<T, 4> p{T(0), T(1), T(2), T(3)};
 
   T add = static_cast<T>(p[0]) + static_cast<T>(p[1]);
   EXPECT_EQ(T(0), p[0]);

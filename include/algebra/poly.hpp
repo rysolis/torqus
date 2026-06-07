@@ -12,10 +12,8 @@
 #include <vector>
 
 #include "primitive/concept/convertible.hpp"
-#include "primitive/concept/interpretable.hpp"
-#include "primitive/concept/primitive.hpp"
 
-template <typename T>
+template <typename T, uint32_t N>
 class Poly {
  public:
   using value_type = T;
@@ -23,6 +21,8 @@ class Poly {
 
   using iterator = raw_value_type*;
   using const_iterator = const raw_value_type*;
+
+  class Proxy;
 
   // rule of five
   Poly() = default;
@@ -39,12 +39,7 @@ class Poly {
   Poly& operator=(Poly&& other) noexcept = default;
   // end of rule of five
 
-  explicit Poly(size_t N)
-      : coeffs_(std::make_unique<raw_value_type[]>(N)), size_(N) {
-    std::fill_n(coeffs_.get(), size_, raw_value_type{});
-  }
-
-  Poly(std::initializer_list<T> init) : Poly(init.size()) {
+  Poly(std::initializer_list<T> init) {
     std::ranges::transform(init, begin(), [](const T& v) {
       return static_cast<raw_value_type>(v);
     });
@@ -54,33 +49,40 @@ class Poly {
     requires requires(F& f) {
       { std::invoke(f) } -> explicitly_convertible_to<T>;
     }
-  Poly(size_t N, F&& f) : Poly(N) {
+  Poly(F&& f) {
     std::ranges::generate(begin(), end(), [&] {
       return static_cast<raw_value_type>(std::invoke(f));
     });
   }
 
-  Poly(const raw_value_type* ptr, size_t N) : Poly(ptr, ptr + N) {}
+  template <std::forward_iterator It>
+  Poly(It first, It last) {
+    std::copy(first, last, begin());
+  }
 
-  class Proxy;
+  Poly(const raw_value_type* ptr) : Poly(ptr, ptr + N) {}
 
-  Proxy operator[](size_t idx) noexcept { return Proxy(coeffs_.get() + idx); }
+  Proxy operator[](size_t idx) noexcept {
+    assert(idx < N);
+    return Proxy(coeffs_.get() + idx);
+  }
   value_type operator[](size_t idx) const noexcept {
+    assert(idx < N);
     return static_cast<value_type>(coeffs_[idx]);
   }
 
   constexpr iterator begin() noexcept { return coeffs_.get(); }
-  constexpr iterator end() noexcept { return coeffs_.get() + size_; }
+  constexpr iterator end() noexcept { return coeffs_.get() + N; }
 
   constexpr const_iterator begin() const noexcept { return coeffs_.get(); }
-  constexpr const_iterator end() const noexcept {
-    return coeffs_.get() + size_;
-  }
+  constexpr const_iterator end() const noexcept { return coeffs_.get() + N; }
 
   constexpr raw_value_type* data() noexcept { return coeffs_.get(); }
-  constexpr raw_value_type* data() const noexcept { return coeffs_.get(); }
+  constexpr const raw_value_type* data() const noexcept {
+    return coeffs_.get();
+  }
 
-  constexpr size_t size() const noexcept { return size_; }
+  static constexpr size_t size() { return N; }
 
   Poly& operator+=(const Poly& other) {
     assert(other.size() == this->size());
@@ -100,6 +102,38 @@ class Poly {
     return *this;
   }
 
+  template <typename Expr>
+  Poly(const Expr& ep) {
+    std::fill(begin(), end(), typename T::raw_value_type{});
+    accumulate_expr(
+        ep, [](auto x, const auto& y) { x += y; },
+        [](auto x, const auto& y) { x -= y; });
+  }
+
+  template <typename Expr>
+  Poly& operator=(const Expr& ep) {
+    accumulate_expr(
+        ep, [](auto x, const auto& y) { x += y; },
+        [](auto x, const auto& y) { x -= y; });
+    return *this;
+  }
+
+  template <typename Expr>
+  Poly& operator+=(const Expr& ep) {
+    accumulate_expr(
+        ep, [](auto x, const auto& y) { x += y; },
+        [](auto x, const auto& y) { x -= y; });
+    return *this;
+  }
+
+  template <typename Expr>
+  Poly& operator-=(const Expr& ep) {
+    accumulate_expr(
+        ep, [](auto x, const auto& y) { x -= y; },
+        [](auto x, const auto& y) { x += y; });
+    return *this;
+  }
+
   constexpr bool operator==(const Poly& other) const noexcept {
     if (other.size() != this->size()) {
       return false;
@@ -107,21 +141,13 @@ class Poly {
     return std::ranges::equal(*this, other);
   }
 
-  template <typename To, typename From>
-    requires explicitly_convertible_to<To, From>
-  friend Poly<To> convert_to(const Poly<From>& poly);
+  [[nodiscard]]
+  raw_value_type* release() {
+    return coeffs_.release();
+  }
 
-  template <typename To, typename From>
-    requires explicitly_convertible_to<To, From>
-  friend Poly<To> convert_to(Poly<From>&& poly);
-
-  template <typename To, typename From>
-    requires interpretable_to<To, From>
-  friend Poly<To> interpret_as(const Poly<From>&);
-
-  template <typename To, typename From>
-    requires interpretable_to<To, From>
-  friend Poly<To> interpret_as(Poly<From>&&);
+  // This constructor is used by interpret_as to take ownership of the buffer
+  Poly(raw_value_type* ptr) noexcept : coeffs_(ptr) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Poly& poly) {
     os << "Poly(";
@@ -136,65 +162,32 @@ class Poly {
   }
 
  private:
-  template <std::forward_iterator It>
-  Poly(It first, It last)
-      : Poly(static_cast<size_t>(std::distance(first, last))) {
-    std::copy(first, last, begin());
-  }
+  template <typename Expr, typename AddOp, typename SubOp>
+  void accumulate_expr(const Expr& ep, AddOp add_op, SubOp sub_op);
 
-  // This constructor is used by interpret_as to take ownership of the buffer
-  Poly(std::unique_ptr<raw_value_type[]>&& ptr, size_t N) noexcept
-      : coeffs_(std::move(ptr)), size_(N) {}
-
-  std::unique_ptr<raw_value_type[]> coeffs_;
-  size_t size_;
+  std::unique_ptr<raw_value_type[]> coeffs_ =
+      std::make_unique<raw_value_type[]>(N);
 };
 
-template <typename To, typename From>
-  requires explicitly_convertible_to<To, From>
-inline Poly<To> convert_to(const Poly<From>& src) {
-  Poly<To> dst(src.size());
-  std::ranges::transform(src.begin(), src.end(), dst.begin(),
-                         [](const From::raw_value_type& v) {
-                           return static_cast<To::raw_value_type>(
-                               static_cast<To>(static_cast<From>(v)));
-                         });
-  return dst;
-}
-
-template <typename To, typename From>
-  requires explicitly_convertible_to<To, From>
-inline Poly<To> convert_to(Poly<From>&& src) {
-  Poly<To> dst(src.size());
-  std::ranges::transform(src.begin(), src.end(), dst.begin(),
-                         [](const From::raw_value_type& v) {
-                           return static_cast<To::raw_value_type>(
-                               static_cast<To>(static_cast<From>(v)));
-                         });
-  return dst;
-}
-
-template <typename To, typename From>
-  requires interpretable_to<To, From>
-inline Poly<To> interpret_as(const Poly<From>& src) {
-  return Poly<To>(src.data(), src.size());
-}
-
-template <typename To, typename From>
-  requires interpretable_to<To, From>
-inline Poly<To> interpret_as(Poly<From>&& src) {
-  return Poly<To>(std::move(src.coeffs_), src.size());
-}
-
-template <typename T>
-inline Poly<T> operator+(Poly<T> lhs, const Poly<T>& rhs) {
+template <typename T, uint32_t N>
+inline Poly<T, N> operator+(Poly<T, N> lhs, const Poly<T, N>& rhs) {
   assert(lhs.size() == rhs.size());
   return lhs += rhs;
 }
 
-template <typename T>
-inline Poly<T> operator-(Poly<T> lhs, const Poly<T>& rhs) {
+template <typename T, uint32_t N, typename Expr>
+inline Poly<T, N> operator+(Poly<T, N> lhs, const Expr& rhs) {
+  return lhs += rhs;
+}
+
+template <typename T, uint32_t N>
+inline Poly<T, N> operator-(Poly<T, N> lhs, const Poly<T, N>& rhs) {
   assert(lhs.size() == rhs.size());
+  return lhs -= rhs;
+}
+
+template <typename T, uint32_t N, typename Expr>
+inline Poly<T, N> operator-(Poly<T, N> lhs, const Expr& rhs) {
   return lhs -= rhs;
 }
 
@@ -203,21 +196,21 @@ inline Poly<T> operator-(Poly<T> lhs, const Poly<T>& rhs) {
 // If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
 // lhs is copied together with its reference state,
 // which results in unintended behavior.
-template <typename T>
-inline Poly<T>::Proxy::T operator+(const typename Poly<T>::Proxy& lhs,
-                                   const typename Poly<T>::Proxy& rhs) {
-  return static_cast<Poly<T>::Proxy::T>(lhs) +
-         static_cast<Poly<T>::Proxy::T>(rhs);
+template <typename T, uint32_t N>
+inline Poly<T, N>::Proxy::T operator+(const typename Poly<T, N>::Proxy& lhs,
+                                      const typename Poly<T, N>::Proxy& rhs) {
+  return static_cast<Poly<T, N>::Proxy::raw_value_type>(lhs) +
+         static_cast<Poly<T, N>::Proxy::raw_value_type>(rhs);
 }
 
 // If operator-(Proxy lhs, const Proxy<T>& rhs) is used,
 // lhs is copied together with its reference state,
 // which results in unintended behavior.
-template <typename T>
-inline Poly<T>::Proxy::T operator-(const typename Poly<T>::Proxy& lhs,
-                                   const typename Poly<T>::Proxy& rhs) {
-  return static_cast<Poly<T>::Proxy::T>(lhs) -
-         static_cast<Poly<T>::Proxy::T>(rhs);
+template <typename T, uint32_t N>
+inline Poly<T, N>::Proxy::T operator-(const typename Poly<T, N>::Proxy& lhs,
+                                      const typename Poly<T, N>::Proxy& rhs) {
+  return static_cast<Poly<T, N>::Proxy::raw_value_type>(lhs) -
+         static_cast<Poly<T, N>::Proxy::raw_value_type>(rhs);
 }
 
 #endif

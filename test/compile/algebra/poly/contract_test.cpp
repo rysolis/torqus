@@ -8,6 +8,6 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
-static_assert(std::ranges::contiguous_range<Poly<UInt>>);
-static_assert(std::ranges::contiguous_range<Poly<ModTorus<16>>>);
-static_assert(std::ranges::contiguous_range<Poly<ModInt<7>>>);
+static_assert(std::ranges::contiguous_range<Poly<UInt, 4>>);
+static_assert(std::ranges::contiguous_range<Poly<ModTorus<16>, 4>>);
+static_assert(std::ranges::contiguous_range<Poly<ModInt<7>, 4>>);

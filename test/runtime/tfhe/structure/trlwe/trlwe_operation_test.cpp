@@ -22,7 +22,7 @@ using TestContexts = ::testing::Types<Ctx1>;
 template <typename Ctx>
 class TrlweOperationFixture : public ::testing::Test {
  protected:
-  static inline std::shared_ptr<const Poly<UInt>> secret_;
+  static inline std::shared_ptr<const Poly<UInt, Ctx::N>> secret_;
   std::unique_ptr<trlwe::Cryptor<Ctx>> cryptor_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
@@ -36,8 +36,8 @@ class TrlweOperationFixture : public ::testing::Test {
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
-    this->secret_ = std::make_shared<const Poly<UInt>>(
-        Ctx::N, [&eng = this->eng_, &dist = binary_dist]() {
+    this->secret_ = std::make_shared<const Poly<UInt, Ctx::N>>(
+        [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
@@ -52,18 +52,20 @@ TYPED_TEST(TrlweOperationFixture, AdditionCorrectness) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
-  Poly<ModTorus<16>> lhs(Ctx::N), rhs(Ctx::N);
+  Poly<ModTorus<16>, Ctx::N> lhs, rhs;
   lhs[0] = Torus(1);
   rhs[0] = Torus(2);
 
-  Poly<Torus> expected = lhs + rhs;
+  Poly<Torus, Ctx::N> expected = lhs + rhs;
 
-  TRLWE<Torus> encrypted_lhs = this->cryptor_->template encrypt<Torus>(lhs);
-  TRLWE<Torus> encrypted_rhs = this->cryptor_->template encrypt<Torus>(rhs);
+  TRLWE<Torus, Ctx::N> encrypted_lhs =
+      this->cryptor_->template encrypt<Torus>(lhs);
+  TRLWE<Torus, Ctx::N> encrypted_rhs =
+      this->cryptor_->template encrypt<Torus>(rhs);
 
-  TRLWE<Torus> encrypted_add = encrypted_lhs + encrypted_rhs;
+  TRLWE<Torus, Ctx::N> encrypted_add = encrypted_lhs + encrypted_rhs;
 
-  Poly<Torus> decrypted =
+  Poly<Torus, Ctx::N> decrypted =
       this->cryptor_->template decrypt<Torus>(encrypted_add);
 
   double norm = infinity_norm(decrypted - expected);

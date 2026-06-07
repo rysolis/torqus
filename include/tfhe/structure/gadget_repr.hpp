@@ -11,15 +11,14 @@
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
-#include "tfhe/adapter/adapter.hpp"
+#include "tfhe/concept/params.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
 namespace {
 
 namespace classical {
 
-template <typename Ctx, torus_type Torus,
-          typename params = decompose::params<Ctx>>
+template <decompose_params params, torus_type Torus>
 UInt decompose(const Torus& v, size_t i) {
   size_t shift = Torus::qbit - (params::Bbit * (i + 1));
   assert(shift <= (Torus::qbit - params::Bbit));
@@ -30,9 +29,8 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <typename Ctx, torus_type Torus,
-          typename params = decompose::params<Ctx>>
-Torus reconstruct(const std::vector<Poly<UInt>>& repr, size_t j) {
+template <decompose_params params, torus_type Torus>
+Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
   typename Torus::raw_value_type m = 0;
   for (size_t i = 0; i < params::l; ++i) {
     size_t shift = Torus::qbit - (params::Bbit * (i + 1));
@@ -51,8 +49,7 @@ namespace balanced {
 //  v = sum_i (d_i * B^i) = sum_i (e_i - (Bg/2)) * B^i = sum_i (e_i * B^i) -
 // (Bg/2) * sum_i (B^i).
 // Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
-template <typename Ctx, torus_type Torus,
-          typename params = decompose::params<Ctx>>
+template <decompose_params params, torus_type Torus>
 UInt decompose(const Torus& v, size_t i) {
   size_t shift = Torus::qbit - (params::Bbit * (i + 1));
   assert(shift <= (Torus::qbit - params::Bbit));
@@ -73,9 +70,8 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <typename Ctx, torus_type Torus,
-          typename params = decompose::params<Ctx>>
-Torus reconstruct(const std::vector<Poly<UInt>>& repr, size_t j) {
+template <decompose_params params, torus_type Torus>
+Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
   UInt::raw_value_type offset = 0;
   for (size_t i = 0; i < params::l; ++i) {
     offset += (params::B / 2) << (Torus::qbit - (params::Bbit * (i + 1)));
@@ -96,36 +92,36 @@ Torus reconstruct(const std::vector<Poly<UInt>>& repr, size_t j) {
 
 }  // namespace
 
-template <typename Ctx, typename params = decompose::params<Ctx>>
-  requires std::derived_from<params, decompose::tag>
+template <decompose_params params>
 class GadgetRepr {
  public:
   // Torus shoule be ModTorus<QBit> !!
   template <torus_type Torus>
-  explicit GadgetRepr(const Poly<Torus>& poly)
-      : repr_(params::l, Poly<UInt>(params::N)) {
+  explicit GadgetRepr(const Poly<Torus, params::N>& poly) : repr_(params::l) {
     static_assert(Torus::qbit >= params::Bbit * params::l,
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < params::N; ++j) {
       for (size_t i = 0; i < params::l; ++i) {
-        repr_[i][j] = balanced::decompose<Ctx>(poly[j], i);
+        repr_[i][j] = balanced::decompose<params>(poly[j], i);
       }
     }
   }
 
   template <typename Torus>
-  inline Poly<Torus> reconstruct() const {
-    Poly<Torus> poly(params::N);
+  inline Poly<Torus, params::N> reconstruct() const {
+    Poly<Torus, params::N> poly;
 
     for (size_t j = 0; j < params::N; ++j) {
-      poly[j] = balanced::reconstruct<Ctx, Torus>(repr_, j);
+      poly[j] = balanced::reconstruct<params, Torus>(repr_, j);
     }
 
     return poly;
   }
 
-  Poly<UInt>& operator[](size_t idx) noexcept { return repr_[idx]; }
-  Poly<UInt> operator[](size_t idx) const noexcept { return repr_[idx]; }
+  Poly<UInt, params::N>& operator[](size_t idx) noexcept { return repr_[idx]; }
+  Poly<UInt, params::N> operator[](size_t idx) const noexcept {
+    return repr_[idx];
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const GadgetRepr& repr) {
     for (size_t i = 0; i < repr.repr_.size(); ++i) {
@@ -141,33 +137,33 @@ class GadgetRepr {
       1.0 / (1ULL << (params::Bbit * params::l));
 
  private:
-  std::vector<Poly<UInt>> repr_;
+  std::vector<Poly<UInt, params::N>> repr_;
 };
 
-template <typename Ctx>
+template <decompose_params params>
 class GadgetTRLWE {
  public:
   // NOLINT(bugprone-easily-swappable-parameters)
-  GadgetTRLWE(GadgetRepr<Ctx> a, GadgetRepr<Ctx> b)
+  GadgetTRLWE(GadgetRepr<params> a, GadgetRepr<params> b)
       : a_(std::move(a)), b_(std::move(b)) {}
 
   template <typename Torus>
-  explicit GadgetTRLWE(const TRLWE<Torus>& trlwe)
+  explicit GadgetTRLWE(const TRLWE<Torus, params::N>& trlwe)
       : a_(trlwe.a()), b_(trlwe.b()) {}
 
   [[nodiscard]]
-  const GadgetRepr<Ctx>& a() const noexcept {
+  const GadgetRepr<params>& a() const noexcept {
     return a_;
   }
 
   [[nodiscard]]
-  const GadgetRepr<Ctx>& b() const noexcept {
+  const GadgetRepr<params>& b() const noexcept {
     return b_;
   }
 
  private:
-  GadgetRepr<Ctx> a_;
-  GadgetRepr<Ctx> b_;
+  GadgetRepr<params> a_;
+  GadgetRepr<params> b_;
 };
 
 #endif
