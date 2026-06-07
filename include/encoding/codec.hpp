@@ -37,6 +37,31 @@ struct MessageCodec {
 
     return Message((phase.value() + rounding) >> noise_bit);
   }
+
+  template <typename Torus, typename Message>
+  static constexpr Torus::raw_value_type radius_raw() {
+    constexpr uint32_t qbit = Torus::qbit;
+    constexpr uint32_t MessageBit = Message::message_bit;
+
+    static_assert(MessageBit + PaddingBit <= qbit,
+                  "MessageBit + PaddingBit must be less than or equal to QBit");
+
+    // -1 makes diameter to radius
+    return (typename Torus::raw_value_type(1)
+            << (qbit - (MessageBit + PaddingBit) - 1));
+  }
+
+  template <typename Torus, typename Message>
+  static constexpr double radius() {
+    constexpr uint32_t qbit = Torus::qbit;
+    constexpr uint32_t MessageBit = Message::message_bit;
+
+    static_assert(MessageBit + PaddingBit <= qbit,
+                  "MessageBit + PaddingBit must be less than or equal to QBit");
+
+    // +1 makes diameter to radius
+    return double(1) / (1 << (MessageBit + PaddingBit + 1));
+  }
 };
 
 #endif

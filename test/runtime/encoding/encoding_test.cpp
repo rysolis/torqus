@@ -34,6 +34,10 @@ TYPED_TEST(EncodeTest, EncodeDecode) {
   using Torus = typename Ctx::Torus;
   using Message = typename Ctx::Message;
 
+  std::cout << "radius(raw) :" << Codec::template radius_raw<Torus, Message>()
+            << "\n";
+  std::cout << "radius      :" << Codec::template radius<Torus, Message>()
+            << "\n";
   for (uint32_t m = 0; m <= Message::max_message(); ++m) {
     Message message(m);
     Torus encoded = Codec::template encode<Torus>(message);

@@ -3,11 +3,11 @@
 
 #include <cstdint>
 
-template <uint32_t MessageBit>
+template <uint32_t Bit>
 class MessageWord {
  public:
   using raw_value_type = uint32_t;
-  static constexpr raw_value_type message_bit = MessageBit;
+  static constexpr raw_value_type message_bit = Bit;
 
   explicit MessageWord(raw_value_type v) : value_(v) {
     assert(v <= max_message());
