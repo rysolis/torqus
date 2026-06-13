@@ -9,6 +9,7 @@
 #include "algebra/utility.hpp"
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/structure/trgsw.hpp"
+#include "tfhe/structure/trlwe.hpp"
 
 namespace external_product_test {
 
@@ -133,7 +134,7 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   if (Ctx::verbose) {
     std::cout << "secret    : " << *(this->secret_) << "\n";
     std::cout << "plaintext : " << this->plaintext_ << "\n";
-    std::cout << "multiplier: " << this->multiplier_ << "\n\n";
+    std::cout << "multiplier: " << this->multiplier_ << "\n";
 
     std::cout << "decrypted : " << decrypted << "\n";
     std::cout << "expected  : " << expected << "\n";

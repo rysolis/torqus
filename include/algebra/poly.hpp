@@ -24,19 +24,21 @@ class Poly {
 
   class Proxy;
 
-  // rule of five
   Poly() = default;
 
+  // rule of five
   Poly(const Poly& other) : Poly(other.begin(), other.end()) {}
   Poly& operator=(const Poly& other) {
     if (this == &other) return *this;
-    Poly tmp(other.begin(), other.end());
+    Poly tmp(other);
     std::swap(*this, tmp);
     return *this;
   }
 
   Poly(Poly&& other) noexcept = default;
   Poly& operator=(Poly&& other) noexcept = default;
+
+  ~Poly() = default;
   // end of rule of five
 
   Poly(std::initializer_list<T> init) {
