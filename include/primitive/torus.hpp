@@ -129,11 +129,12 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
     return *this;
   }
 
- private:
   static constexpr raw_value_type mask() noexcept {
     return std::numeric_limits<raw_value_type>::max() >>
            (std::numeric_limits<raw_value_type>::digits - qbit);
   }
+
+ private:
   raw_value_type m_;
 };
 
@@ -182,6 +183,11 @@ template <uint32_t QBit>
 inline constexpr ModTorus<QBit> operator-(ModTorus<QBit> lhs,
                                           const ModTorus<QBit>& rhs) noexcept {
   return lhs -= rhs;
+}
+
+template <uint32_t QBit>
+inline constexpr ModTorus<QBit> operator-(const ModTorus<QBit>& x) noexcept {
+  return ModTorus<QBit>{} - x;
 }
 
 inline constexpr double infinity_norm(const detail::Torus& torus) {

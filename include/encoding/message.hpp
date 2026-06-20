@@ -2,6 +2,7 @@
 #define MESSAGE_HPP
 
 #include <cstdint>
+#include <iostream>
 
 template <uint32_t Bit>
 class MessageWord {
@@ -9,16 +10,15 @@ class MessageWord {
   using raw_value_type = uint32_t;
   static constexpr raw_value_type message_bit = Bit;
 
-  explicit MessageWord(raw_value_type v) : value_(v) {
-    assert(v <= max_message());
-  }
+  MessageWord() = default;
+  explicit MessageWord(raw_value_type v) : value_(v) { assert(v <= max()); }
 
   static constexpr raw_value_type mask() noexcept {
     return std::numeric_limits<raw_value_type>::max() >>
            (std::numeric_limits<raw_value_type>::digits - message_bit);
   }
 
-  static constexpr raw_value_type max_message() noexcept {
+  static constexpr raw_value_type max() noexcept {
     return static_cast<raw_value_type>(-1) & mask();
   }
 
@@ -26,6 +26,11 @@ class MessageWord {
 
   constexpr bool operator==(const MessageWord& other) const noexcept {
     return value_ == other.value_;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const MessageWord& m) {
+    os << m.value();
+    return os;
   }
 
  private:

@@ -24,7 +24,7 @@ struct MessageCodec {
   }
 
   template <typename Torus, typename Message>
-  static constexpr Message decode(Torus phase) {
+  static constexpr Message decode(Torus t) {
     constexpr uint32_t qbit = Torus::qbit;
     constexpr uint32_t MessageBit = Message::message_bit;
     static_assert(MessageBit + PaddingBit <= qbit,
@@ -32,10 +32,7 @@ struct MessageCodec {
 
     constexpr uint32_t noise_bit = qbit - (MessageBit + PaddingBit);
 
-    constexpr uint32_t rounding =
-        noise_bit == 0 ? 0 : (uint32_t{1} << (noise_bit - 1));
-
-    return Message((phase.value() + rounding) >> noise_bit);
+    return Message(t.value() >> noise_bit);
   }
 
   template <typename Torus, typename Message>

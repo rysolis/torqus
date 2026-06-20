@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "detail/proxy.hpp"
 #include "primitive/concept/convertible.hpp"
 
 template <typename T, uint32_t N>
@@ -21,8 +22,6 @@ class Poly {
 
   using iterator = raw_value_type*;
   using const_iterator = const raw_value_type*;
-
-  class Proxy;
 
   Poly() = default;
 
@@ -48,9 +47,24 @@ class Poly {
   }
 
   template <typename F>
-    requires requires(F& f) {
-      { std::invoke(f) } -> explicitly_convertible_to<T>;
+    requires requires(F& f, std::size_t i) {
+      { std::invoke(f, i) } -> explicitly_convertible_to<T>;
     }
+  Poly(F&& f) {
+    std::size_t i = 0;
+    std::ranges::generate(begin(), end(), [&] {
+      return static_cast<raw_value_type>(std::invoke(f, i++));
+    });
+  }
+
+  template <typename F>
+    requires(
+        !requires(F& f, std::size_t i) {
+          { std::invoke(f, i) } -> explicitly_convertible_to<T>;
+        } &&
+        requires(F& f) {
+          { std::invoke(f) } -> explicitly_convertible_to<T>;
+        })
   Poly(F&& f) {
     std::ranges::generate(begin(), end(), [&] {
       return static_cast<raw_value_type>(std::invoke(f));
@@ -64,9 +78,9 @@ class Poly {
 
   Poly(const raw_value_type* ptr) : Poly(ptr, ptr + N) {}
 
-  Proxy operator[](size_t idx) noexcept {
+  Proxy<Poly> operator[](size_t idx) noexcept {
     assert(idx < N);
-    return Proxy(coeffs_.get() + idx);
+    return Proxy<Poly>(coeffs_.get() + idx);
   }
   value_type operator[](size_t idx) const noexcept {
     assert(idx < N);
@@ -193,26 +207,24 @@ inline Poly<T, N> operator-(Poly<T, N> lhs, const Expr& rhs) {
   return lhs -= rhs;
 }
 
-#include "detail/proxy.hpp"
-
 // If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
 // lhs is copied together with its reference state,
 // which results in unintended behavior.
 template <typename T, uint32_t N>
-inline Poly<T, N>::Proxy::T operator+(const typename Poly<T, N>::Proxy& lhs,
-                                      const typename Poly<T, N>::Proxy& rhs) {
-  return static_cast<Poly<T, N>::Proxy::raw_value_type>(lhs) +
-         static_cast<Poly<T, N>::Proxy::raw_value_type>(rhs);
+inline Poly<T, N>::value_type operator+(const typename Poly<T, N>::Proxy& lhs,
+                                        const typename Poly<T, N>::Proxy& rhs) {
+  return static_cast<Poly<T, N>::raw_value_type>(lhs) +
+         static_cast<Poly<T, N>::raw_value_type>(rhs);
 }
 
 // If operator-(Proxy lhs, const Proxy<T>& rhs) is used,
 // lhs is copied together with its reference state,
 // which results in unintended behavior.
 template <typename T, uint32_t N>
-inline Poly<T, N>::Proxy::T operator-(const typename Poly<T, N>::Proxy& lhs,
-                                      const typename Poly<T, N>::Proxy& rhs) {
-  return static_cast<Poly<T, N>::Proxy::raw_value_type>(lhs) -
-         static_cast<Poly<T, N>::Proxy::raw_value_type>(rhs);
+inline Poly<T, N>::value_type operator-(const typename Poly<T, N>::Proxy& lhs,
+                                        const typename Poly<T, N>::Proxy& rhs) {
+  return static_cast<Poly<T, N>::raw_value_type>(lhs) -
+         static_cast<Poly<T, N>::raw_value_type>(rhs);
 }
 
 #endif

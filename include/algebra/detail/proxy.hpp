@@ -3,14 +3,11 @@
 
 #include <iostream>
 
-template <typename T, uint32_t N>
-class Poly;
-
-template <typename T, uint32_t N>
-class Poly<T, N>::Proxy {
+template <typename Container>
+class Proxy {
  public:
-  using value_type = T;
-  using raw_value_type = typename T::raw_value_type;
+  using value_type = Container::value_type;
+  using raw_value_type = typename Container::raw_value_type;
 
   // Disable copying to prevent expressions such as:
   // auto x = p[1];

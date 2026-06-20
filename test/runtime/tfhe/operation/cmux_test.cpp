@@ -128,7 +128,7 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   }
   std::cout << "infinity_norm(p0 - dp0): " << nr0 << "\n";
   std::cout << "infinity_norm(p1 - dp1): " << nr1 << "\n";
-  std::cout << "===============================\n\n";
+  std::cout << "===================\n\n";
 
   EXPECT_LE(nr0, 0.1);
   EXPECT_LE(nr1, 0.1);

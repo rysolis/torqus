@@ -3,6 +3,7 @@
 
 #include "algebra/poly.hpp"
 #include "primitive/concept/torus.hpp"
+#include "tfhe/concept/params.hpp"
 #include "tfhe/operation/external_product.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"

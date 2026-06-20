@@ -18,6 +18,7 @@ class ModInt {
       : v_(static_cast<raw_value_type>(v) % MOD) {}
 
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
+  constexpr raw_value_type value() const noexcept { return v_; }
 
   constexpr ModInt& operator+=(const ModInt& rhs) noexcept {
     v_ += rhs.v_;
@@ -47,13 +48,20 @@ class ModInt {
 };
 
 template <uint32_t P>
-inline constexpr ModInt<P> operator+(ModInt<P> lhs, const ModInt<P>& rhs) {
+inline constexpr ModInt<P> operator+(ModInt<P> lhs,
+                                     const ModInt<P>& rhs) noexcept {
   return lhs += rhs;
 }
 
 template <uint32_t P>
-inline constexpr ModInt<P> operator-(ModInt<P> lhs, const ModInt<P>& rhs) {
+inline constexpr ModInt<P> operator-(ModInt<P> lhs,
+                                     const ModInt<P>& rhs) noexcept {
   return lhs -= rhs;
+}
+
+template <uint32_t P>
+constexpr ModInt<P> operator-(const ModInt<P>& x) noexcept {
+  return ModInt<P>(0) - x;
 }
 
 #endif

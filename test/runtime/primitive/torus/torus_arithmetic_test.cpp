@@ -35,7 +35,7 @@ struct Ctx3 {
   using Torus = ModTorus<32>;
 };
 using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3>;
-};  // namespace modtorus_arithmetic_test
+}  // namespace modtorus_arithmetic_test
 
 template <typename Ctx>
 class ModTorusArithmeticTest : public ::testing::Test {};
@@ -47,7 +47,7 @@ TYPED_TEST(ModTorusArithmeticTest, Addition_WrapsIntoModTorusInterval) {
   using Torus = typename TypeParam::Torus;
   Torus a(Torus::raw_max()), b(2);
   Torus c = a + b;
-  EXPECT_EQ(1, static_cast<Torus::raw_value_type>(c));
+  EXPECT_EQ(1, static_cast<typename Torus::raw_value_type>(c));
 }
 
 TYPED_TEST(ModTorusArithmeticTest, Subtraction_WrapsIntoModTorusInterval) {
@@ -55,4 +55,11 @@ TYPED_TEST(ModTorusArithmeticTest, Subtraction_WrapsIntoModTorusInterval) {
   Torus a(2), b(3);
   Torus c = a - b;
   EXPECT_EQ(Torus::raw_max(), static_cast<Torus::raw_value_type>(c));
+}
+
+TYPED_TEST(ModTorusArithmeticTest, AdditionAssignment) {
+  using Torus = typename TypeParam::Torus;
+  Torus a(3);
+  a += Torus(4);
+  EXPECT_EQ(7, static_cast<typename Torus::raw_value_type>(a));
 }
