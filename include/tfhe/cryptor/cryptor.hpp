@@ -10,10 +10,10 @@
 #include "arithmetic/utility.hpp"
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
-#include "tfhe/concept/params.hpp"
 #include "tfhe/structure/tlwe.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
+#include "tfhe/traits.hpp"
 
 template <typename Torus>
 struct default_distribution;

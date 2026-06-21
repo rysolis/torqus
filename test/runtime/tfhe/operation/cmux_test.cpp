@@ -12,26 +12,46 @@
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
+#include "tfhe/traits.hpp"
 
 namespace cmux_test {
 
-struct Ctx1 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
+template <typename Params, bool Verbose = true>
+struct Context {
+  static constexpr bool verbose = Verbose;
+  using params = Params;
 };
 
-struct Ctx2 {
-  static constexpr bool verbose = false;
-  using Torus = ModTorus<32>;
-  static constexpr uint32_t N = 1024;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 7;
+namespace case1 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<16>;
+    static constexpr uint32_t N = 4;
+  };
+
+  struct gadget {
+    static constexpr uint32_t B = 4;
+    static constexpr uint32_t l = 3;
+  };
 };
+}  // namespace case1
+
+namespace case2 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<32>;
+    static constexpr uint32_t N = 1024;
+  };
+
+  struct gadget {
+    static constexpr uint32_t B = 4;
+    static constexpr uint32_t l = 7;
+  };
+};
+}  // namespace case2
+
+using Ctx1 = Context<case1::Params>;
+using Ctx2 = Context<case2::Params, false>;
 
 using TestContexts = ::testing::Types<Ctx1, Ctx2>;
 
@@ -41,45 +61,48 @@ template <typename Ctx>
 class CMuxFixture : public ::testing::Test {
  protected:
   std::mt19937 eng_{0};
-  using Torus = typename Ctx::Torus;
 
-  static inline std::shared_ptr<const Poly<UInt, Ctx::N>> secret_;
-  std::unique_ptr<trlwe::Cryptor<Ctx>> trlwe_cryptor_;
-  std::unique_ptr<trgsw::Cryptor<Ctx>> trgsw_cryptor_;
+  using params = traits<typename Ctx::params>;
+  using Torus = typename params::Torus;
+  static constexpr uint32_t N = params::N;
 
-  Poly<UInt, Ctx::N> zero_;
-  Poly<UInt, Ctx::N> one_;
-  TRGSW<Torus, Ctx::N> c0_;
-  TRGSW<Torus, Ctx::N> c1_;
+  static inline std::shared_ptr<const Poly<UInt, N>> secret_;
+  std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
+  std::unique_ptr<trgsw::Cryptor<params>> trgsw_cryptor_;
 
-  Poly<Torus, Ctx::N> p0_;
-  Poly<Torus, Ctx::N> p1_;
+  Poly<UInt, N> zero_;
+  Poly<UInt, N> one_;
+  TRGSW<Torus, N> c0_;
+  TRGSW<Torus, N> c1_;
 
-  CMux<Ctx> cmux_;
+  Poly<Torus, N> p0_;
+  Poly<Torus, N> p1_;
+
+  CMux<params> cmux_;
 
   void SetUp() override {
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
-    this->p0_ = Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
+    this->p0_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
       return static_cast<Torus>(dist(eng));
     });
-    this->p1_ = Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
+    this->p1_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
       return static_cast<Torus>(dist(eng));
     });
 
     // secret
-    this->secret_ = std::make_shared<const Poly<UInt, Ctx::N>>(
+    this->secret_ = std::make_shared<const Poly<UInt, N>>(
         [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
     this->trlwe_cryptor_ =
-        std::make_unique<trlwe::Cryptor<Ctx>>(this->secret_, this->eng_);
+        std::make_unique<trlwe::Cryptor<params>>(this->secret_, this->eng_);
 
     this->trgsw_cryptor_ =
-        std::make_unique<trgsw::Cryptor<Ctx>>(this->secret_, this->eng_);
+        std::make_unique<trgsw::Cryptor<params>>(this->secret_, this->eng_);
 
     this->zero_[0] = UInt(0);
     this->one_[0] = UInt(1);
@@ -96,21 +119,24 @@ TYPED_TEST_SUITE(CMuxCorrectnessTest, cmux_test::TestContexts);
 
 TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   using Ctx = TypeParam;
-  using Torus = typename Ctx::Torus;
+  using params = traits<typename Ctx::params>;
 
-  TRLWE<Torus, Ctx::N> ep0 =
+  using Torus = typename params::Torus;
+  constexpr uint32_t N = params::N;
+
+  TRLWE<Torus, N> ep0 =
       this->trlwe_cryptor_->template encrypt<Torus>(this->p0_);
 
-  TRLWE<Torus, Ctx::N> ep1 =
+  TRLWE<Torus, N> ep1 =
       this->trlwe_cryptor_->template encrypt<Torus>(this->p1_);
 
   // ==================================
-  TRLWE<Torus, Ctx::N> hom_cmux_p0 = this->cmux_(this->c0_, ep0, ep1);
-  Poly<Torus, Ctx::N> dp0 =
+  TRLWE<Torus, N> hom_cmux_p0 = this->cmux_(this->c0_, ep0, ep1);
+  Poly<Torus, N> dp0 =
       this->trlwe_cryptor_->template decrypt<Torus>(hom_cmux_p0);
   // ----------------------------------
-  TRLWE<Torus, Ctx::N> hom_cmux_p1 = this->cmux_(this->c1_, ep0, ep1);
-  Poly<Torus, Ctx::N> dp1 =
+  TRLWE<Torus, N> hom_cmux_p1 = this->cmux_(this->c1_, ep0, ep1);
+  Poly<Torus, N> dp1 =
       this->trlwe_cryptor_->template decrypt<Torus>(hom_cmux_p1);
   // ==================================
 

@@ -4,7 +4,7 @@
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 #include "primitive/concept/torus.hpp"
-#include "tfhe/concept/params.hpp"
+#include "tfhe/concepts.hpp"
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"

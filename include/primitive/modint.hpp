@@ -14,24 +14,37 @@ class ModInt {
 
   template <std::integral Raw>
     requires std::convertible_to<Raw, raw_value_type>
-  constexpr explicit ModInt(Raw v = 0) noexcept
-      : v_(static_cast<raw_value_type>(v) % MOD) {}
+  constexpr explicit ModInt(Raw v = 0) noexcept {
+    if constexpr (MOD == 0) {
+      v_ = static_cast<raw_value_type>(v);
+    } else {
+      v_ = static_cast<raw_value_type>(v) % MOD;
+    }
+  }
 
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
   constexpr raw_value_type value() const noexcept { return v_; }
 
   constexpr ModInt& operator+=(const ModInt& rhs) noexcept {
-    v_ += rhs.v_;
-    ModInt::raw_value_type mask = -static_cast<uint32_t>(v_ >= P);
-    v_ -= (MOD & mask);
+    if constexpr (MOD == 0) {
+      v_ += rhs.v_;
+    } else {
+      v_ += rhs.v_;
+      raw_value_type mask = -static_cast<raw_value_type>(v_ >= MOD);
+      v_ -= (MOD & mask);
+    }
     return *this;
   }
   // when a < b,
   // compute ((a - b) + 2^{32}) + P mod 2^{32} = (a - b) + P
   constexpr ModInt& operator-=(const ModInt& rhs) noexcept {
-    ModInt::raw_value_type mask = -static_cast<uint32_t>(v_ < rhs.v_);
-    v_ -= rhs.v_;        // when underflow occurred, compute (a - b) + 2^{32}
-    v_ += (MOD & mask);  // when overflow accurred, implicity apply - 2^{32}
+    if constexpr (MOD == 0) {
+      v_ -= rhs.v_;
+    } else {
+      raw_value_type mask = -static_cast<raw_value_type>(v_ < rhs.v_);
+      v_ -= rhs.v_;
+      v_ += (MOD & mask);
+    }
     return *this;
   }
 

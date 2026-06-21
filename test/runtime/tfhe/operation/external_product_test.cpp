@@ -10,44 +10,74 @@
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
+#include "tfhe/traits.hpp"
 
 namespace external_product_test {
 
-struct Ctx1 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
+template <typename Params, bool Verbose = true>
+struct Context {
+  static constexpr bool verbose = Verbose;
+  using params = Params;
 };
 
-struct Ctx2 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
-};
+namespace case1 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<16>;
+    static constexpr uint32_t N = 4;
+  };
 
-struct Ctx3 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 8;
-  static constexpr uint32_t B = 8;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
+  struct gadget {
+    static constexpr uint32_t B = 4;
+    static constexpr uint32_t l = 3;
+  };
 };
+}  // namespace case1
 
-struct Ctx4 {
-  static constexpr bool verbose = false;
-  using Torus = ModTorus<32>;
-  static constexpr uint32_t N = 1024;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 7;
+namespace case2 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<16>;
+    static constexpr uint32_t N = 4;
+  };
+
+  struct gadget {
+    static constexpr uint32_t B = 4;
+    static constexpr uint32_t l = 3;
+  };
 };
+}  // namespace case2
+
+namespace case3 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<16>;
+    static constexpr uint32_t N = 8;
+  };
+  struct gadget {
+    static constexpr uint32_t B = 8;
+    static constexpr uint32_t l = 3;
+  };
+};
+}  // namespace case3
+
+namespace case4 {
+struct Params : public backend_tag {
+  struct core {
+    using Torus = ModTorus<32>;
+    static constexpr uint32_t N = 1024;
+  };
+  struct gadget {
+    static constexpr uint32_t B = 4;
+    static constexpr uint32_t l = 7;
+  };
+};
+}  // namespace case4
+
+using Ctx1 = Context<case1::Params>;
+using Ctx2 = Context<case2::Params>;
+using Ctx3 = Context<case3::Params>;
+using Ctx4 = Context<case4::Params, false>;
 
 using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3, Ctx4>;
 
@@ -59,22 +89,25 @@ class ExternalProductFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using Torus = typename Ctx::Torus;
+  using params = traits<typename Ctx::params>;
 
-  static inline std::shared_ptr<const Poly<UInt, Ctx::N>> secret_;
-  std::unique_ptr<trlwe::Cryptor<Ctx>> trlwe_cryptor_;
-  std::unique_ptr<trgsw::Cryptor<Ctx>> trgsw_cryptor_;
+  using Torus = typename params::Torus;
+  static constexpr uint32_t N = params::N;
+
+  static inline std::shared_ptr<const Poly<UInt, N>> secret_;
+  std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
+  std::unique_ptr<trgsw::Cryptor<params>> trgsw_cryptor_;
 
   // ============================================================
   // test inputs
   // ============================================================
 
-  Poly<UInt, Ctx::N> multiplier_;
-  TRGSW<Torus, Ctx::N> encrypted_multiplier_;
+  Poly<UInt, N> multiplier_;
+  TRGSW<Torus, N> encrypted_multiplier_;
 
-  Poly<Torus, Ctx::N> plaintext_;
+  Poly<Torus, N> plaintext_;
 
-  ExternalProduct<Ctx> extprod_;
+  ExternalProduct<params> extprod_;
 
   void SetUp() override {
     std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
@@ -82,21 +115,21 @@ class ExternalProductFixture : public ::testing::Test {
         Torus::raw_min(), Torus::raw_max());
 
     this->plaintext_ =
-        Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
+        Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
           return static_cast<Torus>(dist(eng));
         });
 
     // secret
-    this->secret_ = std::make_shared<const Poly<UInt, Ctx::N>>(
+    this->secret_ = std::make_shared<const Poly<UInt, N>>(
         [&eng = this->eng_, &dist = binary_dist]() {
           return static_cast<UInt>(dist(eng));
         });
 
     this->trlwe_cryptor_ =
-        std::make_unique<trlwe::Cryptor<Ctx>>(this->secret_, this->eng_);
+        std::make_unique<trlwe::Cryptor<params>>(this->secret_, this->eng_);
 
     this->trgsw_cryptor_ =
-        std::make_unique<trgsw::Cryptor<Ctx>>(this->secret_, this->eng_);
+        std::make_unique<trgsw::Cryptor<params>>(this->secret_, this->eng_);
 
     this->multiplier_[0] = UInt(1);
 
@@ -113,18 +146,21 @@ TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
 
 TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   using Ctx = TypeParam;
-  using Torus = typename Ctx::Torus;
+  using params = traits<typename Ctx::params>;
 
-  TRLWE<Torus, Ctx::N> encrypted =
+  using Torus = typename params::Torus;
+  static constexpr uint32_t N = params::N;
+
+  TRLWE<Torus, N> encrypted =
       this->trlwe_cryptor_->template encrypt<Torus>(this->plaintext_);
 
   // ==================================
-  Poly<Torus, Ctx::N> expected =
+  Poly<Torus, N> expected =
       negacyclic_convolution(this->multiplier_, this->plaintext_);
   // ----------------------------------
-  TRLWE<Torus, Ctx::N> hom_mul =
+  TRLWE<Torus, N> hom_mul =
       this->extprod_(this->encrypted_multiplier_, encrypted);
-  Poly<Torus, Ctx::N> decrypted =
+  Poly<Torus, N> decrypted =
       this->trlwe_cryptor_->template decrypt<Torus>(hom_mul);
   // ==================================
 
@@ -142,5 +178,5 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   std::cout << "infinity_norm: " << norm << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, ExternalProduct<Ctx>::threshold);
+  EXPECT_LE(norm, ExternalProduct<params>::threshold);
 }
