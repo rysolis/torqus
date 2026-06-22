@@ -4,12 +4,15 @@
 #include <functional>
 #include <memory>
 
+#include "primitive/concept/torus.hpp"
+#include "primitive/uint.hpp"
+
 #include "algebra/vector.hpp"
+
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 #include "arithmetic/utility.hpp"
-#include "primitive/concept/torus.hpp"
-#include "primitive/uint.hpp"
+
 #include "tfhe/structure/tlwe.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"

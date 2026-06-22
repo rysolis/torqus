@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "algebra/poly.hpp"
-#include "arithmetic/negacyclic_convolution.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
+
+#include "algebra/poly.hpp"
+
+#include "arithmetic/negacyclic_convolution.hpp"
 
 namespace multiplication_test {
 

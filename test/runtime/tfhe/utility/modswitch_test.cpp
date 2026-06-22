@@ -1,5 +1,4 @@
 #include "tfhe/utility/modswitch.hpp"
-
 #include <gtest/gtest.h>
 
 #include <cstdint>

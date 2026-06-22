@@ -11,8 +11,9 @@
 #include <type_traits>
 #include <vector>
 
-#include "detail/proxy.hpp"
 #include "primitive/concept/convertible.hpp"
+
+#include "detail/proxy.hpp"
 
 template <typename T, uint32_t N>
 class Poly {

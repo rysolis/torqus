@@ -3,12 +3,13 @@
 
 #include <concepts>
 
-#include "algebra/poly.hpp"
 #include "primitive/concept/convertible.hpp"
 #include "primitive/concept/primitive.hpp"
 #include "primitive/concept/torus.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
+
+#include "algebra/poly.hpp"
 
 template <torus_type Torus, uint32_t N>
 class TRLWE {

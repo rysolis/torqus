@@ -1,8 +1,10 @@
 #ifndef CMUX_HPP
 #define CMUX_HPP
 
-#include "algebra/poly.hpp"
 #include "primitive/concept/torus.hpp"
+
+#include "algebra/poly.hpp"
+
 #include "tfhe/concepts.hpp"
 #include "tfhe/operation/external_product.hpp"
 #include "tfhe/structure/trgsw.hpp"

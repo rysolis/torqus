@@ -8,10 +8,12 @@
 #include <iostream>
 #include <vector>
 
-#include "algebra/poly.hpp"
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
+
+#include "algebra/poly.hpp"
+
 #include "tfhe/concepts.hpp"
 #include "tfhe/structure/trlwe.hpp"
 

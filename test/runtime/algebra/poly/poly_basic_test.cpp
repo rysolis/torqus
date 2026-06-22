@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "algebra/poly.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
+
+#include "algebra/poly.hpp"
 
 namespace poly_basic_test {
 using TestContexts = ::testing::Types<UInt, ModTorus<16>, ModInt<7>>;

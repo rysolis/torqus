@@ -1,5 +1,4 @@
 #include "tfhe/operation/external_product.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -7,6 +6,7 @@
 
 #include "algebra/poly.hpp"
 #include "algebra/utility.hpp"
+
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"

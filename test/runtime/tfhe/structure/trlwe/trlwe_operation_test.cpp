@@ -2,10 +2,12 @@
 
 #include <random>
 
-#include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
+
+#include "algebra/poly.hpp"
+#include "algebra/utility.hpp"
+
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/structure/trlwe.hpp"
 

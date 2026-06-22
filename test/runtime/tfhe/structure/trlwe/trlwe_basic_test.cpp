@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "algebra/poly.hpp"
 #include "primitive/torus.hpp"
+
+#include "algebra/poly.hpp"
+
 #include "tfhe/structure/trlwe.hpp"
 
 namespace trlwe_basic_test {

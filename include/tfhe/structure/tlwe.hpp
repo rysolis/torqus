@@ -5,8 +5,9 @@
 #include <iostream>
 #include <memory>
 
-#include "algebra/vector.hpp"
 #include "primitive/concept/torus.hpp"
+
+#include "algebra/vector.hpp"
 
 template <torus_type Torus, uint32_t n>
 class TLWE {

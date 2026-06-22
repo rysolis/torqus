@@ -1,9 +1,11 @@
 #ifndef EXTERNAL_PRODUCT_HPP
 #define EXTERNAL_PRODUCT_HPP
 
+#include "primitive/concept/torus.hpp"
+
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
-#include "primitive/concept/torus.hpp"
+
 #include "tfhe/concepts.hpp"
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"

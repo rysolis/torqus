@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 
-#include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
+
+#include "algebra/poly.hpp"
+#include "algebra/utility.hpp"
 
 TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
   using Torus = ModTorus<16>;

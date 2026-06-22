@@ -6,6 +6,7 @@
 
 #include "primitive/concept/primitive.hpp"
 #include "primitive/torus.hpp"
+
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"

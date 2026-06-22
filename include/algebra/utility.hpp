@@ -1,7 +1,8 @@
-#include "algebra/poly.hpp"
 #include "primitive/concept/convertible.hpp"
 #include "primitive/concept/interpretable.hpp"
 #include "primitive/concept/torus.hpp"
+
+#include "algebra/poly.hpp"
 
 template <torus_type Torus, uint32_t N>
 inline constexpr double infinity_norm(const Poly<Torus, N>& poly) {

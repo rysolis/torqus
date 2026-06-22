@@ -1,10 +1,12 @@
 #ifndef NEGACYCLIC_CONVOLUTION_HPP
 #define NEGACYCLIC_CONVOLUTION_HPP
 
+#include "primitive/concept/torus.hpp"
+
 #include "algebra/poly.hpp"
+
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/expr_trait.hpp"
-#include "primitive/concept/torus.hpp"
 
 template <typename Lhs, typename Rhs>
 class NegacyclicConvolutionExpr {
