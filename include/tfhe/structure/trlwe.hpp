@@ -16,7 +16,8 @@ class TRLWE {
  public:
   TRLWE() = default;
   // NOLINT(bugprone-easily-swappable-parameters)
-  TRLWE(const Poly<Torus, N>& a, const Poly<Torus, N>& b) : a_(a), b_(b) {}
+  TRLWE(const Poly<Torus, N>& a, const Poly<Torus, N>& b)
+      : a_(a), b_(b), error_bound_(0.0001) {}
 
   template <typename F>
     requires requires(F& f) {
@@ -32,14 +33,20 @@ class TRLWE {
   TRLWE& operator+=(const TRLWE& other) {
     a_ += other.a_;
     b_ += other.b_;
+    error_bound_ += other.error_bound();
     return *this;
   }
 
+  // |e1 - e2| <= |e1| + |e2|
   TRLWE& operator-=(const TRLWE& other) {
     a_ -= other.a_;
     b_ -= other.b_;
+    error_bound_ += other.error_bound();
     return *this;
   }
+
+  double error_bound() const noexcept { return error_bound_; }
+  void update_bound(double v) noexcept { error_bound_ = v; }
 
   friend std::ostream& operator<<(std::ostream& os, const TRLWE& trlwe) {
     os << "TRLWE(a: " << trlwe.a_ << ", b: " << trlwe.b_ << ")";
@@ -49,6 +56,7 @@ class TRLWE {
  private:
   Poly<Torus, N> a_;
   Poly<Torus, N> b_;
+  double error_bound_ = 0.0001;
 };
 
 template <typename To, typename From, uint32_t N>

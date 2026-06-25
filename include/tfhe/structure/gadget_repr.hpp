@@ -21,7 +21,7 @@ namespace {
 
 namespace classical {
 
-template <decompose_params params, torus_type Torus>
+template <decompose_concept params, torus_type Torus>
 UInt decompose(const Torus& v, size_t i) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -33,7 +33,7 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <decompose_params params, torus_type Torus>
+template <decompose_concept params, torus_type Torus>
 Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   typename Torus::raw_value_type m = 0;
@@ -54,7 +54,7 @@ namespace balanced {
 //  v = sum_i (d_i * B^i) = sum_i (e_i - (Bg/2)) * B^i = sum_i (e_i * B^i) -
 // (Bg/2) * sum_i (B^i).
 // Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
-template <decompose_params params, torus_type Torus>
+template <decompose_concept params, torus_type Torus>
 UInt decompose(const Torus& v, size_t i) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -76,7 +76,7 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <decompose_params params, torus_type Torus>
+template <decompose_concept params, torus_type Torus>
 Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   UInt::raw_value_type offset = 0;
@@ -99,7 +99,7 @@ Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
 
 }  // namespace
 
-template <decompose_params params>
+template <decompose_concept params>
 class GadgetRepr {
  public:
   static constexpr uint32_t N = params::N;

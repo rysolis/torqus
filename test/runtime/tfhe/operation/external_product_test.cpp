@@ -8,78 +8,32 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
-#include "tfhe/traits.hpp"
 
 namespace external_product_test {
 
-template <typename Params, bool Verbose = true>
-struct Context {
+template <typename Ctx, bool Verbose = true>
+struct TestConfig {
+  using context = Ctx;
   static constexpr bool verbose = Verbose;
-  using params = Params;
 };
 
-namespace case1 {
-struct Params : public backend_tag {
-  struct core {
-    using Torus = ModTorus<16>;
-    static constexpr uint32_t N = 4;
-  };
-
-  struct gadget {
-    static constexpr uint32_t B = 4;
-    static constexpr uint32_t l = 3;
-  };
+template <typename T>
+struct ParameterSet {
+  using params = T;
 };
-}  // namespace case1
 
-namespace case2 {
-struct Params : public backend_tag {
-  struct core {
-    using Torus = ModTorus<16>;
-    static constexpr uint32_t N = 4;
-  };
+using Ctx1 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
+using Ctx2 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<16>, 8>, gadget_params<8, 3>>>;
+using Ctx3 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<256, 2>>>;
 
-  struct gadget {
-    static constexpr uint32_t B = 4;
-    static constexpr uint32_t l = 3;
-  };
-};
-}  // namespace case2
-
-namespace case3 {
-struct Params : public backend_tag {
-  struct core {
-    using Torus = ModTorus<16>;
-    static constexpr uint32_t N = 8;
-  };
-  struct gadget {
-    static constexpr uint32_t B = 8;
-    static constexpr uint32_t l = 3;
-  };
-};
-}  // namespace case3
-
-namespace case4 {
-struct Params : public backend_tag {
-  struct core {
-    using Torus = ModTorus<32>;
-    static constexpr uint32_t N = 1024;
-  };
-  struct gadget {
-    static constexpr uint32_t B = 4;
-    static constexpr uint32_t l = 7;
-  };
-};
-}  // namespace case4
-
-using Ctx1 = Context<case1::Params>;
-using Ctx2 = Context<case2::Params>;
-using Ctx3 = Context<case3::Params>;
-using Ctx4 = Context<case4::Params, false>;
-
-using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3, Ctx4>;
+using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
+                                      TestConfig<Ctx3, false>>;
 
 }  // namespace external_product_test
 
@@ -89,9 +43,9 @@ class ExternalProductFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using params = traits<typename Ctx::params>;
+  using params = typename Ctx::context::params;
 
-  using Torus = typename params::Torus;
+  using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
   static inline std::shared_ptr<const Poly<UInt, N>> secret_;
@@ -145,10 +99,9 @@ TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
                  external_product_test::TestContexts);
 
 TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
-  using Ctx = TypeParam;
-  using params = traits<typename Ctx::params>;
+  using params = typename TypeParam::context::params;
 
-  using Torus = typename params::Torus;
+  using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
   TRLWE<Torus, N> encrypted =
@@ -158,16 +111,15 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   Poly<Torus, N> expected =
       negacyclic_convolution(this->multiplier_, this->plaintext_);
   // ----------------------------------
-  TRLWE<Torus, N> hom_mul =
-      this->extprod_(this->encrypted_multiplier_, encrypted);
-  Poly<Torus, N> decrypted =
-      this->trlwe_cryptor_->template decrypt<Torus>(hom_mul);
+  TRLWE<Torus, N> sut = this->extprod_(this->encrypted_multiplier_, encrypted);
+  Poly<Torus, N> decrypted = this->trlwe_cryptor_->template decrypt<Torus>(sut);
   // ==================================
 
-  double norm = infinity_norm(decrypted - expected);
+  Poly<Torus, N> err = decrypted - expected;
+  double norm = infinity_norm(err);
 
   std::cout << "\n=== External Product Test ===\n";
-  if (Ctx::verbose) {
+  if (TypeParam::verbose) {
     std::cout << "secret    : " << *(this->secret_) << "\n";
     std::cout << "plaintext : " << this->plaintext_ << "\n";
     std::cout << "multiplier: " << this->multiplier_ << "\n";
@@ -176,7 +128,8 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     std::cout << "expected  : " << expected << "\n";
   }
   std::cout << "infinity_norm: " << norm << "\n";
+  std::cout << "error_bound  : " << sut.error_bound() << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, ExternalProduct<params>::threshold);
+  EXPECT_LE(norm, sut.error_bound());
 }

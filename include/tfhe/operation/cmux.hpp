@@ -10,7 +10,7 @@
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
-template <decompose_params params>
+template <decompose_concept params>
 class CMux {
  public:
   template <torus_type Torus>

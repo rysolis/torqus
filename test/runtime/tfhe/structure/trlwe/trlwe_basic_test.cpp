@@ -4,20 +4,26 @@
 
 #include "algebra/poly.hpp"
 
+#include "tfhe/params.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
 namespace trlwe_basic_test {
-struct Ctx1 {
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
+
+template <typename Ctx, bool Verbose = true>
+struct TestConfig {
+  using context = Ctx;
+  static constexpr bool verbose = Verbose;
 };
 
-struct Ctx2 {
-  using Torus = ModTorus<8>;
-  static constexpr uint32_t N = 32;
+template <typename T>
+struct ParameterSet {
+  using params = T;
 };
 
-using TestContexts = ::testing::Types<Ctx1, Ctx2>;
+using Ctx1 = ParameterSet<glwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
+using Ctx2 = ParameterSet<glwe_params<trlwe_core_params<ModTorus<8>, 32>>>;
+
+using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>>;
 
 }  // namespace trlwe_basic_test
 
@@ -27,23 +33,27 @@ class TrlweBasicTest : public ::testing::Test {};
 TYPED_TEST_SUITE(TrlweBasicTest, trlwe_basic_test::TestContexts);
 
 TYPED_TEST(TrlweBasicTest, SizeConstructor_initializesBuffer) {
-  using Ctx = TypeParam;
-  using Torus = typename Ctx::Torus;
+  using params = typename TypeParam::context::params;
 
-  TRLWE<Torus, Ctx::N> trlwe;
-  EXPECT_EQ(trlwe.a().size(), Ctx::N);
-  EXPECT_EQ(trlwe.a(), (Poly<Torus, Ctx::N>()));
-  EXPECT_EQ(trlwe.b().size(), Ctx::N);
-  EXPECT_EQ(trlwe.b(), (Poly<Torus, Ctx::N>()));
+  using Torus = params::torus_type;
+  constexpr uint32_t N = params::N;
+
+  TRLWE<Torus, N> trlwe;
+  EXPECT_EQ(trlwe.a().size(), N);
+  EXPECT_EQ(trlwe.a(), (Poly<Torus, N>()));
+  EXPECT_EQ(trlwe.b().size(), N);
+  EXPECT_EQ(trlwe.b(), (Poly<Torus, N>()));
 }
 
 TYPED_TEST(TrlweBasicTest, Generator_InitializedBuffer) {
-  using Ctx = TypeParam;
-  using Torus = typename Ctx::Torus;
+  using params = typename TypeParam::context::params;
 
-  TRLWE<Torus, Ctx::N> trlwe([]() { return Torus(10u); });
-  EXPECT_EQ(trlwe.a().size(), Ctx::N);
-  EXPECT_EQ(trlwe.a(), (Poly<Torus, Ctx::N>([]() { return Torus(10u); })));
-  EXPECT_EQ(trlwe.b().size(), Ctx::N);
-  EXPECT_EQ(trlwe.b(), (Poly<Torus, Ctx::N>()));
+  using Torus = params::torus_type;
+  constexpr uint32_t N = params::N;
+
+  TRLWE<Torus, N> trlwe([]() { return Torus(10u); });
+  EXPECT_EQ(trlwe.a().size(), N);
+  EXPECT_EQ(trlwe.a(), (Poly<Torus, N>([]() { return Torus(10u); })));
+  EXPECT_EQ(trlwe.b().size(), N);
+  EXPECT_EQ(trlwe.b(), (Poly<Torus, N>()));
 }

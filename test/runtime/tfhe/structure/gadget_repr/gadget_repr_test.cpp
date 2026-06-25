@@ -4,39 +4,35 @@
 #include <bit>
 #include <random>
 
+#include "primitive/torus.hpp"
+
 #include "algebra/poly.hpp"
 #include "algebra/utility.hpp"
 
+#include "tfhe/params.hpp"
+
 namespace gadget_repr_test {
 
-struct Ctx1 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 4;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
+template <typename Ctx, bool Verbose = true>
+struct TestConfig {
+  using context = Ctx;
+  static constexpr bool verbose = Verbose;
 };
 
-struct Ctx2 {
-  static constexpr bool verbose = true;
-  using Torus = ModTorus<16>;
-  static constexpr uint32_t N = 8;
-  static constexpr uint32_t B = 4;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 3;
+template <typename T>
+struct ParameterSet {
+  using params = T;
 };
 
-struct Ctx3 {
-  static constexpr bool verbose = false;
-  using Torus = ModTorus<32>;
-  static constexpr uint32_t N = 1024;
-  static constexpr uint32_t B = 2;
-  static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr uint32_t l = 4;
-};
+using Ctx1 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
+using Ctx2 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
+using Ctx3 = ParameterSet<
+    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<2, 4>>>;
 
-using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3>;
+using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
+                                      TestConfig<Ctx3, false>>;
 
 }  // namespace gadget_repr_test
 
@@ -46,20 +42,22 @@ class GadgetReprTest : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using Torus = typename Ctx::Torus;
+  using params = typename Ctx::context::params;
+  using Torus = typename params::torus_type;
+  static constexpr uint32_t N = params::N;
 
   // ============================================================
   // test inputs
   // ============================================================
 
-  Poly<Torus, Ctx::N> plaintext_;
+  Poly<Torus, N> plaintext_;
 
   void SetUp() override {
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
     this->plaintext_ =
-        Poly<Torus, Ctx::N>([&eng = this->eng_, &dist = torus_dist]() {
+        Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
           return static_cast<Torus>(dist(eng));
         });
   }
@@ -68,33 +66,32 @@ class GadgetReprTest : public ::testing::Test {
 TYPED_TEST_SUITE(GadgetReprTest, gadget_repr_test::TestContexts);
 
 TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
-  using Ctx = TypeParam;
-  using Torus = typename Ctx::Torus;
+  using params = typename TypeParam::context::params;
+  using Torus = typename params::torus_type;
+  constexpr uint32_t N = params::N;
 
-  Poly<Torus, Ctx::N> poly = this->plaintext_;
+  Poly<Torus, N> poly = this->plaintext_;
 
-  EXPECT_EQ(poly.size(), Ctx::N);
+  EXPECT_EQ(N, poly.size());
 
-  GadgetRepr<Ctx> repr(poly);
-  Poly<Torus, Ctx::N> reconstructed = repr.template reconstruct<Torus>();
+  GadgetRepr<params> repr(poly);
+  Poly<Torus, N> reconstructed = repr.template reconstruct<Torus>();
 
   double error_norm = infinity_norm(poly - reconstructed);
 
-  EXPECT_LE(error_norm, GadgetRepr<Ctx>::template threshold<Torus>);
-
   // clang-format off
   std::cout << "\n=== GadgetRepr Decomposition & Reconstruction Test ===\n";
-  if (Ctx::verbose) {
+  if (TypeParam::verbose) {
   std::cout << "Original:      " << poly << "\n";
   std::cout << "Reconstructed: " << reconstructed << "\n";
   }
 
   std::cout << "Analysis:\n";
   std::cout << "  Infinity norm: " << error_norm << "\n";
-  std::cout << "  Threshold: " << GadgetRepr<Ctx>::template threshold<Torus>
+  std::cout << "  Threshold: " << GadgetRepr<params>::template threshold<Torus>
   << "\n"; std::cout <<
   "=====================================================\n\n";
   // clang-format on
 
-  EXPECT_LT(error_norm, (GadgetRepr<Ctx>::template threshold<Torus>));
+  EXPECT_LT(error_norm, (GadgetRepr<params>::template threshold<Torus>));
 }

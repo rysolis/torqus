@@ -15,12 +15,16 @@ template <torus_type Torus, uint32_t N>
 class TRGSW {
  public:
   TRGSW() = default;
-  TRGSW(uint32_t l) : trgsw_(2 * l, TRLWE<Torus, N>()), l_(l) {}
+  TRGSW(uint32_t l)
+      : trgsw_(2 * l, TRLWE<Torus, N>()), l_(l), error_bound_(0.0) {}
 
   TRLWE<Torus, N>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
   const TRLWE<Torus, N>& operator[](size_t idx) const noexcept {
     return trgsw_[idx];
   }
+
+  double error_bound() const noexcept { return error_bound_; }
+  void update_bound(double v) noexcept { error_bound_ = v; }
 
   uint32_t level() const noexcept { return 2 * l_; }
 
@@ -36,6 +40,7 @@ class TRGSW {
  private:
   std::vector<TRLWE<Torus, N>> trgsw_;
   uint32_t l_;
+  double error_bound_;
 };
 
 template <typename To, typename From, uint32_t N>

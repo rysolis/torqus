@@ -16,7 +16,6 @@
 #include "tfhe/structure/tlwe.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
-#include "tfhe/traits.hpp"
 
 template <typename Torus>
 struct default_distribution;
@@ -31,7 +30,7 @@ template <typename T>
 using default_distribution_t = typename default_distribution<T>::type;
 
 namespace tlwe {
-template <tlwe_encrypt_params params, typename Engine = std::mt19937>
+template <tlwe_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
   template <torus_type Torus>
@@ -70,7 +69,7 @@ class Cryptor {
 
 namespace trlwe {
 
-template <trlwe_encrypt_params params, typename Engine = std::mt19937>
+template <trlwe_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
   template <torus_type Torus>
@@ -97,6 +96,7 @@ class Cryptor {
     Ciphertext<Torus> ct;
     randomize(ct.a(), eng_.get(), dist);
     ct.b() = message + negacyclic_convolution((*secret_), ct.a());
+    ct.update_bound(0.0);  // TOOO: use params
     return ct;
   }
 
@@ -113,7 +113,7 @@ class Cryptor {
 
 namespace trgsw {
 
-template <trgsw_encrypt_params params, typename Engine = std::mt19937>
+template <trgsw_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
   template <torus_type Torus>

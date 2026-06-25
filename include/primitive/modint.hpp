@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <iostream>
 
+#include "primitive/uint.hpp"
+
 template <uint32_t P>
 class ModInt {
  public:
@@ -21,6 +23,9 @@ class ModInt {
       v_ = static_cast<raw_value_type>(v) % MOD;
     }
   }
+
+  static constexpr raw_value_type raw_min() { return 0; }
+  static constexpr raw_value_type raw_max() { return P - 1; }
 
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
   constexpr raw_value_type value() const noexcept { return v_; }
@@ -73,8 +78,13 @@ inline constexpr ModInt<P> operator-(ModInt<P> lhs,
 }
 
 template <uint32_t P>
-constexpr ModInt<P> operator-(const ModInt<P>& x) noexcept {
+inline constexpr ModInt<P> operator-(const ModInt<P>& x) noexcept {
   return ModInt<P>(0) - x;
+}
+
+template <uint32_t P>
+inline constexpr ModInt<P> operator*(UInt lhs, const ModInt<P>& rhs) noexcept {
+  return ModInt<P>(static_cast<ModInt<P>::raw_value_type>(lhs) * rhs.value());
 }
 
 #endif
