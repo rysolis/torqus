@@ -47,6 +47,7 @@ class ExternalProductFixture : public ::testing::Test {
 
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
+  static constexpr uint32_t l = params::l;
 
   static inline std::shared_ptr<const Poly<UInt, N>> secret_;
   std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
@@ -57,7 +58,7 @@ class ExternalProductFixture : public ::testing::Test {
   // ============================================================
 
   Poly<UInt, N> multiplier_;
-  TRGSW<Torus, N> encrypted_multiplier_;
+  TRGSW<Torus, N, l> encrypted_multiplier_;
 
   Poly<Torus, N> plaintext_;
 

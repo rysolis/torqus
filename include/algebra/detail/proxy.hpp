@@ -16,24 +16,14 @@ class Proxy {
 
   explicit Proxy(raw_value_type* raw) : ptr_(raw) {}
 
-  Proxy& operator=(value_type v) noexcept {
-    *ptr_ = static_cast<raw_value_type>(v);
-    return *this;
-  }
-
-  Proxy& operator+=(value_type rhs) noexcept {
-    *ptr_ = static_cast<raw_value_type>(static_cast<value_type>(*ptr_) + rhs);
-    return *this;
-  }
-
-  Proxy& operator-=(value_type rhs) noexcept {
-    *ptr_ = static_cast<raw_value_type>(static_cast<value_type>(*ptr_) - rhs);
-    return *this;
-  }
-
   // Allow implicit conversion from Poly<T>::Proxy to T.
   constexpr operator value_type() const noexcept {
     return static_cast<value_type>(*ptr_);
+  }
+
+  constexpr Proxy& operator=(const value_type& v) noexcept {
+    *ptr_ = static_cast<raw_value_type>(v);
+    return *this;
   }
 
   explicit constexpr operator raw_value_type() const noexcept { return *ptr_; }

@@ -46,6 +46,7 @@ class CMuxFixture : public ::testing::Test {
   using params = typename Ctx::context::params;
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
+  static constexpr uint32_t l = params::l;
 
   static inline std::shared_ptr<const Poly<UInt, N>> secret_;
   std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
@@ -53,8 +54,8 @@ class CMuxFixture : public ::testing::Test {
 
   Poly<UInt, N> zero_;
   Poly<UInt, N> one_;
-  TRGSW<Torus, N> c0_;
-  TRGSW<Torus, N> c1_;
+  TRGSW<Torus, N, l> c0_;
+  TRGSW<Torus, N, l> c1_;
 
   Poly<Torus, N> p0_;
   Poly<Torus, N> p1_;

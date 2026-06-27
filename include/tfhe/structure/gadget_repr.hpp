@@ -6,13 +6,13 @@
 #include <concepts>
 #include <cstdint>
 #include <iostream>
-#include <vector>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
+#include "algebra/vector.hpp"
 
 #include "tfhe/concepts.hpp"
 #include "tfhe/structure/trlwe.hpp"
@@ -34,7 +34,8 @@ UInt decompose(const Torus& v, size_t i) {
 }
 
 template <decompose_concept params, torus_type Torus>
-Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
+Torus reconstruct(const Vector<Poly<UInt, params::N>, params::l>& repr,
+                  size_t j) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   typename Torus::raw_value_type m = 0;
   for (size_t i = 0; i < params::l; ++i) {
@@ -77,7 +78,8 @@ UInt decompose(const Torus& v, size_t i) {
 }
 
 template <decompose_concept params, torus_type Torus>
-Torus reconstruct(const std::vector<Poly<UInt, params::N>>& repr, size_t j) {
+Torus reconstruct(const Vector<Poly<UInt, params::N>, params::l>& repr,
+                  size_t j) {
   static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
   UInt::raw_value_type offset = 0;
   for (size_t i = 0; i < params::l; ++i) {
@@ -109,7 +111,7 @@ class GadgetRepr {
 
   // Torus shoule be ModTorus<QBit> !!
   template <torus_type Torus>
-  explicit GadgetRepr(const Poly<Torus, N>& poly) : repr_(l) {
+  explicit GadgetRepr(const Poly<Torus, N>& poly) {
     static_assert(Torus::qbit >= Bbit * l,
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < N; ++j) {
@@ -146,7 +148,7 @@ class GadgetRepr {
   static constexpr double threshold = 1.0 / (1ULL << (Bbit * l));
 
  private:
-  std::vector<Poly<UInt, N>> repr_;
+  Vector<Poly<UInt, N>, l> repr_;
 };
 
 template <typename params>

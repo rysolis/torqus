@@ -2,21 +2,20 @@
 #define TRGSW_HPP
 
 #include <iostream>
-#include <vector>
 
 #include "primitive/concept/primitive.hpp"
 #include "primitive/torus.hpp"
+
+#include "algebra/vector.hpp"
 
 #include "tfhe/structure/gadget_repr.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
-template <torus_type Torus, uint32_t N>
+template <torus_type Torus, uint32_t N, uint32_t l>
 class TRGSW {
  public:
-  TRGSW() = default;
-  TRGSW(uint32_t l)
-      : trgsw_(2 * l, TRLWE<Torus, N>()), l_(l), error_bound_(0.0) {}
+  TRGSW() : error_bound_(0.0) {}
 
   TRLWE<Torus, N>& operator[](size_t idx) noexcept { return trgsw_[idx]; }
   const TRLWE<Torus, N>& operator[](size_t idx) const noexcept {
@@ -26,7 +25,7 @@ class TRGSW {
   double error_bound() const noexcept { return error_bound_; }
   void update_bound(double v) noexcept { error_bound_ = v; }
 
-  uint32_t level() const noexcept { return 2 * l_; }
+  uint32_t level() const noexcept { return 2 * l; }
 
   friend std::ostream& operator<<(std::ostream& os, const TRGSW& trgsw) {
     os << "TRGSW\n";
@@ -38,15 +37,15 @@ class TRGSW {
   }
 
  private:
-  std::vector<TRLWE<Torus, N>> trgsw_;
-  uint32_t l_;
+  Vector<TRLWE<Torus, N>, 2 * l> trgsw_;
   double error_bound_;
 };
 
-template <typename To, typename From, uint32_t N>
+template <typename To, typename From, uint32_t N, uint32_t l>
   requires explicitly_convertible_to<To, From>
-inline TRGSW<To, N> convert_to(const TRGSW<From, N>& src) {
-  TRGSW<To, N> dst(static_cast<uint32_t>(src[0].a().size()), src.level() >> 1);
+inline TRGSW<To, N, l> convert_to(const TRGSW<From, N, l>& src) {
+  TRGSW<To, N, l> dst(static_cast<uint32_t>(src[0].a().size()),
+                      src.level() >> 1);
   for (size_t i = 0; i < src.level(); ++i) {
     dst[i] = convert_to<To>(src[i]);
   }

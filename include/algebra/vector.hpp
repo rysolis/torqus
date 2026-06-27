@@ -7,14 +7,31 @@
 #include <memory>
 
 #include "primitive/concept/convertible.hpp"
+#include "primitive/concept/primitive.hpp"
 
 #include "detail/proxy.hpp"
+
+template <typename T, typename = void>
+struct vector_traits {
+  using value_type = T;
+  using raw_value_type = T;
+  static constexpr bool use_proxy = false;
+};
+
+template <primitive T>
+struct vector_traits<T, std::void_t<typename T::raw_value_type>> {
+  using value_type = T;
+  using raw_value_type = typename T::raw_value_type;
+  static constexpr bool use_proxy = !std::same_as<T, raw_value_type>;
+};
 
 template <typename T, uint32_t n>
 class Vector {
  public:
-  using value_type = T;
-  using raw_value_type = typename T::raw_value_type;
+  using traits = vector_traits<T>;
+
+  using value_type = typename traits::value_type;
+  using raw_value_type = typename traits::raw_value_type;
 
   using iterator = raw_value_type*;
   using const_iterator = const raw_value_type*;
@@ -59,11 +76,17 @@ class Vector {
     });
   }
 
-  Proxy<Vector> operator[](size_t idx) noexcept {
-    return Proxy<Vector>(data_.get() + idx);
+  decltype(auto) operator[](size_t idx) noexcept {
+    if constexpr (traits::use_proxy)
+      return Proxy<Vector>(data_.get() + idx);
+    else
+      return static_cast<value_type&>(data_[idx]);
   }
-  value_type operator[](size_t idx) const noexcept {
-    return static_cast<value_type>(data_[idx]);
+  decltype(auto) operator[](size_t idx) const noexcept {
+    if constexpr (traits::use_proxy)
+      return Proxy<Vector>(data_.get() + idx);
+    else
+      return static_cast<value_type&>(data_[idx]);
   }
 
   constexpr iterator begin() noexcept { return data_.get(); }
@@ -93,5 +116,27 @@ class Vector {
   std::unique_ptr<raw_value_type[]> data_ =
       std::make_unique<raw_value_type[]>(n);
 };
+
+// If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
+// lhs is copied together with its reference state,
+// which results in unintended behavior.
+template <typename T, uint32_t N>
+inline Vector<T, N>::value_type operator+(
+    const typename Vector<T, N>::Proxy& lhs,
+    const typename Vector<T, N>::Proxy& rhs) {
+  return static_cast<Vector<T, N>::raw_value_type>(lhs) +
+         static_cast<Vector<T, N>::raw_value_type>(rhs);
+}
+
+// If operator-(Proxy lhs, const Proxy<T>& rhs) is used,
+// lhs is copied together with its reference state,
+// which results in unintended behavior.
+template <typename T, uint32_t N>
+inline Vector<T, N>::value_type operator-(
+    const typename Vector<T, N>::Proxy& lhs,
+    const typename Vector<T, N>::Proxy& rhs) {
+  return static_cast<Vector<T, N>::raw_value_type>(lhs) -
+         static_cast<Vector<T, N>::raw_value_type>(rhs);
+}
 
 #endif

@@ -19,7 +19,7 @@ class ExternalProduct {
   static constexpr uint32_t l = params::l;
 
   template <torus_type Torus>
-  TRLWE<Torus, N> operator()(const TRGSW<Torus, N>& bk,
+  TRLWE<Torus, N> operator()(const TRGSW<Torus, N, l>& bk,
                              const TRLWE<Torus, N>& trlwe) const {
     double error_bound = compute_error_bound(bk, trlwe);
 #ifndef NDEBUG
@@ -44,7 +44,7 @@ class ExternalProduct {
   static constexpr double ep = 1. / (B << (l + 1));
 
   template <torus_type Torus>
-  double compute_error_bound(const TRGSW<Torus, N>& bk,
+  double compute_error_bound(const TRGSW<Torus, N, l>& bk,
                              const TRLWE<Torus, N>& trlwe) const {
     return (2 * l * N * (B << 1) * bk.error_bound()) +
            ((1. / B) * (1 + N) * ep) + ((1. / B) * trlwe.error_bound());

@@ -9,7 +9,6 @@
 #include <memory>
 #include <ranges>
 #include <type_traits>
-#include <vector>
 
 #include "primitive/concept/convertible.hpp"
 
@@ -105,7 +104,7 @@ class Poly {
     assert(other.size() == this->size());
 
     for (size_t i = 0; i < other.size(); ++i) {
-      (*this)[i] += other[i];
+      (*this)[i] = static_cast<value_type>((*this)[i]) + other[i];
     }
     return *this;
   }
@@ -114,7 +113,7 @@ class Poly {
     assert(other.size() == this->size());
 
     for (size_t i = 0; i < this->size(); ++i) {
-      (*this)[i] -= other[i];
+      (*this)[i] = static_cast<value_type>((*this)[i]) - other[i];
     }
     return *this;
   }
@@ -123,31 +122,51 @@ class Poly {
   Poly(const Expr& ep) {
     std::fill(begin(), end(), typename T::raw_value_type{});
     accumulate_expr(
-        ep, [](auto x, const auto& y) { x += y; },
-        [](auto x, const auto& y) { x -= y; });
+        ep,
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) + static_cast<value_type>(y);
+        },
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) - static_cast<value_type>(y);
+        });
   }
 
   template <typename Expr>
   Poly& operator=(const Expr& ep) {
     accumulate_expr(
-        ep, [](auto x, const auto& y) { x += y; },
-        [](auto x, const auto& y) { x -= y; });
+        ep,
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) + static_cast<value_type>(y);
+        },
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) - static_cast<value_type>(y);
+        });
     return *this;
   }
 
   template <typename Expr>
   Poly& operator+=(const Expr& ep) {
     accumulate_expr(
-        ep, [](auto x, const auto& y) { x += y; },
-        [](auto x, const auto& y) { x -= y; });
+        ep,
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) + static_cast<value_type>(y);
+        },
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) - static_cast<value_type>(y);
+        });
     return *this;
   }
 
   template <typename Expr>
   Poly& operator-=(const Expr& ep) {
     accumulate_expr(
-        ep, [](auto x, const auto& y) { x -= y; },
-        [](auto x, const auto& y) { x += y; });
+        ep,
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) - static_cast<value_type>(y);
+        },
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) + static_cast<value_type>(y);
+        });
     return *this;
   }
 
