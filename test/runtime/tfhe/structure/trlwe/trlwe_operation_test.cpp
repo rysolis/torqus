@@ -9,6 +9,7 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/trlwe.hpp"
 
@@ -40,25 +41,14 @@ class TrlweOperationFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  static inline std::shared_ptr<const Poly<UInt, N>> secret_;
   std::unique_ptr<trlwe::Cryptor<params>> cryptor_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
   void SetUp() override {
-    this->eng_.seed(std::random_device{}());
-    std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
-    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
-        Torus::raw_min(), Torus::raw_max());
-
-    this->secret_ = std::make_shared<const Poly<UInt, N>>(
-        [&eng = this->eng_, &dist = binary_dist]() {
-          return static_cast<UInt>(dist(eng));
-        });
-
-    this->cryptor_ =
-        std::make_unique<trlwe::Cryptor<params>>(this->secret_, this->eng_);
+    KeyRing<params> kr(eng_);
+    cryptor_ = std::move(kr.trlwe_cryptor(eng_));
   }
 };
 

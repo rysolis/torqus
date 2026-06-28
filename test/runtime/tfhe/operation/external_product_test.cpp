@@ -8,6 +8,7 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
@@ -49,52 +50,52 @@ class ExternalProductFixture : public ::testing::Test {
   static constexpr uint32_t N = params::N;
   static constexpr uint32_t l = params::l;
 
-  static inline std::shared_ptr<const Poly<UInt, N>> secret_;
   std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
   std::unique_ptr<trgsw::Cryptor<params>> trgsw_cryptor_;
 
-  // ============================================================
-  // test inputs
-  // ============================================================
-
-  Poly<UInt, N> multiplier_;
-  TRGSW<Torus, N, l> encrypted_multiplier_;
-
-  Poly<Torus, N> plaintext_;
-
-  ExternalProduct<params> extprod_;
-
   void SetUp() override {
-    std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
-    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
-        Torus::raw_min(), Torus::raw_max());
-
-    this->plaintext_ =
-        Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
-          return static_cast<Torus>(dist(eng));
-        });
-
-    // secret
-    this->secret_ = std::make_shared<const Poly<UInt, N>>(
-        [&eng = this->eng_, &dist = binary_dist]() {
-          return static_cast<UInt>(dist(eng));
-        });
-
-    this->trlwe_cryptor_ =
-        std::make_unique<trlwe::Cryptor<params>>(this->secret_, this->eng_);
-
-    this->trgsw_cryptor_ =
-        std::make_unique<trgsw::Cryptor<params>>(this->secret_, this->eng_);
-
-    this->multiplier_[0] = UInt(1);
-
-    this->encrypted_multiplier_ =
-        trgsw_cryptor_->template encrypt<Torus>(this->multiplier_);
+    KeyRing<params> kr(this->eng_);
+    trlwe_cryptor_ = std::move(kr.trlwe_cryptor(this->eng_));
+    trgsw_cryptor_ = std::move(kr.trgsw_cryptor(this->eng_));
   }
 };
 
 template <typename Ctx>
-class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {};
+class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
+ protected:
+  using Base = ExternalProductFixture<Ctx>;
+
+  using typename Base::params;
+  using typename Base::Torus;
+
+  static constexpr uint32_t N = Base::N;
+  static constexpr uint32_t l = Base::l;
+
+  ExternalProduct<params> extprod_;
+
+  Poly<UInt, N> multiplier_;
+  TRGSW<Torus, N, l> encrypted_multiplier_;
+  Poly<Torus, N> plaintext_;
+  TRLWE<Torus, N> encrypted_plaintext_;
+
+  void SetUp() override {
+    Base::SetUp();
+
+    multiplier_[0] = UInt(1);
+
+    encrypted_multiplier_ =
+        this->trgsw_cryptor_->template encrypt<Torus>(multiplier_);
+
+    std::uniform_int_distribution<typename Torus::raw_value_type> dist(
+        Torus::raw_min(), Torus::raw_max());
+
+    plaintext_ =
+        Poly<Torus, N>([&]() { return static_cast<Torus>(dist(this->eng_)); });
+
+    encrypted_plaintext_ =
+        this->trlwe_cryptor_->template encrypt<Torus>(this->plaintext_);
+  }
+};
 
 TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
                  external_product_test::TestContexts);
@@ -105,14 +106,12 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> encrypted =
-      this->trlwe_cryptor_->template encrypt<Torus>(this->plaintext_);
-
   // ==================================
   Poly<Torus, N> expected =
       negacyclic_convolution(this->multiplier_, this->plaintext_);
   // ----------------------------------
-  TRLWE<Torus, N> sut = this->extprod_(this->encrypted_multiplier_, encrypted);
+  TRLWE<Torus, N> sut =
+      this->extprod_(this->encrypted_multiplier_, this->encrypted_plaintext_);
   Poly<Torus, N> decrypted = this->trlwe_cryptor_->template decrypt<Torus>(sut);
   // ==================================
 
@@ -121,15 +120,19 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
 
   std::cout << "\n=== External Product Test ===\n";
   if (TypeParam::verbose) {
-    std::cout << "secret    : " << *(this->secret_) << "\n";
-    std::cout << "plaintext : " << this->plaintext_ << "\n";
-    std::cout << "multiplier: " << this->multiplier_ << "\n";
+    std::cout << std::left;
+    std::cout << std::setw(14) << "plaintext" << ": " << this->plaintext_
+              << "\n";
+    std::cout << std::setw(14) << "multiplier" << ": " << this->multiplier_
+              << "\n";
 
-    std::cout << "decrypted : " << decrypted << "\n";
-    std::cout << "expected  : " << expected << "\n";
+    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << expected << "\n";
   }
-  std::cout << "infinity_norm: " << norm << "\n";
-  std::cout << "error_bound  : " << sut.error_bound() << "\n";
+  std::cout << std::left;
+  std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
+  std::cout << std::setw(14) << "error_bound" << ": " << sut.error_bound()
+            << "\n";
   std::cout << "===============================\n\n";
 
   EXPECT_LE(norm, sut.error_bound());

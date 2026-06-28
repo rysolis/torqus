@@ -11,6 +11,7 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
@@ -44,13 +45,31 @@ class CMuxFixture : public ::testing::Test {
   std::mt19937 eng_{0};
 
   using params = typename Ctx::context::params;
+
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
   static constexpr uint32_t l = params::l;
 
-  static inline std::shared_ptr<const Poly<UInt, N>> secret_;
   std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
   std::unique_ptr<trgsw::Cryptor<params>> trgsw_cryptor_;
+
+  void SetUp() override {
+    KeyRing<params> kr(this->eng_);
+    this->trlwe_cryptor_ = std::move(kr.trlwe_cryptor(this->eng_));
+    this->trgsw_cryptor_ = std::move(kr.trgsw_cryptor(this->eng_));
+  }
+};
+
+template <typename Ctx>
+class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
+ protected:
+  using Base = CMuxFixture<Ctx>;
+
+  using typename Base::params;
+  using typename Base::Torus;
+
+  static constexpr uint32_t N = Base::N;
+  static constexpr uint32_t l = Base::l;
 
   Poly<UInt, N> zero_;
   Poly<UInt, N> one_;
@@ -63,39 +82,27 @@ class CMuxFixture : public ::testing::Test {
   CMux<params> cmux_;
 
   void SetUp() override {
-    std::uniform_int_distribution<UInt::raw_value_type> binary_dist{0, 1};
+    Base::SetUp();
+
+    // Prepare TRGSW(0) and TRGSW(1)
+    zero_[0] = UInt(0);
+    one_[0] = UInt(1);
+
+    c0_ = this->trgsw_cryptor_->template encrypt<Torus>(zero_);
+    c1_ = this->trgsw_cryptor_->template encrypt<Torus>(one_);
+
+    // Prepare candidate p0 and p1
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
         Torus::raw_min(), Torus::raw_max());
 
-    this->p0_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
+    p0_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
       return static_cast<Torus>(dist(eng));
     });
-    this->p1_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
+    p1_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
       return static_cast<Torus>(dist(eng));
     });
-
-    // secret
-    this->secret_ = std::make_shared<const Poly<UInt, N>>(
-        [&eng = this->eng_, &dist = binary_dist]() {
-          return static_cast<UInt>(dist(eng));
-        });
-
-    this->trlwe_cryptor_ =
-        std::make_unique<trlwe::Cryptor<params>>(this->secret_, this->eng_);
-
-    this->trgsw_cryptor_ =
-        std::make_unique<trgsw::Cryptor<params>>(this->secret_, this->eng_);
-
-    this->zero_[0] = UInt(0);
-    this->one_[0] = UInt(1);
-
-    this->c0_ = trgsw_cryptor_->template encrypt<Torus>(this->zero_);
-    this->c1_ = trgsw_cryptor_->template encrypt<Torus>(this->one_);
   }
 };
-
-template <typename Ctx>
-class CMuxCorrectnessTest : public CMuxFixture<Ctx> {};
 
 TYPED_TEST_SUITE(CMuxCorrectnessTest, cmux_test::TestContexts);
 
@@ -119,25 +126,28 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   Poly<Torus, N> dp1 = this->trlwe_cryptor_->template decrypt<Torus>(sut1);
   // ==================================
 
-  double nr0 = infinity_norm(dp0 - this->p0_);
-  double nr1 = infinity_norm(dp1 - this->p1_);
+  double norm0 = infinity_norm(dp0 - this->p0_);
+  double norm1 = infinity_norm(dp1 - this->p1_);
 
   std::cout << "\n=== CMux Test ===\n";
   if (TypeParam::verbose) {
-    std::cout << "secret    : " << *(this->secret_) << "\n";
-    std::cout << "p0: " << this->p0_ << "\n";
-    std::cout << "p1: " << this->p1_ << "\n";
+    std::cout << std::left;
+    std::cout << std::setw(14) << "p0" << ": " << this->p0_ << "\n";
+    std::cout << std::setw(14) << "p1" << ": " << this->p1_ << "\n";
 
-    std::cout << "dp0 : " << dp0 << "\n";
-    std::cout << "dp1 : " << dp1 << "\n";
+    std::cout << std::setw(14) << "dp0" << ": " << dp0 << "\n";
+    std::cout << std::setw(14) << "dp1" << ": " << dp1 << "\n";
   }
-  std::cout << "nr0:              " << nr0 << "\n";
-  std::cout << "sut0 error_bound: " << sut0.error_bound() << "\n";
+  std::cout << std::left;
+  std::cout << std::setw(14) << "norm0 " << ": " << norm0 << "\n";
+  std::cout << std::setw(14) << "sut0 bound" << ": " << sut0.error_bound()
+            << "\n";
 
-  std::cout << "nr1:              " << nr1 << "\n";
-  std::cout << "sut1 error_bound: " << sut1.error_bound() << "\n";
+  std::cout << std::setw(14) << "norm1 " << ": " << norm1 << "\n";
+  std::cout << std::setw(14) << "sut1 bound" << ": " << sut1.error_bound()
+            << "\n";
   std::cout << "===================\n\n";
 
-  EXPECT_LE(nr0, sut0.error_bound());
-  EXPECT_LE(nr1, sut1.error_bound());
+  EXPECT_LE(norm0, sut0.error_bound());
+  EXPECT_LE(norm1, sut1.error_bound());
 }

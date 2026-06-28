@@ -13,6 +13,7 @@
 #include "arithmetic/negacyclic_convolution.hpp"
 #include "arithmetic/utility.hpp"
 
+#include "tfhe/concepts.hpp"
 #include "tfhe/structure/tlwe.hpp"
 #include "tfhe/structure/trgsw.hpp"
 #include "tfhe/structure/trlwe.hpp"
