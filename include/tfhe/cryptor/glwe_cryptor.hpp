@@ -6,6 +6,7 @@
 
 #include <functional>
 #include <memory>
+#include <random>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"

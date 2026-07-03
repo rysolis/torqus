@@ -64,6 +64,16 @@ class Cryptor {
     return ct;
   }
 
+  template <torus_type Torus>
+  Plaintext<Torus> decrypt(const Ciphertext<Torus>& ciphertext) {
+    Plaintext<Torus> pt = ciphertext.b();
+    for (size_t i = 0; i < ciphertext.dimension(); ++i) {
+      pt -= static_cast<UInt>((*secret_)[i]) *
+            static_cast<Torus>(ciphertext.a()[i]);
+    }
+    return pt;
+  }
+
  private:
   std::shared_ptr<const Secret> secret_;
   std::reference_wrapper<Engine> eng_;
