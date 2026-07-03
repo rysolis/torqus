@@ -80,6 +80,13 @@ class Vector {
     });
   }
 
+  template <std::forward_iterator It>
+    requires std::convertible_to<std::iter_value_t<It>, raw_value_type>
+  Vector(It first, It last) {
+    assert(std::distance(first, last) == n);
+    std::copy(first, last, begin());
+  }
+
   decltype(auto) operator[](size_t idx) noexcept {
     if constexpr (traits::use_proxy)
       return Proxy<Vector>(data_.get() + idx);

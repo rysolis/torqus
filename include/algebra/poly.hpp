@@ -75,11 +75,11 @@ class Poly {
   }
 
   template <std::forward_iterator It>
+    requires std::convertible_to<std::iter_value_t<It>, raw_value_type>
   Poly(It first, It last) {
+    assert(std::distance(first, last) == N);
     std::copy(first, last, begin());
   }
-
-  Poly(const raw_value_type* ptr) : Poly(ptr, ptr + N) {}
 
   Proxy<Poly> operator[](size_t idx) noexcept {
     assert(idx < N);

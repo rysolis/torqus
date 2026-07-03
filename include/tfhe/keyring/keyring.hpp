@@ -36,6 +36,11 @@ class KeyRing<params, std::enable_if_t<tlwe_concept<params>>> {
     return std::make_unique<tlwe::Cryptor<params>>(this->secret_, eng);
   }
 
+  template <std::forward_iterator It>
+  KeyRing(It first, It last) {
+    this->secret_ = std::make_shared<const Vector<UInt, n>>(first, last);
+  }
+
   const Vector<UInt, n>& secret() const noexcept { return *secret_; }
 
  private:
@@ -65,7 +70,12 @@ class KeyRing<
     return std::make_unique<trgsw::Cryptor<params>>(this->secret_, eng);
   }
 
-  const Poly<UInt, N>& secre() const noexcept { return *secret_; }
+  template <std::forward_iterator It>
+  KeyRing(It first, It last) {
+    this->secret_ = std::make_shared<const Poly<UInt, N>>(first, last);
+  }
+
+  const Poly<UInt, N>& secret() const noexcept { return *secret_; }
 
  private:
   std::shared_ptr<const Poly<UInt, N>> secret_;
