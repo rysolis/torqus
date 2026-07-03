@@ -7,11 +7,11 @@
 #include "algebra/poly.hpp"
 #include "algebra/utility.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/cryptor/glwe_cryptor.hpp"
 #include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
-#include "tfhe/structure/trgsw.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 
 namespace external_product_test {
 

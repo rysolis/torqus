@@ -1,5 +1,8 @@
-#ifndef TRGSW_HPP
-#define TRGSW_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_TRGSW_HPP
+#define TFHE_TRGSW_HPP
 
 #include <iostream>
 
@@ -8,9 +11,8 @@
 
 #include "algebra/vector.hpp"
 
-#include "tfhe/structure/gadget_repr.hpp"
-#include "tfhe/structure/trgsw.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 
 template <torus_type Torus, uint32_t N, uint32_t l>
 class TRGSW {
@@ -52,4 +54,4 @@ inline TRGSW<To, N, l> convert_to(const TRGSW<From, N, l>& src) {
   return dst;
 }
 
-#endif
+#endif  // TFHE_TRGSW_HPP

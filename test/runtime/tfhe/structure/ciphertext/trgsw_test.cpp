@@ -1,6 +1,5 @@
+#include "tfhe/structure/ciphertext/trgsw.hpp"
 #include <gtest/gtest.h>
-
-#include "tfhe/structure/trgsw.hpp"
 
 TEST(TrgswBasicTest, SizeConstructor_initializesBuffer) {
   TRGSW<ModTorus<16>, 4, 2> trgsw;

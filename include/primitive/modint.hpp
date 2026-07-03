@@ -1,5 +1,8 @@
-#ifndef MODINT_HPP
-#define MODINT_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef PRIMITIVE_MODINT_HPP
+#define PRIMITIVE_MODINT_HPP
 
 #include <cstdint>
 #include <iostream>
@@ -87,4 +90,4 @@ inline constexpr ModInt<P> operator*(UInt lhs, const ModInt<P>& rhs) noexcept {
   return ModInt<P>(static_cast<ModInt<P>::raw_value_type>(lhs) * rhs.value());
 }
 
-#endif
+#endif  // PRIMITIVE_MODINT_HPP

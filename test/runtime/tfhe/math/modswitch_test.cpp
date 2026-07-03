@@ -1,4 +1,4 @@
-#include "tfhe/utility/modswitch.hpp"
+#include "tfhe/math/modswitch.hpp"
 #include <gtest/gtest.h>
 
 #include <cstdint>

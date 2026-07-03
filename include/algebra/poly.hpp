@@ -1,5 +1,8 @@
-#ifndef POLY_HPP
-#define POLY_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ALGEBRA_POLY_HPP
+#define ALGEBRA_POLY_HPP
 
 #include <algorithm>
 #include <cassert>
@@ -247,4 +250,4 @@ inline Poly<T, N>::value_type operator-(const typename Poly<T, N>::Proxy& lhs,
          static_cast<Poly<T, N>::raw_value_type>(rhs);
 }
 
-#endif
+#endif  // ALGEBRA_POLY_HPP

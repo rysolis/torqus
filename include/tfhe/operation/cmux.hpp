@@ -1,14 +1,17 @@
-#ifndef CMUX_HPP
-#define CMUX_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_CMUX_HPP
+#define TFHE_CMUX_HPP
 
 #include "primitive/concept/torus.hpp"
 
 #include "algebra/poly.hpp"
 
-#include "tfhe/concepts.hpp"
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation/external_product.hpp"
-#include "tfhe/structure/trgsw.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 
 template <decompose_concept params>
 class CMux {
@@ -27,4 +30,4 @@ class CMux {
   ExternalProduct<params> extprod_;
 };
 
-#endif
+#endif  // TFHE_CMUX_HPP

@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef PRIMITIVE_CONCEPT_HPP
 #define PRIMITIVE_CONCEPT_HPP
 
@@ -12,4 +15,4 @@ concept primitive =
     std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T> &&
     std::has_unique_object_representations_v<T>;
 
-#endif
+#endif  // PRIMITIVE_CONCEPT_HPP

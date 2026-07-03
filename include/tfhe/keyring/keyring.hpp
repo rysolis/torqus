@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef TFHE_KEYRING_HPP
 #define TFHE_KEYRING_HPP
 
@@ -9,7 +12,8 @@
 
 #include "algebra/poly.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/cryptor/glwe_cryptor.hpp"
+#include "tfhe/cryptor/lwe_cryptor.hpp"
 #include "tfhe/params.hpp"
 
 template <typename params, typename = void>
@@ -67,4 +71,4 @@ class KeyRing<
   std::shared_ptr<const Poly<UInt, N>> secret_;
 };
 
-#endif
+#endif  // TFHE_KEYRING_HPP

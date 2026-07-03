@@ -1,3 +1,9 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ALGEBRA_UTILITY_HPP
+#define ALGEBRA_UTILITY_HPP
+
 #include "primitive/concept/convertible.hpp"
 #include "primitive/concept/interpretable.hpp"
 #include "primitive/concept/torus.hpp"
@@ -36,3 +42,5 @@ template <typename To, typename From, uint32_t N>
 Poly<To, N> interpret_as(Poly<From, N>&& src) {
   return Poly<To, N>(src.release());
 }
+
+#endif  // ALGEBRA_UTILITY_HPP

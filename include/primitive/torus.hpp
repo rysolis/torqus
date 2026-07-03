@@ -1,5 +1,8 @@
-#ifndef TORUS_HPP
-#define TORUS_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef PRIMITIVE_TORUS_HPP
+#define PRIMITIVE_TORUS_HPP
 
 #include <cmath>
 #include <concepts>
@@ -211,4 +214,4 @@ inline bool detail::Torus::operator==(
   return norm < eps;
 }
 
-#endif
+#endif  // PRIMITIVE_TORUS_HPP

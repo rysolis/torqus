@@ -1,5 +1,8 @@
-#ifndef UINT_HPP
-#define UINT_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef PRIMITIVE_UINT_HPP
+#define PRIMITIVE_UINT_HPP
 
 #include <cassert>
 #include <cstdint>
@@ -55,4 +58,4 @@ inline constexpr UInt operator-(UInt lhs, const UInt& rhs) {
   return lhs -= rhs;
 }
 
-#endif
+#endif  // PRIMITIVE_UINT_HPP

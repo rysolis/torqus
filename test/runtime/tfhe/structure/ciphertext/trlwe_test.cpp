@@ -1,3 +1,4 @@
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 #include <gtest/gtest.h>
 
 #include "primitive/torus.hpp"
@@ -5,7 +6,6 @@
 #include "algebra/poly.hpp"
 
 #include "tfhe/params.hpp"
-#include "tfhe/structure/trlwe.hpp"
 
 namespace trlwe_basic_test {
 

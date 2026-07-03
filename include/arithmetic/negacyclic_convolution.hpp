@@ -1,5 +1,8 @@
-#ifndef NEGACYCLIC_CONVOLUTION_HPP
-#define NEGACYCLIC_CONVOLUTION_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
+#define ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
 
 #include "primitive/concept/torus.hpp"
 
@@ -58,4 +61,4 @@ struct accumulate_impl<NegacyclicConvolutionExpr<Lhs, Rhs>> {
   }
 };
 
-#endif
+#endif  // ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP

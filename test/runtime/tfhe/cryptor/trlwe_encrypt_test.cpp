@@ -4,10 +4,10 @@
 
 #include "algebra/utility.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/cryptor/glwe_cryptor.hpp"
 #include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 
 namespace trlwe_encrypt_test {
 

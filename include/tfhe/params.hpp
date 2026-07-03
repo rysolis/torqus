@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef TFHE_PARAMS_HPP
 #define TFHE_PARAMS_HPP
 
@@ -33,4 +36,4 @@ struct encoding_params {
   using codec_type = Codec;
 };
 
-#endif
+#endif  // TFHE_PARAMS_HPP

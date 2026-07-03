@@ -1,5 +1,8 @@
-#ifndef CONVERTIBLE_CONCEPT_HPP
-#define CONVERTIBLE_CONCEPT_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef PRIMITIVE_CONVERTIBLE_CONCEPT_HPP
+#define PRIMITIVE_CONVERTIBLE_CONCEPT_HPP
 
 #include <concepts>
 #include <utility>
@@ -17,4 +20,4 @@ concept explicitly_convertible_to =
     lvalue_explicitly_convertible_to<From, To> ||
     rvalue_explicitly_convertible_to<From, To>;
 
-#endif  // CONVERTIBLE_CONCEPT_HPP
+#endif  // PRIMITIVE_CONVERTIBLE_CONCEPT_HPP

@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef ARITHMETIC_UTILITY_HPP
 #define ARITHMETIC_UTILITY_HPP
 
@@ -24,4 +27,4 @@ inline constexpr void randomize(Vector<T, n>& vec, Engine& eng, Dist& dist) {
   }
 }
 
-#endif
+#endif  // ARITHMETIC_UTILITY_HPP

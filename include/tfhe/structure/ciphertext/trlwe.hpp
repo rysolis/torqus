@@ -1,5 +1,8 @@
-#ifndef TRLWE_HPP
-#define TRLWE_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_TRLWE_HPP
+#define TFHE_TRLWE_HPP
 
 #include <concepts>
 
@@ -86,4 +89,4 @@ inline TRLWE<Torus, N> operator-(TRLWE<Torus, N> lhs,
   return lhs;
 }
 
-#endif
+#endif  // TFHE_TRLWE_HPP

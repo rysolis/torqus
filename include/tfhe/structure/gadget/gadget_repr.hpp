@@ -1,5 +1,8 @@
-#ifndef GADGET_REPR_HPP
-#define GADGET_REPR_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_GADGET_REPR_HPP
+#define TFHE_GADGET_REPR_HPP
 
 #include <bit>
 #include <bitset>
@@ -14,8 +17,8 @@
 #include "algebra/poly.hpp"
 #include "algebra/vector.hpp"
 
-#include "tfhe/concepts.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/concept/tfhe.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 
 namespace {
 
@@ -177,4 +180,4 @@ class GadgetTRLWE {
   GadgetRepr<params> b_;
 };
 
-#endif
+#endif  // TFHE_GADGET_REPR_HPP

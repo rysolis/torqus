@@ -1,15 +1,18 @@
-#ifndef EXTERNAL_PRODUCT_HPP
-#define EXTERNAL_PRODUCT_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_EXTERNAL_PRODUCT_HPP
+#define TFHE_EXTERNAL_PRODUCT_HPP
 
 #include "primitive/concept/torus.hpp"
 
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 
-#include "tfhe/concepts.hpp"
-#include "tfhe/structure/gadget_repr.hpp"
-#include "tfhe/structure/trgsw.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/concept/tfhe.hpp"
+#include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/structure/gadget/gadget_repr.hpp"
 
 template <decompose_concept params>
 class ExternalProduct {
@@ -51,4 +54,4 @@ class ExternalProduct {
   }
 };
 
-#endif
+#endif  // TFHE_EXTERNAL_PRODUCT_HPP

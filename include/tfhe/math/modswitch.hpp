@@ -1,5 +1,8 @@
-#ifndef MODSWITCH_HPP
-#define MODSWITCH_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_MODSWITCH_HPP
+#define TFHE_MODSWITCH_HPP
 
 #include <cstdint>
 #include <limits>
@@ -21,4 +24,4 @@ constexpr ModInt<M> mod_switch(const ModInt<N>& t) {
   return ModInt<M>(((uint64_t(t.value()) * M) + half) >> w);
 }
 
-#endif
+#endif  // TFHE_MODSWITCH_HPP

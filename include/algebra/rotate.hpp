@@ -1,5 +1,8 @@
-#ifndef UTILITY_ROTATE_HPP
-#define UTILITY_ROTATE_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ALGEBRA_ROTATE_HPP
+#define ALGEBRA_ROTATE_HPP
 
 #include <cstdint>
 
@@ -18,4 +21,4 @@ Poly<T, N> rotate(const Poly<T, N>& p, uint32_t m) {
   });
 }
 
-#endif
+#endif  // ALGEBRA_ROTATE_HPP

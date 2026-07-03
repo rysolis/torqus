@@ -1,5 +1,8 @@
-#ifndef TFHE_CONCEPTS_HPP
-#define TFHE_CONCEPTS_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_CONCEPT_HPP
+#define TFHE_CONCEPT_HPP
 
 #include <concepts>
 #include <cstdint>
@@ -26,4 +29,4 @@ concept decompose_concept = requires {
 template <typename T>
 concept trgsw_concept = trlwe_concept<T> && decompose_concept<T>;
 
-#endif
+#endif  // TFHE_CONCEPT_HPP

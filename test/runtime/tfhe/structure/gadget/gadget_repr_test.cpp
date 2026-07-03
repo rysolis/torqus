@@ -1,4 +1,4 @@
-#include "tfhe/structure/gadget_repr.hpp"
+#include "tfhe/structure/gadget/gadget_repr.hpp"
 #include <gtest/gtest.h>
 
 #include <bit>

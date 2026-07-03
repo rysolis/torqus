@@ -1,5 +1,8 @@
-#ifndef PROXY_HPP
-#define PROXY_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ALGEBRA_PROXY_HPP
+#define ALGEBRA_PROXY_HPP
 
 #include <iostream>
 
@@ -41,4 +44,4 @@ class Proxy {
   raw_value_type* ptr_;
 };
 
-#endif
+#endif  // ALGEBRA_PROXY_HPP

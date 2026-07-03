@@ -1,10 +1,14 @@
-#ifndef ENCRYPT_HPP
-#define ENCRYPT_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_GLWE_CRYPTOR_HPP
+#define TFHE_GLWE_CRYPTOR_HPP
 
 #include <functional>
 #include <memory>
 
 #include "primitive/concept/torus.hpp"
+#include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 #include "algebra/vector.hpp"
@@ -13,10 +17,11 @@
 #include "arithmetic/negacyclic_convolution.hpp"
 #include "arithmetic/utility.hpp"
 
-#include "tfhe/concepts.hpp"
-#include "tfhe/structure/tlwe.hpp"
-#include "tfhe/structure/trgsw.hpp"
-#include "tfhe/structure/trlwe.hpp"
+#include "tfhe/concept/tfhe.hpp"
+#include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
+
+namespace trlwe::detail {
 
 template <typename Torus>
 struct default_distribution;
@@ -30,43 +35,7 @@ struct default_distribution<ModTorus<QBit>> {
 template <typename T>
 using default_distribution_t = typename default_distribution<T>::type;
 
-namespace tlwe {
-template <tlwe_concept params, typename Engine = std::mt19937>
-class Cryptor {
- public:
-  template <torus_type Torus>
-  using Ciphertext = TLWE<Torus, params::n>;
-
-  template <torus_type Torus>
-  using Plaintext = Torus;
-
-  using Secret = Vector<UInt, params::n>;
-
-  Cryptor() = delete;
-  Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {
-    assert(secret_->size() == params::n);
-  }
-
-  template <torus_type Torus>
-  Ciphertext<Torus> encrypt(const Plaintext<Torus>& message) {
-    auto dist =
-        default_distribution_t<Torus>(Torus::raw_min(), Torus::raw_max());
-    Ciphertext<Torus> ct;
-    randomize(ct.a(), eng_.get(), dist);
-    for (size_t i = 0; i < ct.dimension(); ++i) {
-      ct.b() +=
-          static_cast<UInt>((*secret_)[i]) * static_cast<Torus>(ct.a()[i]);
-    }
-    ct.b() += message;
-    return ct;
-  }
-
- private:
-  std::shared_ptr<const Secret> secret_;
-  std::reference_wrapper<Engine> eng_;
-};
-}  // namespace tlwe
+}  // namespace trlwe::detail
 
 namespace trlwe {
 
@@ -92,8 +61,8 @@ class Cryptor {
 
   template <torus_type Torus>
   Ciphertext<Torus> encrypt(const Plaintext<Torus>& message) {
-    auto dist =
-        default_distribution_t<Torus>(Torus::raw_min(), Torus::raw_max());
+    auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
+                                                             Torus::raw_max());
     Ciphertext<Torus> ct;
     randomize(ct.a(), eng_.get(), dist);
     ct.b() = message + negacyclic_convolution((*secret_), ct.a());
@@ -139,8 +108,8 @@ class Cryptor {
   template <torus_type Torus>
   Ciphertext<Torus> encrypt(const Plaintext& message) {
     Ciphertext<Torus> ct;
-    auto dist =
-        default_distribution_t<Torus>(Torus::raw_min(), Torus::raw_max());
+    auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
+                                                             Torus::raw_max());
     for (size_t i = 0; i < l; ++i) {
       randomize(ct[i].a(), eng_.get(), dist);
       randomize(ct[l + i].a(), eng_.get(), dist);
@@ -166,4 +135,4 @@ class Cryptor {
 
 }  // namespace trgsw
 
-#endif
+#endif  // TFHE_GLWE_CRYPTOR_HPP

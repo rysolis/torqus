@@ -1,5 +1,8 @@
-#ifndef TLWE_HPP
-#define TLWE_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_TLWE_HPP
+#define TFHE_TLWE_HPP
 
 #include <cstdint>
 #include <iostream>
@@ -53,4 +56,4 @@ class TLWE {
   Torus b_{};
 };
 
-#endif
+#endif  // TFHE_TLWE_HPP

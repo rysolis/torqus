@@ -1,8 +1,12 @@
-#ifndef VECTOR_HPP
-#define VECTOR_HPP
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef ALGEBRA_VECTOR_HPP
+#define ALGEBRA_VECTOR_HPP
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <iostream>
 #include <memory>
 
@@ -139,4 +143,4 @@ inline Vector<T, N>::value_type operator-(
          static_cast<Vector<T, N>::raw_value_type>(rhs);
 }
 
-#endif
+#endif  // ALGEBRA_VECTOR_HPP
