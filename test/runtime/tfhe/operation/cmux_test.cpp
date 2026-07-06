@@ -15,6 +15,7 @@
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/analysis/tracked.hpp"
 
 namespace cmux_test {
 
@@ -50,13 +51,15 @@ class CMuxFixture : public ::testing::Test {
   static constexpr uint32_t N = params::N;
   static constexpr uint32_t l = params::l;
 
-  std::unique_ptr<trlwe::Cryptor<params>> trlwe_cryptor_;
-  std::unique_ptr<trgsw::Cryptor<params>> trgsw_cryptor_;
+  TrackedCryptor<trlwe::Cryptor<params>> trlwe_cryptor_;
+  TrackedCryptor<trgsw::Cryptor<params>> trgsw_cryptor_;
 
   void SetUp() override {
     KeyRing<params> kr(this->eng_);
-    this->trlwe_cryptor_ = std::move(kr.trlwe_cryptor(this->eng_));
-    this->trgsw_cryptor_ = std::move(kr.trgsw_cryptor(this->eng_));
+    trlwe_cryptor_ =
+        TrackedCryptor<trlwe::Cryptor<params>>(kr.trlwe_cryptor(this->eng_));
+    trgsw_cryptor_ =
+        TrackedCryptor<trgsw::Cryptor<params>>(kr.trgsw_cryptor(this->eng_));
   }
 };
 
@@ -79,8 +82,6 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
   Poly<Torus, N> p0_;
   Poly<Torus, N> p1_;
 
-  CMux<params> cmux_;
-
   void SetUp() override {
     Base::SetUp();
 
@@ -88,8 +89,8 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
     zero_[0] = UInt(0);
     one_[0] = UInt(1);
 
-    c0_ = this->trgsw_cryptor_->template encrypt<Torus>(zero_);
-    c1_ = this->trgsw_cryptor_->template encrypt<Torus>(one_);
+    c0_ = this->trgsw_cryptor_.template encrypt<Torus>(zero_);
+    c1_ = this->trgsw_cryptor_.template encrypt<Torus>(one_);
 
     // Prepare candidate p0 and p1
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
@@ -112,18 +113,17 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> ep0 =
-      this->trlwe_cryptor_->template encrypt<Torus>(this->p0_);
-
-  TRLWE<Torus, N> ep1 =
-      this->trlwe_cryptor_->template encrypt<Torus>(this->p1_);
+  TRLWE<Torus, N> ep0 = this->trlwe_cryptor_.template encrypt<Torus>(this->p0_);
+  TRLWE<Torus, N> ep1 = this->trlwe_cryptor_.template encrypt<Torus>(this->p1_);
 
   // ==================================
-  TRLWE<Torus, N> sut0 = this->cmux_(this->c0_, ep0, ep1);
-  Poly<Torus, N> dp0 = this->trlwe_cryptor_->template decrypt<Torus>(sut0);
+  TRLWE<Torus, N> sut0 =
+      TrackedEvaluator<CMux<params>>::exec(this->c0_, ep0, ep1);
+  Poly<Torus, N> dp0 = this->trlwe_cryptor_.template decrypt<Torus>(sut0);
   // ----------------------------------
-  TRLWE<Torus, N> sut1 = this->cmux_(this->c1_, ep0, ep1);
-  Poly<Torus, N> dp1 = this->trlwe_cryptor_->template decrypt<Torus>(sut1);
+  TRLWE<Torus, N> sut1 =
+      TrackedEvaluator<CMux<params>>::exec(this->c1_, ep0, ep1);
+  Poly<Torus, N> dp1 = this->trlwe_cryptor_.template decrypt<Torus>(sut1);
   // ==================================
 
   double norm0 = infinity_norm(dp0 - this->p0_);
@@ -140,14 +140,14 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   }
   std::cout << std::left;
   std::cout << std::setw(14) << "norm0 " << ": " << norm0 << "\n";
-  std::cout << std::setw(14) << "sut0 bound" << ": " << sut0.error_bound()
-            << "\n";
+  std::cout << std::setw(14) << "sut0 bound" << ": "
+            << get_noise_tracker_if()->get(sut0) << "\n";
 
   std::cout << std::setw(14) << "norm1 " << ": " << norm1 << "\n";
-  std::cout << std::setw(14) << "sut1 bound" << ": " << sut1.error_bound()
-            << "\n";
+  std::cout << std::setw(14) << "sut1 bound" << ": "
+            << get_noise_tracker_if()->get(sut1) << "\n";
   std::cout << "===================\n\n";
 
-  EXPECT_LE(norm0, sut0.error_bound());
-  EXPECT_LE(norm1, sut1.error_bound());
+  EXPECT_LE(norm0, get_noise_tracker_if()->get(sut0));
+  EXPECT_LE(norm1, get_noise_tracker_if()->get(sut1));
 }

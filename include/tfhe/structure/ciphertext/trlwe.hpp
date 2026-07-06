@@ -19,8 +19,7 @@ class TRLWE {
  public:
   TRLWE() = default;
   // NOLINT(bugprone-easily-swappable-parameters)
-  TRLWE(const Poly<Torus, N>& a, const Poly<Torus, N>& b)
-      : a_(a), b_(b), error_bound_(0.0001) {}
+  TRLWE(const Poly<Torus, N>& a, const Poly<Torus, N>& b) : a_(a), b_(b) {}
 
   template <typename F>
     requires requires(F& f) {
@@ -36,7 +35,6 @@ class TRLWE {
   TRLWE& operator+=(const TRLWE& other) {
     a_ += other.a_;
     b_ += other.b_;
-    error_bound_ += other.error_bound();
     return *this;
   }
 
@@ -44,12 +42,12 @@ class TRLWE {
   TRLWE& operator-=(const TRLWE& other) {
     a_ -= other.a_;
     b_ -= other.b_;
-    error_bound_ += other.error_bound();
     return *this;
   }
 
-  double error_bound() const noexcept { return error_bound_; }
-  void update_bound(double v) noexcept { error_bound_ = v; }
+  const void* identity() const noexcept {
+    return static_cast<const void*>(a_.data());
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const TRLWE& trlwe) {
     os << "TRLWE(a: " << trlwe.a_ << ", b: " << trlwe.b_ << ")";
@@ -59,7 +57,6 @@ class TRLWE {
  private:
   Poly<Torus, N> a_;
   Poly<Torus, N> b_;
-  double error_bound_ = 0.0001;
 };
 
 template <typename To, typename From, uint32_t N>
@@ -73,20 +70,6 @@ template <typename To, typename From, uint32_t N>
   requires explicitly_convertible_to<To, From>
 inline TRLWE<To, N> convert_to(const TRLWE<From, N>& src) {
   return TRLWE<To, N>(convert_to<To, N>(src.a()), convert_to<To, N>(src.b()));
-}
-
-template <torus_type Torus, uint32_t N>
-inline TRLWE<Torus, N> operator+(TRLWE<Torus, N> lhs,
-                                 const TRLWE<Torus, N>& rhs) {
-  lhs += rhs;
-  return lhs;
-}
-
-template <torus_type Torus, uint32_t N>
-inline TRLWE<Torus, N> operator-(TRLWE<Torus, N> lhs,
-                                 const TRLWE<Torus, N>& rhs) {
-  lhs -= rhs;
-  return lhs;
 }
 
 #endif  // TFHE_TRLWE_HPP

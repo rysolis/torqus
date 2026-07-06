@@ -8,6 +8,7 @@
 #include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/analysis/tracked.hpp"
 
 namespace trlwe_encrypt_test {
 
@@ -39,11 +40,12 @@ class TrlweEncryptionFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  std::unique_ptr<trlwe::Cryptor<params>> cryptor_;
+  std::unique_ptr<TrackedCryptor<trlwe::Cryptor<params>>> cryptor_;
 
   void SetUp() override {
     KeyRing<params> kr(this->eng_);
-    this->cryptor_ = std::move(kr.trlwe_cryptor(this->eng_));
+    this->cryptor_ = std::make_unique<TrackedCryptor<trlwe::Cryptor<params>>>(
+        kr.trlwe_cryptor(this->eng_));
   }
 };
 
@@ -90,8 +92,9 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   std::cout << "expected : " << this->plaintext_ << "\n";
   std::cout << "decrypted: " << decrypted << "\n";
   std::cout << "infinity_norm    : " << norm << "\n";
-  std::cout << "error_bound      : " << sut.error_bound() << "\n";
+  std::cout << "error_bound      : " << get_noise_tracker_if()->get(sut)
+            << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_EQ(this->plaintext_, decrypted);
+  EXPECT_LE(norm, get_noise_tracker_if()->get(sut));
 }

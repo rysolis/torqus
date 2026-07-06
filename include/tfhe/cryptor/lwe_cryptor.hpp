@@ -36,6 +36,8 @@ namespace tlwe {
 template <tlwe_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
+  using params_type = params;
+
   template <torus_type Torus>
   using Ciphertext = TLWE<Torus, params::n>;
 
@@ -44,7 +46,6 @@ class Cryptor {
 
   using Secret = Vector<UInt, params::n>;
 
-  Cryptor() = delete;
   Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
       : secret_(std::move(secret)), eng_(eng) {
     assert(secret_->size() == params::n);

@@ -20,6 +20,7 @@
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace blindrotate_test {
@@ -41,7 +42,7 @@ using Ctx1 = ParameterSet<
     glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
 
 using Ctx2 = ParameterSet<
-    lwe_params<tlwe_core_params<void, 10>>,
+    lwe_params<tlwe_core_params<void, 20>>,
     glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<256, 2>>>;
 
 using TestContexts =
@@ -67,19 +68,19 @@ class BlindRotateFixture : public ::testing::Test {
   ModInt<M> phase_;
   Poly<bTorus, N> tv_;
 
-  std::unique_ptr<trlwe::Cryptor<glwe_params>> trlwe_cryptor_;
-  std::unique_ptr<trgsw::Cryptor<glwe_params>> trgsw_cryptor_;
+  TrackedCryptor<trlwe::Cryptor<glwe_params>> trlwe_cryptor_;
+  TrackedCryptor<trgsw::Cryptor<glwe_params>> trgsw_cryptor_;
 
   Vector<ModInt<M>, n + 1> mod_tlwe_;
   TRLWE<bTorus, N> trlwe_tv_;
   BootstrapKey<bTorus, N, l, n> bk_;
 
-  BlindRotate<lwe_params, glwe_params> rotator_;
-
   void SetUp() override {
     KeyRing<glwe_params> glwe_kr(this->eng_);
-    this->trlwe_cryptor_ = std::move(glwe_kr.trlwe_cryptor(this->eng_));
-    this->trgsw_cryptor_ = std::move(glwe_kr.trgsw_cryptor(this->eng_));
+    this->trlwe_cryptor_ = TrackedCryptor<trlwe::Cryptor<glwe_params>>(
+        glwe_kr.trlwe_cryptor(this->eng_));
+    this->trgsw_cryptor_ = TrackedCryptor<trgsw::Cryptor<glwe_params>>(
+        glwe_kr.trgsw_cryptor(this->eng_));
 
     KeyRing<lwe_params> lwe_kr(this->eng_);
 
@@ -87,7 +88,7 @@ class BlindRotateFixture : public ::testing::Test {
     for (size_t i = 0; i < n; ++i) {
       Poly<UInt, N> tmp;
       tmp[0] = (lwe_kr.secret())[i];
-      this->bk_[i] = this->trgsw_cryptor_->template encrypt<bTorus>(tmp);
+      this->bk_[i] = this->trgsw_cryptor_.template encrypt<bTorus>(tmp);
     }
 
     // Prepare Vector<ModInt<M>, n+1>
@@ -110,7 +111,7 @@ class BlindRotateFixture : public ::testing::Test {
 
     // Prepare TestVector
     this->tv_ = testvector::generate<bTorus, N>();
-    this->trlwe_tv_ = trlwe_cryptor_->template encrypt<bTorus>(this->tv_);
+    this->trlwe_tv_ = trlwe_cryptor_.template encrypt<bTorus>(this->tv_);
   }
 };
 
@@ -121,6 +122,7 @@ class BlindRotateCorrectnessTest
 TYPED_TEST_SUITE(BlindRotateCorrectnessTest, blindrotate_test::TestContexts);
 
 TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
+  using lwe_params = typename TypeParam::context::lwe_params;
   using glwe_params = typename TypeParam::context::glwe_params;
 
   using bTorus = glwe_params::torus_type;
@@ -134,8 +136,10 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   Poly<bTorus, N> expected = rotate(this->tv_, (-phase).value());
   // ----------------------------------
   TRLWE<bTorus, N> sut =
-      this->rotator_(this->trlwe_tv_, this->mod_tlwe_, this->bk_);
-  Poly<bTorus, N> decrypted = this->trlwe_cryptor_->template decrypt(sut);
+      TrackedEvaluator<BlindRotate<lwe_params, glwe_params>>::exec(
+          this->trlwe_tv_, this->mod_tlwe_, this->bk_);
+  Poly<bTorus, N> decrypted =
+      this->trlwe_cryptor_.template decrypt<bTorus>(sut);
   // ==================================
 
   Poly<bTorus, N> err = decrypted - expected;
@@ -156,10 +160,10 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   std::cout << std::setw(14) << "phase " << ": " << phase << '\n';
   std::cout << std::setw(14) << "-phase" << ": " << -phase << '\n';
   std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
-  std::cout << std::setw(14) << "errror_bound " << ": " << sut.error_bound()
-            << '\n';
+  std::cout << std::setw(14) << "errror_bound " << ": "
+            << get_noise_tracker_if()->get(sut) << '\n';
 
   std::cout << "========================================\n\n";
 
-  EXPECT_LE(norm, sut.error_bound());
+  EXPECT_LE(norm, get_noise_tracker_if()->get(sut));
 }

@@ -43,6 +43,8 @@ namespace trlwe {
 template <trlwe_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
+  using params_type = params;
+
   template <torus_type Torus>
   using Ciphertext = TRLWE<Torus, params::N>;
 
@@ -51,7 +53,6 @@ class Cryptor {
 
   using Secret = Poly<UInt, params::N>;
 
-  Cryptor() = delete;
   Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
       : secret_(std::move(secret)), eng_(eng) {
     assert(secret_->size() == params::N);
@@ -67,7 +68,6 @@ class Cryptor {
     Ciphertext<Torus> ct;
     randomize(ct.a(), eng_.get(), dist);
     ct.b() = message + negacyclic_convolution((*secret_), ct.a());
-    ct.update_bound(0.0);  // TOOO: use params
     return ct;
   }
 
@@ -87,6 +87,7 @@ namespace trgsw {
 template <trgsw_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
+  using params_type = params;
   static constexpr uint32_t N = params::N;
   static constexpr uint32_t l = params::l;
 
@@ -97,7 +98,6 @@ class Cryptor {
 
   using Secret = Poly<UInt, N>;
 
-  Cryptor() = delete;
   Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
       : secret_(std::move(secret)), eng_(eng) {
     assert(secret_->size() == N);
