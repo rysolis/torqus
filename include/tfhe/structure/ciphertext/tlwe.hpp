@@ -30,9 +30,19 @@ class TLWE {
   }
 
   template <typename F>
-    requires requires(F& f) {
-      { std::invoke(f) } -> explicitly_convertible_to<Torus>;
+    requires requires(F& f, std::size_t i) {
+      { std::invoke(f, i) } -> explicitly_convertible_to<Torus>;
     }
+  TLWE(F&& f) : a_(std::forward<F>(f)) {}
+
+  template <typename F>
+    requires(
+        requires(F& f, std::size_t i) {
+          { std::invoke(f, i) } -> explicitly_convertible_to<Torus>;
+        } &&
+        requires(F& f) {
+          { std::invoke(f) } -> explicitly_convertible_to<Torus>;
+        })
   TLWE(F&& f) : a_(std::forward<F>(f)) {}
 
   Vector<Torus, n>& a() { return a_; }

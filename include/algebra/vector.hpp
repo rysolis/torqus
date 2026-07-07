@@ -5,6 +5,7 @@
 #define ALGEBRA_VECTOR_HPP
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <functional>
 #include <iostream>
