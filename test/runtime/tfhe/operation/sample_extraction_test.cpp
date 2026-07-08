@@ -7,9 +7,9 @@
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
 #include "tfhe/cryptor/lwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace sample_extraction_test {
 
@@ -54,9 +54,8 @@ class SampleExtractionFixture : public ::testing::Test {
   TRLWE<bTorus, N> trlwe_;
 
   void SetUp() override {
-    KeyRing<glwe_params> glwe_kr(this->eng_);
-    KeyRing<lwe_params> lwe_kr(glwe_kr.secret().begin(),
-                               glwe_kr.secret().end());
+    SecretHolder<glwe_params> glwe_kr(this->eng_);
+    SecretHolder<lwe_params> lwe_kr(glwe_kr.begin(), glwe_kr.end());
     tlwe_cryptor_ =
         TrackedCryptor<tlwe::Cryptor<lwe_params>>(lwe_kr.tlwe_cryptor(eng_));
     trlwe_cryptor_ = TrackedCryptor<trlwe::Cryptor<glwe_params>>(

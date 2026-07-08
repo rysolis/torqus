@@ -8,11 +8,11 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace external_product_test {
 
@@ -55,7 +55,7 @@ class ExternalProductFixture : public ::testing::Test {
   TrackedCryptor<trgsw::Cryptor<params>> trgsw_cryptor_;
 
   void SetUp() override {
-    KeyRing<params> kr(this->eng_);
+    SecretHolder<params> kr(this->eng_);
     trlwe_cryptor_ =
         TrackedCryptor<trlwe::Cryptor<params>>(kr.trlwe_cryptor(this->eng_));
     trgsw_cryptor_ =

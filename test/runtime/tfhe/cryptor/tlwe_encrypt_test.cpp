@@ -3,9 +3,9 @@
 #include <random>
 
 #include "tfhe/cryptor/lwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace tlwe_encrypt_test {
 
@@ -41,7 +41,7 @@ class TlweEncryptionFixture : public ::testing::Test {
   std::unique_ptr<tlwe::Cryptor<params>> cryptor_;
 
   void SetUp() override {
-    KeyRing<params> kr(this->eng_);
+    SecretHolder<params> kr(this->eng_);
     this->cryptor_ = std::move(kr.tlwe_cryptor(this->eng_));
   }
 };

@@ -44,19 +44,18 @@ template <trlwe_concept params, typename Engine = std::mt19937>
 class Cryptor {
  public:
   using params_type = params;
+  static constexpr uint32_t N = params::N;
 
   template <torus_type Torus>
-  using Ciphertext = TRLWE<Torus, params::N>;
+  using Ciphertext = TRLWE<Torus, N>;
 
   template <torus_type Torus>
-  using Plaintext = Poly<Torus, params::N>;
+  using Plaintext = Poly<Torus, N>;
 
-  using Secret = Poly<UInt, params::N>;
+  using Secret = Poly<UInt, N>;
 
-  Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {
-    assert(secret_->size() == params::N);
-  }
+  Cryptor(std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng)
+      : secret_(std::move(secret)), eng_(eng) {}
 
   Cryptor(const Cryptor&) = default;
   Cryptor& operator=(const Cryptor&) = default;
@@ -67,17 +66,19 @@ class Cryptor {
                                                              Torus::raw_max());
     Ciphertext<Torus> ct;
     randomize(ct.a(), eng_.get(), dist);
-    ct.b() = message + negacyclic_convolution((*secret_), ct.a());
+    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
+    ct.b() = message + negacyclic_convolution(secret, ct.a());
     return ct;
   }
 
   template <torus_type Torus>
   Plaintext<Torus> decrypt(const Ciphertext<Torus>& ciphertext) {
-    return ciphertext.b() - negacyclic_convolution((*secret_), ciphertext.a());
+    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
+    return ciphertext.b() - negacyclic_convolution(secret, ciphertext.a());
   }
 
  private:
-  std::shared_ptr<const Secret> secret_;
+  std::shared_ptr<UInt::raw_value_type[]> secret_;
   std::reference_wrapper<Engine> eng_;
 };
 }  // namespace trlwe
@@ -98,10 +99,8 @@ class Cryptor {
 
   using Secret = Poly<UInt, N>;
 
-  Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {
-    assert(secret_->size() == N);
-  }
+  Cryptor(std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng)
+      : secret_(std::move(secret)), eng_(eng) {}
 
   Cryptor(const Cryptor&) = default;
   Cryptor& operator=(const Cryptor&) = default;
@@ -111,12 +110,13 @@ class Cryptor {
     Ciphertext<Torus> ct;
     auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
                                                              Torus::raw_max());
+    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
     for (size_t i = 0; i < l; ++i) {
       randomize(ct[i].a(), eng_.get(), dist);
       randomize(ct[l + i].a(), eng_.get(), dist);
 
-      ct[i].b() = negacyclic_convolution(*secret_, ct[i].a());
-      ct[l + i].b() = negacyclic_convolution(*secret_, ct[l + i].a());
+      ct[i].b() = negacyclic_convolution(secret, ct[i].a());
+      ct[l + i].b() = negacyclic_convolution(secret, ct[l + i].a());
 
       detail::Torus v(static_cast<detail::Torus::raw_value_type>(
                           static_cast<UInt::raw_value_type>(message[0])) /
@@ -130,7 +130,7 @@ class Cryptor {
   }
 
  private:
-  std::shared_ptr<const Secret> secret_;
+  std::shared_ptr<UInt::raw_value_type[]> secret_;
   std::reference_wrapper<Engine> eng_;
 };
 

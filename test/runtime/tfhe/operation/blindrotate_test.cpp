@@ -16,11 +16,11 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace blindrotate_test {
@@ -76,18 +76,18 @@ class BlindRotateFixture : public ::testing::Test {
   BootstrapKey<bTorus, N, l, n> bk_;
 
   void SetUp() override {
-    KeyRing<glwe_params> glwe_kr(this->eng_);
+    SecretHolder<glwe_params> glwe_kr(this->eng_);
     this->trlwe_cryptor_ = TrackedCryptor<trlwe::Cryptor<glwe_params>>(
         glwe_kr.trlwe_cryptor(this->eng_));
     this->trgsw_cryptor_ = TrackedCryptor<trgsw::Cryptor<glwe_params>>(
         glwe_kr.trgsw_cryptor(this->eng_));
 
-    KeyRing<lwe_params> lwe_kr(this->eng_);
+    SecretHolder<lwe_params> lwe_kr(this->eng_);
 
     // Prepare Bootstrapkey
     for (size_t i = 0; i < n; ++i) {
       Poly<UInt, N> tmp;
-      tmp[0] = (lwe_kr.secret())[i];
+      tmp[0] = static_cast<UInt>((lwe_kr.secret())[i]);
       this->bk_[i] = this->trgsw_cryptor_.template encrypt<bTorus>(tmp);
     }
 

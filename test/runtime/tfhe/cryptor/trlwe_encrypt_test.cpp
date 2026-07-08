@@ -5,10 +5,10 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace trlwe_encrypt_test {
 
@@ -43,7 +43,7 @@ class TrlweEncryptionFixture : public ::testing::Test {
   std::unique_ptr<TrackedCryptor<trlwe::Cryptor<params>>> cryptor_;
 
   void SetUp() override {
-    KeyRing<params> kr(this->eng_);
+    SecretHolder<params> kr(this->eng_);
     this->cryptor_ = std::make_unique<TrackedCryptor<trlwe::Cryptor<params>>>(
         kr.trlwe_cryptor(this->eng_));
   }

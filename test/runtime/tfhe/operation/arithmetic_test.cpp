@@ -10,12 +10,12 @@
 #include "algebra/utility.hpp"
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace arithmetic_executor_test {
 
@@ -52,7 +52,7 @@ class ArithmeticFixture : public ::testing::Test {
   std::mt19937 eng_{0};
 
   void SetUp() override {
-    KeyRing<params> kr(eng_);
+    SecretHolder<params> kr(eng_);
     cryptor_ =
         TrackedCryptor<trlwe::Cryptor<params>>(kr.trlwe_cryptor(this->eng_));
   }

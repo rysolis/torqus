@@ -7,8 +7,8 @@
 #include "algebra/poly.hpp"
 #include "algebra/vector.hpp"
 
-#include "tfhe/keyring/keyring.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 namespace keyring_test {
 
@@ -35,7 +35,7 @@ using TestContexts =
 }  // namespace keyring_test
 
 template <typename T>
-class KeyRingTest : public ::testing::Test {
+class SecretHolderTest : public ::testing::Test {
  protected:
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
@@ -46,16 +46,16 @@ class KeyRingTest : public ::testing::Test {
   }
 };
 
-TYPED_TEST_SUITE(KeyRingTest, keyring_test::TestContexts);
+TYPED_TEST_SUITE(SecretHolderTest, keyring_test::TestContexts);
 
-TYPED_TEST(KeyRingTest, ConvertSecret) {
+TYPED_TEST(SecretHolderTest, ConvertSecret) {
   using lwe_params = typename TypeParam::context::lwe_params;
   using glwe_params = typename TypeParam::context::glwe_params;
 
-  KeyRing<glwe_params> glwe_kr(this->eng_);
-  KeyRing<lwe_params> lwe_kr(glwe_kr.secret().begin(), glwe_kr.secret().end());
+  SecretHolder<glwe_params> glwe_kr(this->eng_);
+  SecretHolder<lwe_params> lwe_kr(glwe_kr.begin(), glwe_kr.end());
 
-  std::cout << "\n=== KeyRing Test ===\n";
+  std::cout << "\n=== SecretHolder Test ===\n";
   if (TypeParam::verbose) {
     std::cout << "GLWE Secret: " << glwe_kr.secret() << "\n";
     std::cout << "LWE Secret:  " << lwe_kr.secret() << "\n";

@@ -46,10 +46,8 @@ class Cryptor {
 
   using Secret = Vector<UInt, params::n>;
 
-  Cryptor(std::shared_ptr<const Secret> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {
-    assert(secret_->size() == params::n);
-  }
+  Cryptor(std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng)
+      : secret_(std::move(secret)), eng_(eng) {}
 
   template <torus_type Torus>
   Ciphertext<Torus> encrypt(const Plaintext<Torus>& message) {
@@ -57,9 +55,9 @@ class Cryptor {
                                                             Torus::raw_max());
     Ciphertext<Torus> ct;
     randomize(ct.a(), eng_.get(), dist);
-    for (size_t i = 0; i < ct.dimension(); ++i) {
-      ct.b() +=
-          static_cast<UInt>((*secret_)[i]) * static_cast<Torus>(ct.a()[i]);
+    // Vector<UInt, params::n> secret ...
+    for (uint32_t i = 0; i < ct.dimension(); ++i) {
+      ct.b() += static_cast<UInt>(secret_[i]) * static_cast<Torus>(ct.a()[i]);
     }
     ct.b() += message;
     return ct;
@@ -68,15 +66,15 @@ class Cryptor {
   template <torus_type Torus>
   Plaintext<Torus> decrypt(const Ciphertext<Torus>& ciphertext) {
     Plaintext<Torus> pt = ciphertext.b();
-    for (size_t i = 0; i < ciphertext.dimension(); ++i) {
-      pt -= static_cast<UInt>((*secret_)[i]) *
-            static_cast<Torus>(ciphertext.a()[i]);
+    for (uint32_t i = 0; i < ciphertext.dimension(); ++i) {
+      pt -=
+          static_cast<UInt>(secret_[i]) * static_cast<Torus>(ciphertext.a()[i]);
     }
     return pt;
   }
 
  private:
-  std::shared_ptr<const Secret> secret_;
+  std::shared_ptr<UInt::raw_value_type[]> secret_;
   std::reference_wrapper<Engine> eng_;
 };
 }  // namespace tlwe
