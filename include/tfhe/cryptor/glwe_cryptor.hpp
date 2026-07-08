@@ -40,99 +40,62 @@ using default_distribution_t = typename default_distribution<T>::type;
 
 namespace trlwe {
 
-template <trlwe_concept params, typename Engine = std::mt19937>
-class Cryptor {
- public:
-  using params_type = params;
-  static constexpr uint32_t N = params::N;
+template <trlwe_concept params, torus_type Torus, typename Engine>
+TRLWE<Torus, params::N> encrypt(std::shared_ptr<UInt::raw_value_type[]> s,
+                                Engine& eng, const Poly<Torus, params::N>& pt) {
+  constexpr uint32_t N = params::N;
+  auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
+                                                           Torus::raw_max());
+  TRLWE<Torus, N> ct;
+  randomize(ct.a(), eng.get(), dist);
+  Poly<UInt, N> secret(s.get(), s.get() + N);
+  ct.b() = pt + negacyclic_convolution(secret, ct.a());
+  return ct;
+}
 
-  template <torus_type Torus>
-  using Ciphertext = TRLWE<Torus, N>;
+template <trlwe_concept params, torus_type Torus>
+Poly<Torus, params::N> decrypt(std::shared_ptr<UInt::raw_value_type[]> s,
+                               const TRLWE<Torus, params::N>& ct) {
+  constexpr uint32_t N = params::N;
 
-  template <torus_type Torus>
-  using Plaintext = Poly<Torus, N>;
+  Poly<UInt, N> secret(s.get(), s.get() + N);
+  return ct.b() - negacyclic_convolution(secret, ct.a());
+}
 
-  using Secret = Poly<UInt, N>;
-
-  Cryptor(std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {}
-
-  Cryptor(const Cryptor&) = default;
-  Cryptor& operator=(const Cryptor&) = default;
-
-  template <torus_type Torus>
-  Ciphertext<Torus> encrypt(const Plaintext<Torus>& message) {
-    auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
-                                                             Torus::raw_max());
-    Ciphertext<Torus> ct;
-    randomize(ct.a(), eng_.get(), dist);
-    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
-    ct.b() = message + negacyclic_convolution(secret, ct.a());
-    return ct;
-  }
-
-  template <torus_type Torus>
-  Plaintext<Torus> decrypt(const Ciphertext<Torus>& ciphertext) {
-    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
-    return ciphertext.b() - negacyclic_convolution(secret, ciphertext.a());
-  }
-
- private:
-  std::shared_ptr<UInt::raw_value_type[]> secret_;
-  std::reference_wrapper<Engine> eng_;
-};
 }  // namespace trlwe
 
 namespace trgsw {
 
-template <trgsw_concept params, typename Engine = std::mt19937>
-class Cryptor {
- public:
-  using params_type = params;
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
+template <trlwe_concept params, torus_type Torus, typename Engine>
+  requires decompose_concept<params>
+TRGSW<Torus, params::N, params::l> encrypt(
+    std::shared_ptr<UInt::raw_value_type[]> s, Engine& eng,
+    const Poly<UInt, params::N>& pt) {
+  constexpr uint32_t N = params::N;
+  constexpr uint32_t B = params::B;
+  constexpr uint32_t l = params::l;
 
-  template <torus_type Torus>
-  using Ciphertext = TRGSW<Torus, N, l>;
+  TRGSW<Torus, N, l> ct;
+  auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
+                                                           Torus::raw_max());
+  Poly<UInt, N> secret(s.get(), s.get() + N);
+  for (size_t i = 0; i < l; ++i) {
+    randomize(ct[i].a(), eng.get(), dist);
+    randomize(ct[l + i].a(), eng.get(), dist);
 
-  using Plaintext = Poly<UInt, N>;
+    ct[i].b() = negacyclic_convolution(secret, ct[i].a());
+    ct[l + i].b() = negacyclic_convolution(secret, ct[l + i].a());
 
-  using Secret = Poly<UInt, N>;
+    detail::Torus v(static_cast<detail::Torus::raw_value_type>(
+                        static_cast<UInt::raw_value_type>(pt[0])) /
+                    (std::pow(B, i + 1)));
+    Torus m = static_cast<Torus>(v);
 
-  Cryptor(std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng)
-      : secret_(std::move(secret)), eng_(eng) {}
-
-  Cryptor(const Cryptor&) = default;
-  Cryptor& operator=(const Cryptor&) = default;
-
-  template <torus_type Torus>
-  Ciphertext<Torus> encrypt(const Plaintext& message) {
-    Ciphertext<Torus> ct;
-    auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
-                                                             Torus::raw_max());
-    Poly<UInt, N> secret(secret_.get(), secret_.get() + N);
-    for (size_t i = 0; i < l; ++i) {
-      randomize(ct[i].a(), eng_.get(), dist);
-      randomize(ct[l + i].a(), eng_.get(), dist);
-
-      ct[i].b() = negacyclic_convolution(secret, ct[i].a());
-      ct[l + i].b() = negacyclic_convolution(secret, ct[l + i].a());
-
-      detail::Torus v(static_cast<detail::Torus::raw_value_type>(
-                          static_cast<UInt::raw_value_type>(message[0])) /
-                      (std::pow(params::B, i + 1)));
-      Torus m = static_cast<Torus>(v);
-
-      ct[i].a()[0] = static_cast<Torus>(ct[i].a()[0]) + m;
-      ct[l + i].b()[0] = static_cast<Torus>(ct[l + i].b()[0]) + m;
-    }
-    return ct;
+    ct[i].a()[0] = static_cast<Torus>(ct[i].a()[0]) + m;
+    ct[l + i].b()[0] = static_cast<Torus>(ct[l + i].b()[0]) + m;
   }
-
- private:
-  std::shared_ptr<UInt::raw_value_type[]> secret_;
-  std::reference_wrapper<Engine> eng_;
-};
+  return ct;
+}
 
 }  // namespace trgsw
 

@@ -5,8 +5,7 @@
 
 #include "arithmetic/utility.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/cryptor/lwe_cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -47,8 +46,8 @@ class SampleExtractionFixture : public ::testing::Test {
   using bTorus = typename glwe_params::torus_type;
   static constexpr uint32_t N = glwe_params::N;
 
-  TrackedCryptor<tlwe::Cryptor<lwe_params>> tlwe_cryptor_;
-  TrackedCryptor<trlwe::Cryptor<glwe_params>> trlwe_cryptor_;
+  TrackedCryptor<Cryptor<lwe_params>> tlwe_cryptor_;
+  TrackedCryptor<Cryptor<glwe_params>> trlwe_cryptor_;
 
   Poly<bTorus, N> message_;
   TRLWE<bTorus, N> trlwe_;
@@ -57,9 +56,9 @@ class SampleExtractionFixture : public ::testing::Test {
     SecretHolder<glwe_params> glwe_kr(this->eng_);
     SecretHolder<lwe_params> lwe_kr(glwe_kr.begin(), glwe_kr.end());
     tlwe_cryptor_ =
-        TrackedCryptor<tlwe::Cryptor<lwe_params>>(lwe_kr.tlwe_cryptor(eng_));
-    trlwe_cryptor_ = TrackedCryptor<trlwe::Cryptor<glwe_params>>(
-        glwe_kr.trlwe_cryptor(eng_));
+        TrackedCryptor<Cryptor<lwe_params>>(lwe_kr.secret_ptr(), eng_);
+    trlwe_cryptor_ =
+        TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
 
     // Prepare Message
     std::uniform_int_distribution<typename bTorus::raw_value_type> torus_dist(
@@ -68,7 +67,7 @@ class SampleExtractionFixture : public ::testing::Test {
     randomize(this->message_, eng_, torus_dist);
 
     // Prepare TRLWE
-    this->trlwe_ = trlwe_cryptor_.template encrypt<bTorus>(this->message_);
+    this->trlwe_ = trlwe_cryptor_.encrypt(this->message_);
   }
 };
 
@@ -88,7 +87,7 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
 
   TLWE<fTorus, n> tlwe =
       SampleExtraction<lwe_params, glwe_params>::exec(this->trlwe_, 0);
-  fTorus actual = this->tlwe_cryptor_.template decrypt<fTorus>(tlwe);
+  fTorus actual = this->tlwe_cryptor_.decrypt(tlwe);
 
   fTorus expected = this->message_[0];
 

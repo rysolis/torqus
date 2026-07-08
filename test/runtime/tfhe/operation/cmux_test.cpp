@@ -10,7 +10,7 @@
 #include "algebra/poly.hpp"
 #include "algebra/utility.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -51,15 +51,11 @@ class CMuxFixture : public ::testing::Test {
   static constexpr uint32_t N = params::N;
   static constexpr uint32_t l = params::l;
 
-  TrackedCryptor<trlwe::Cryptor<params>> trlwe_cryptor_;
-  TrackedCryptor<trgsw::Cryptor<params>> trgsw_cryptor_;
+  TrackedCryptor<Cryptor<params>> cryptor_;
 
   void SetUp() override {
     SecretHolder<params> kr(this->eng_);
-    trlwe_cryptor_ =
-        TrackedCryptor<trlwe::Cryptor<params>>(kr.trlwe_cryptor(this->eng_));
-    trgsw_cryptor_ =
-        TrackedCryptor<trgsw::Cryptor<params>>(kr.trgsw_cryptor(this->eng_));
+    cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -89,8 +85,8 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
     zero_[0] = UInt(0);
     one_[0] = UInt(1);
 
-    c0_ = this->trgsw_cryptor_.template encrypt<Torus>(zero_);
-    c1_ = this->trgsw_cryptor_.template encrypt<Torus>(one_);
+    c0_ = this->cryptor_.encrypt(zero_);
+    c1_ = this->cryptor_.encrypt(one_);
 
     // Prepare candidate p0 and p1
     std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
@@ -113,17 +109,17 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> ep0 = this->trlwe_cryptor_.template encrypt<Torus>(this->p0_);
-  TRLWE<Torus, N> ep1 = this->trlwe_cryptor_.template encrypt<Torus>(this->p1_);
+  TRLWE<Torus, N> ep0 = this->cryptor_.encrypt(this->p0_);
+  TRLWE<Torus, N> ep1 = this->cryptor_.encrypt(this->p1_);
 
   // ==================================
   TRLWE<Torus, N> sut0 =
       TrackedEvaluator<CMux<params>>::exec(this->c0_, ep0, ep1);
-  Poly<Torus, N> dp0 = this->trlwe_cryptor_.template decrypt<Torus>(sut0);
+  Poly<Torus, N> dp0 = this->cryptor_.decrypt(sut0);
   // ----------------------------------
   TRLWE<Torus, N> sut1 =
       TrackedEvaluator<CMux<params>>::exec(this->c1_, ep0, ep1);
-  Poly<Torus, N> dp1 = this->trlwe_cryptor_.template decrypt<Torus>(sut1);
+  Poly<Torus, N> dp1 = this->cryptor_.decrypt(sut1);
   // ==================================
 
   double norm0 = infinity_norm(dp0 - this->p0_);

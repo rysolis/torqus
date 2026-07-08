@@ -5,6 +5,7 @@
 #define TFHE_UTILITY_TRACKED_HPP
 
 #include <cstdint>
+#include <optional>
 #include <random>
 
 #include "tfhe/concept/tfhe.hpp"
@@ -34,30 +35,33 @@ class TrackedEvaluator {
   }
 };
 
-template <typename Cryptor>
+template <typename Cryptor, typename Engine = std::mt19937>
 class TrackedCryptor {
  public:
   using params = typename Cryptor::params_type;
   TrackedCryptor() = default;
-  explicit TrackedCryptor(std::unique_ptr<Cryptor> cryptor)
-      : cryptor_(std::move(cryptor)) {}
+  explicit TrackedCryptor(std::shared_ptr<UInt::raw_value_type[]> s,
+                          Engine& eng)
+      : cryptor_(std::in_place, s, eng) {}
 
-  template <torus_type Torus, typename Plaintext>
+  template <typename Plaintext>
   auto encrypt(const Plaintext& pt) {
+    assert(cryptor_.has_value());
     NoiseTrackerInterface* tracker = get_noise_tracker_if();
-    auto res = cryptor_->template encrypt<Torus>(pt);
+    auto res = cryptor_->encrypt(pt);
     double bound = 0.0;  // TODO: use params to compute bound
     tracker->update(res, bound);
     return res;
   }
 
-  template <torus_type Torus, typename Ciphertext>
+  template <typename Ciphertext>
   auto decrypt(const Ciphertext& ct) {
-    return cryptor_->template decrypt<Torus>(ct);
+    assert(cryptor_.has_value());
+    return cryptor_->decrypt(ct);
   }
 
  private:
-  std::unique_ptr<Cryptor> cryptor_;
+  std::optional<Cryptor> cryptor_;
 };
 
 #endif

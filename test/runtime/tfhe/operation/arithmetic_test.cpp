@@ -9,7 +9,7 @@
 #include "algebra/poly.hpp"
 #include "algebra/utility.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
@@ -46,15 +46,14 @@ class ArithmeticFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  TrackedCryptor<trlwe::Cryptor<params>> cryptor_;
+  TrackedCryptor<Cryptor<params>> cryptor_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
   void SetUp() override {
     SecretHolder<params> kr(eng_);
-    cryptor_ =
-        TrackedCryptor<trlwe::Cryptor<params>>(kr.trlwe_cryptor(this->eng_));
+    cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -73,13 +72,13 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   // ==================================
   Poly<Torus, N> expected = lhs + rhs;
   // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.template encrypt<Torus>(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.template encrypt<Torus>(rhs);
+  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.encrypt(lhs);
+  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
-  TRLWE<Torus, N> sut =
+  TRLWE<Torus, N> encrypted =
       TrackedEvaluator<Add<params>>::exec(encrypted_lhs, encrypted_rhs);
 
-  Poly<Torus, N> decrypted = this->cryptor_.template decrypt<Torus>(sut);
+  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================
 
   Poly<Torus, N> err = decrypted - expected;
@@ -94,10 +93,10 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   std::cout << std::left;
   std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
   std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(sut) << "\n";
+            << get_noise_tracker_if()->get(encrypted) << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(sut));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
 }
 
 TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
@@ -113,13 +112,13 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   // ==================================
   Poly<Torus, N> expected = lhs - rhs;
   // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.template encrypt<Torus>(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.template encrypt<Torus>(rhs);
+  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.encrypt(lhs);
+  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
-  TRLWE<Torus, N> sut =
+  TRLWE<Torus, N> encrypted =
       TrackedEvaluator<Sub<params>>::exec(encrypted_lhs, encrypted_rhs);
 
-  Poly<Torus, N> decrypted = this->cryptor_.template decrypt<Torus>(sut);
+  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================
 
   Poly<Torus, N> err = decrypted - expected;
@@ -134,8 +133,8 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   std::cout << std::left;
   std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
   std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(sut) << "\n";
+            << get_noise_tracker_if()->get(encrypted) << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(sut));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
 }

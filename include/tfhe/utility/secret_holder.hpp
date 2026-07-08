@@ -56,30 +56,15 @@ class SecretHolder {
   }
 
   const raw_value_type* secret() const noexcept { return secret_.get(); }
+  std::shared_ptr<raw_value_type[]> secret_ptr() const noexcept {
+    return secret_;
+  }
 
   iterator begin() noexcept { return secret_.get(); }
   iterator end() noexcept { return secret_.get() + size; }
 
   const_iterator begin() const noexcept { return secret_.get(); }
   const_iterator end() const noexcept { return secret_.get() + size; }
-
-  template <typename Engine>
-    requires tlwe_concept<params>
-  auto tlwe_cryptor(Engine& eng) {
-    return std::make_unique<tlwe::Cryptor<params>>(secret_, eng);
-  }
-
-  template <typename Engine>
-    requires trlwe_concept<params>
-  auto trlwe_cryptor(Engine& eng) {
-    return std::make_unique<trlwe::Cryptor<params>>(secret_, eng);
-  }
-
-  template <typename Engine>
-    requires trgsw_concept<params>
-  auto trgsw_cryptor(Engine& eng) {
-    return std::make_unique<trgsw::Cryptor<params>>(secret_, eng);
-  }
 
  protected:
   std::shared_ptr<raw_value_type[]> secret_;

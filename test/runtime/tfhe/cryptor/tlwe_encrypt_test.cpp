@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <random>
 
-#include "tfhe/cryptor/lwe_cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -38,11 +39,11 @@ class TlweEncryptionFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t n = params::n;
 
-  std::unique_ptr<tlwe::Cryptor<params>> cryptor_;
+  std::optional<Cryptor<params>> cryptor_;
 
   void SetUp() override {
-    SecretHolder<params> kr(this->eng_);
-    this->cryptor_ = std::move(kr.tlwe_cryptor(this->eng_));
+    SecretHolder<params> kr(eng_);
+    cryptor_ = std::move(Cryptor<params>(kr.secret_ptr(), eng_));
   }
 };
 
@@ -72,9 +73,8 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t n = params::n;
 
-  TLWE<Torus, n> sut =
-      this->cryptor_->template encrypt<Torus>(this->plaintext_);
-  Torus decrypted = this->cryptor_->template decrypt<Torus>(sut);
+  TLWE<Torus, n> encrypted = this->cryptor_->encrypt(this->plaintext_);
+  Torus decrypted = this->cryptor_->decrypt(encrypted);
 
   Torus err = decrypted - this->plaintext_;
   double norm = infinity_norm(err);

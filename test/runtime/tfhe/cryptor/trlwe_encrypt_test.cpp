@@ -4,7 +4,7 @@
 
 #include "algebra/utility.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
@@ -40,12 +40,11 @@ class TrlweEncryptionFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  std::unique_ptr<TrackedCryptor<trlwe::Cryptor<params>>> cryptor_;
+  TrackedCryptor<Cryptor<params>> cryptor_;
 
   void SetUp() override {
-    SecretHolder<params> kr(this->eng_);
-    this->cryptor_ = std::make_unique<TrackedCryptor<trlwe::Cryptor<params>>>(
-        kr.trlwe_cryptor(this->eng_));
+    SecretHolder<params> kr(eng_);
+    this->cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -80,10 +79,8 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> sut =
-      this->cryptor_->template encrypt<Torus>(this->plaintext_);
-
-  Poly<Torus, N> decrypted = this->cryptor_->template decrypt<Torus>(sut);
+  TRLWE<Torus, N> encrypted = this->cryptor_.encrypt(this->plaintext_);
+  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
 
   Poly<Torus, N> err = decrypted - this->plaintext_;
   double norm = infinity_norm(err);
@@ -92,9 +89,9 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   std::cout << "expected : " << this->plaintext_ << "\n";
   std::cout << "decrypted: " << decrypted << "\n";
   std::cout << "infinity_norm    : " << norm << "\n";
-  std::cout << "error_bound      : " << get_noise_tracker_if()->get(sut)
+  std::cout << "error_bound      : " << get_noise_tracker_if()->get(encrypted)
             << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(sut));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
 }
