@@ -7,7 +7,7 @@
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
+#include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
 #include "tfhe/operation/add.hpp"

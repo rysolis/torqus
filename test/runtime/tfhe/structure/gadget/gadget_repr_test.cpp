@@ -7,7 +7,7 @@
 #include "primitive/torus.hpp"
 
 #include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
+#include "algebra/utility/utility.hpp"
 
 #include "tfhe/params.hpp"
 

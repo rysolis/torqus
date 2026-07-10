@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "arithmetic/utility.hpp"
+#include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
 #include "tfhe/params.hpp"
@@ -61,10 +61,8 @@ class SampleExtractionFixture : public ::testing::Test {
         TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
 
     // Prepare Message
-    std::uniform_int_distribution<typename bTorus::raw_value_type> torus_dist(
-        bTorus::raw_min(), bTorus::raw_max());
     this->message_[0] = bTorus(1);
-    randomize(this->message_, eng_, torus_dist);
+    randomize(this->message_, eng_);
 
     // Prepare TRLWE
     this->trlwe_ = trlwe_cryptor_.encrypt(this->message_);

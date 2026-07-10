@@ -10,36 +10,19 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
+#include "algebra/utility/randomize.hpp"
 #include "algebra/vector.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
-
-namespace tlwe::detail {
-
-template <typename Torus>
-struct default_distribution;
-
-template <uint32_t QBit>
-struct default_distribution<ModTorus<QBit>> {
-  using type =
-      std::uniform_int_distribution<typename ModTorus<QBit>::raw_value_type>;
-};
-
-template <typename T>
-using default_distribution_t = typename default_distribution<T>::type;
-
-}  // namespace tlwe::detail
 
 namespace tlwe {
 
 template <tlwe_concept params, torus_type Torus, typename Engine>
 TLWE<Torus, params::n> encrypt(std::shared_ptr<UInt::raw_value_type[]> s,
                                Engine& eng, const Torus& message) {
-  auto dist = tlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
-                                                          Torus::raw_max());
   TLWE<Torus, params::n> ct;
-  randomize(ct.a(), eng.get(), dist);
+  randomize(ct.a(), eng.get());
   // Vector<UInt, params::n> secret ...
   for (uint32_t i = 0; i < ct.dimension(); ++i) {
     ct.b() += static_cast<UInt>(s[i]) * static_cast<Torus>(ct.a()[i]);

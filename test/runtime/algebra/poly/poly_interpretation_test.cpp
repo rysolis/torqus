@@ -4,7 +4,7 @@
 #include "primitive/torus.hpp"
 
 #include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
+#include "algebra/utility/utility.hpp"
 
 TEST(PolyInterpretationTest, CreatesIndependentPolyWithInterpretedValues) {
   using Torus = ModTorus<16>;

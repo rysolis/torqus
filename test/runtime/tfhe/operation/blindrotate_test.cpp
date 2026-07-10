@@ -12,7 +12,7 @@
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
-#include "algebra/utility.hpp"
+#include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor.hpp"

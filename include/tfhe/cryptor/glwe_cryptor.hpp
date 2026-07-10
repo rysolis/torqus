@@ -12,31 +12,15 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
+#include "algebra/utility/randomize.hpp"
 #include "algebra/vector.hpp"
 
 #include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
-#include "arithmetic/utility.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-
-namespace trlwe::detail {
-
-template <typename Torus>
-struct default_distribution;
-
-template <uint32_t QBit>
-struct default_distribution<ModTorus<QBit>> {
-  using type =
-      std::uniform_int_distribution<typename ModTorus<QBit>::raw_value_type>;
-};
-
-template <typename T>
-using default_distribution_t = typename default_distribution<T>::type;
-
-}  // namespace trlwe::detail
 
 namespace trlwe {
 
@@ -44,10 +28,9 @@ template <trlwe_concept params, torus_type Torus, typename Engine>
 TRLWE<Torus, params::N> encrypt(std::shared_ptr<UInt::raw_value_type[]> s,
                                 Engine& eng, const Poly<Torus, params::N>& pt) {
   constexpr uint32_t N = params::N;
-  auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
-                                                           Torus::raw_max());
+
   TRLWE<Torus, N> ct;
-  randomize(ct.a(), eng.get(), dist);
+  randomize(ct.a(), eng.get());
   Poly<UInt, N> secret(s.get(), s.get() + N);
   ct.b() = pt + negacyclic_convolution(secret, ct.a());
   return ct;
@@ -76,12 +59,11 @@ TRGSW<Torus, params::N, params::l> encrypt(
   constexpr uint32_t l = params::l;
 
   TRGSW<Torus, N, l> ct;
-  auto dist = trlwe::detail::default_distribution_t<Torus>(Torus::raw_min(),
-                                                           Torus::raw_max());
+
   Poly<UInt, N> secret(s.get(), s.get() + N);
   for (size_t i = 0; i < l; ++i) {
-    randomize(ct[i].a(), eng.get(), dist);
-    randomize(ct[l + i].a(), eng.get(), dist);
+    randomize(ct[i].a(), eng.get());
+    randomize(ct[l + i].a(), eng.get());
 
     ct[i].b() = negacyclic_convolution(secret, ct[i].a());
     ct[l + i].b() = negacyclic_convolution(secret, ct[l + i].a());
