@@ -70,25 +70,15 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
-  Poly<UInt, N> multiplier_;
-  TRGSW<Torus, N, l> encrypted_multiplier_;
-  Poly<Torus, N> plaintext_;
-  TRLWE<Torus, N> encrypted_plaintext_;
+  Poly<Torus, N> pt_;
+  TRLWE<Torus, N> pt_ct_;
 
   void SetUp() override {
     Base::SetUp();
 
-    multiplier_[0] = UInt(1);
-
-    encrypted_multiplier_ = this->cryptor_.encrypt(multiplier_);
-
-    std::uniform_int_distribution<typename Torus::raw_value_type> dist(
-        Torus::raw_min(), Torus::raw_max());
-
-    plaintext_ =
-        Poly<Torus, N>([&]() { return static_cast<Torus>(dist(this->eng_)); });
-
-    encrypted_plaintext_ = this->cryptor_.encrypt(plaintext_);
+    // Prepare plaintext and its ciphertext
+    randomize(pt_, this->eng_);
+    pt_ct_ = this->cryptor_.encrypt(pt_);
   }
 };
 
@@ -100,35 +90,44 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
 
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
+  static constexpr uint32_t l = params::l;
+
+  // mp means multiplier
+  Poly<UInt, N> mp_pt_;
+  mp_pt_[0] = UInt(1);
 
   // ==================================
-  Poly<Torus, N> expected =
-      negacyclic_convolution(this->multiplier_, this->plaintext_);
+  // Reference
+  // ==================================
+  Poly<Torus, N> ref_pt = negacyclic_convolution(mp_pt_, this->pt_);
+
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TRGSW<Torus, N, l> mp_ct = this->cryptor_.encrypt(mp_pt_);
+
+  TRLWE<Torus, N> res_ct =
+      TrackedEvaluator<ExternalProduct<params>>::exec(mp_ct, this->pt_ct_);
+  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+
   // ----------------------------------
-  TRLWE<Torus, N> encrypted = TrackedEvaluator<ExternalProduct<params>>::exec(
-      this->encrypted_multiplier_, this->encrypted_plaintext_);
-  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
-  // ==================================
-
-  Poly<Torus, N> err = decrypted - expected;
+  Poly<Torus, N> err = ref_pt - res_pt;
   double norm = infinity_norm(err);
 
   std::cout << "\n=== External Product Test ===\n";
   if (TypeParam::verbose) {
     std::cout << std::left;
-    std::cout << std::setw(14) << "plaintext" << ": " << this->plaintext_
-              << "\n";
-    std::cout << std::setw(14) << "multiplier" << ": " << this->multiplier_
-              << "\n";
+    std::cout << std::setw(14) << "pt" << ": " << this->pt_ << "\n";
+    std::cout << std::setw(14) << "mp" << ": " << mp_pt_ << "\n";
 
-    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << expected << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << ref_pt << "\n";
+    std::cout << std::setw(14) << "actual" << ": " << res_pt << "\n";
   }
   std::cout << std::left;
   std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
   std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(encrypted) << "\n";
+            << get_noise_tracker_if()->get(res_ct) << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }

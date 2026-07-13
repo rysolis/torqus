@@ -7,15 +7,22 @@
 #include <concepts>
 #include <cstdint>
 
+#include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
 template <typename T>
 struct default_distribution;
 
-template <uint32_t P>
-struct default_distribution<ModTorus<P>> {
+template <uint32_t q>
+struct default_distribution<ModTorus<q>> {
   using type =
-      std::uniform_int_distribution<typename ModTorus<P>::raw_value_type>;
+      std::uniform_int_distribution<typename ModTorus<q>::raw_value_type>;
+};
+
+template <uint32_t P>
+struct default_distribution<ModInt<P>> {
+  using type =
+      std::uniform_int_distribution<typename ModInt<P>::raw_value_type>;
 };
 
 template <typename T>

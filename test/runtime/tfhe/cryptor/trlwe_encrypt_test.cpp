@@ -2,6 +2,7 @@
 
 #include <random>
 
+#include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
@@ -58,16 +59,11 @@ class TrlweEncryptionTest : public TrlweEncryptionFixture<Ctx> {
 
   static constexpr uint32_t N = Base::N;
 
-  Poly<Torus, N> plaintext_;
+  Poly<Torus, N> pt_;
 
   void SetUp() override {
     Base::SetUp();
-
-    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
-        Torus::raw_min(), Torus::raw_max());
-    plaintext_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
-      return static_cast<Torus>(dist(eng));
-    });
+    randomize(pt_, this->eng_);
   }
 };
 
@@ -79,19 +75,28 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> encrypted = this->cryptor_.encrypt(this->plaintext_);
-  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
+  // ==================================
+  // Reference
+  // ==================================
+  Poly<Torus, N> ref_pt = this->pt_;
 
-  Poly<Torus, N> err = decrypted - this->plaintext_;
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TRLWE<Torus, N> res_ct = this->cryptor_.encrypt(this->pt_);
+  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+
+  // ----------------------------------
+  Poly<Torus, N> err = ref_pt - res_pt;
   double norm = infinity_norm(err);
 
   std::cout << "\n=== TRLWE Encryption Test ===\n";
-  std::cout << "expected : " << this->plaintext_ << "\n";
-  std::cout << "decrypted: " << decrypted << "\n";
+  std::cout << "expected : " << ref_pt << "\n";
+  std::cout << "decrypted: " << res_pt << "\n";
   std::cout << "infinity_norm    : " << norm << "\n";
-  std::cout << "error_bound      : " << get_noise_tracker_if()->get(encrypted)
+  std::cout << "error_bound      : " << get_noise_tracker_if()->get(res_ct)
             << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }

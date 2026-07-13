@@ -57,11 +57,11 @@ class TlweEncryptionTest : public TlweEncryptionFixture<Ctx> {
 
   static constexpr uint32_t n = Base::n;
 
-  Torus plaintext_;
+  Torus pt_;
 
   void SetUp() override {
     Base::SetUp();
-    plaintext_ = Torus(10);
+    pt_ = Torus(10);
   }
 };
 
@@ -73,16 +73,25 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename params::torus_type;
   constexpr uint32_t n = params::n;
 
-  TLWE<Torus, n> encrypted = this->cryptor_->encrypt(this->plaintext_);
-  Torus decrypted = this->cryptor_->decrypt(encrypted);
+  // ==================================
+  // Reference
+  // ==================================
+  Torus ref_pt = this->pt_;
 
-  Torus err = decrypted - this->plaintext_;
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TLWE<Torus, n> res_ct = this->cryptor_->encrypt(this->pt_);
+  Torus res_pt = this->cryptor_->decrypt(res_ct);
+
+  // ----------------------------------
+  Torus err = ref_pt - res_pt;
   double norm = infinity_norm(err);
 
   std::cout << "\n=== TLWE Encryption Test ===\n";
   if (TypeParam::verbose) {
-    std::cout << "expected :  " << this->plaintext_ << "\n";
-    std::cout << "decrypted:  " << decrypted << "\n";
+    std::cout << "expected :  " << ref_pt << "\n";
+    std::cout << "decrypted:  " << res_pt << "\n";
   }
   std::cout << "infinity_norm: " << norm << "\n";
   // std::cout << "error_bound  : " << sut.error_bound() << "\n";

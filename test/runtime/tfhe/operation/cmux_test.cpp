@@ -8,6 +8,7 @@
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
+#include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
@@ -70,80 +71,107 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
-  Poly<UInt, N> zero_;
-  Poly<UInt, N> one_;
-  TRGSW<Torus, N, l> c0_;
-  TRGSW<Torus, N, l> c1_;
+  TRGSW<Torus, N, l> zero_ct_;
+  TRGSW<Torus, N, l> one_ct_;
 
-  Poly<Torus, N> p0_;
-  Poly<Torus, N> p1_;
+  Poly<Torus, N> cand0_pt_;
+  TRLWE<Torus, N> cand0_ct_;
+
+  Poly<Torus, N> cand1_pt_;
+  TRLWE<Torus, N> cand1_ct_;
 
   void SetUp() override {
     Base::SetUp();
 
     // Prepare TRGSW(0) and TRGSW(1)
-    zero_[0] = UInt(0);
-    one_[0] = UInt(1);
+    Poly<UInt, N> zero_pt_, one_pt_;
+    zero_pt_[0] = UInt(0);
+    one_pt_[0] = UInt(1);
 
-    c0_ = this->cryptor_.encrypt(zero_);
-    c1_ = this->cryptor_.encrypt(one_);
+    zero_ct_ = this->cryptor_.encrypt(zero_pt_);
+    one_ct_ = this->cryptor_.encrypt(one_pt_);
 
-    // Prepare candidate p0 and p1
-    std::uniform_int_distribution<typename Torus::raw_value_type> torus_dist(
-        Torus::raw_min(), Torus::raw_max());
-
-    p0_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
-      return static_cast<Torus>(dist(eng));
-    });
-    p1_ = Poly<Torus, N>([&eng = this->eng_, &dist = torus_dist]() {
-      return static_cast<Torus>(dist(eng));
-    });
+    // Prepare candidate cand0 and cand1
+    randomize(cand0_pt_, this->eng_);
+    randomize(cand1_pt_, this->eng_);
+    cand0_ct_ = this->cryptor_.encrypt(this->cand0_pt_);
+    cand1_ct_ = this->cryptor_.encrypt(this->cand1_pt_);
   }
 };
 
 TYPED_TEST_SUITE(CMuxCorrectnessTest, cmux_test::TestContexts);
 
-TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
+TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   using params = typename TypeParam::context::params;
 
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
 
-  TRLWE<Torus, N> ep0 = this->cryptor_.encrypt(this->p0_);
-  TRLWE<Torus, N> ep1 = this->cryptor_.encrypt(this->p1_);
+  // ==================================
+  // Reference
+  // ==================================
+  Poly<Torus, N> ref_pt = this->cand0_pt_;
 
   // ==================================
-  TRLWE<Torus, N> sut0 =
-      TrackedEvaluator<CMux<params>>::exec(this->c0_, ep0, ep1);
-  Poly<Torus, N> dp0 = this->cryptor_.decrypt(sut0);
-  // ----------------------------------
-  TRLWE<Torus, N> sut1 =
-      TrackedEvaluator<CMux<params>>::exec(this->c1_, ep0, ep1);
-  Poly<Torus, N> dp1 = this->cryptor_.decrypt(sut1);
+  // TEST LOGIC
+  // ==================================
+  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<params>>::exec(
+      this->zero_ct_, this->cand0_ct_, this->cand1_ct_);
+  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+
   // ==================================
 
-  double norm0 = infinity_norm(dp0 - this->p0_);
-  double norm1 = infinity_norm(dp1 - this->p1_);
+  double norm = infinity_norm(res_pt - ref_pt);
 
   std::cout << "\n=== CMux Test ===\n";
   if (TypeParam::verbose) {
     std::cout << std::left;
-    std::cout << std::setw(14) << "p0" << ": " << this->p0_ << "\n";
-    std::cout << std::setw(14) << "p1" << ": " << this->p1_ << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << ref_pt << "\n";
 
-    std::cout << std::setw(14) << "dp0" << ": " << dp0 << "\n";
-    std::cout << std::setw(14) << "dp1" << ": " << dp1 << "\n";
+    std::cout << std::setw(14) << "actual" << ": " << res_pt << "\n";
   }
   std::cout << std::left;
-  std::cout << std::setw(14) << "norm0 " << ": " << norm0 << "\n";
-  std::cout << std::setw(14) << "sut0 bound" << ": "
-            << get_noise_tracker_if()->get(sut0) << "\n";
-
-  std::cout << std::setw(14) << "norm1 " << ": " << norm1 << "\n";
-  std::cout << std::setw(14) << "sut1 bound" << ": "
-            << get_noise_tracker_if()->get(sut1) << "\n";
+  std::cout << std::setw(14) << "norm " << ": " << norm << "\n";
+  std::cout << std::setw(14) << "bound" << ": "
+            << get_noise_tracker_if()->get(res_ct) << "\n";
   std::cout << "===================\n\n";
 
-  EXPECT_LE(norm0, get_noise_tracker_if()->get(sut0));
-  EXPECT_LE(norm1, get_noise_tracker_if()->get(sut1));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+}
+
+TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
+  using params = typename TypeParam::context::params;
+
+  using Torus = typename params::torus_type;
+  constexpr uint32_t N = params::N;
+
+  // ==================================
+  // Reference
+  // ==================================
+  Poly<Torus, N> ref_pt = this->cand1_pt_;
+
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<params>>::exec(
+      this->one_ct_, this->cand0_ct_, this->cand1_ct_);
+  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+
+  // ----------------------------------
+  double norm = infinity_norm(res_pt - ref_pt);
+
+  std::cout << "\n=== CMux Test ===\n";
+  if (TypeParam::verbose) {
+    std::cout << std::left;
+    std::cout << std::setw(14) << "expected" << ": " << ref_pt << "\n";
+
+    std::cout << std::setw(14) << "actual" << ": " << res_pt << "\n";
+  }
+  std::cout << std::left;
+  std::cout << std::setw(14) << "norm " << ": " << norm << "\n";
+  std::cout << std::setw(14) << "bound" << ": "
+            << get_noise_tracker_if()->get(res_ct) << "\n";
+  std::cout << "===================\n\n";
+
+  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }

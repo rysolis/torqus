@@ -46,11 +46,11 @@ class SampleExtractionFixture : public ::testing::Test {
   using bTorus = typename glwe_params::torus_type;
   static constexpr uint32_t N = glwe_params::N;
 
+  Poly<bTorus, N> pt_;
+  TRLWE<bTorus, N> pt_ct_;
+
   TrackedCryptor<Cryptor<lwe_params>> tlwe_cryptor_;
   TrackedCryptor<Cryptor<glwe_params>> trlwe_cryptor_;
-
-  Poly<bTorus, N> message_;
-  TRLWE<bTorus, N> trlwe_;
 
   void SetUp() override {
     SecretHolder<glwe_params> glwe_kr(this->eng_);
@@ -60,12 +60,10 @@ class SampleExtractionFixture : public ::testing::Test {
     trlwe_cryptor_ =
         TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
 
-    // Prepare Message
-    this->message_[0] = bTorus(1);
-    randomize(this->message_, eng_);
-
-    // Prepare TRLWE
-    this->trlwe_ = trlwe_cryptor_.encrypt(this->message_);
+    // Prepare plaintext and its ciphertext
+    this->pt_[0] = bTorus(1);
+    randomize(this->pt_, eng_);
+    this->pt_ct_ = trlwe_cryptor_.encrypt(this->pt_);
   }
 };
 
@@ -83,19 +81,27 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
   using fTorus = lwe_params::torus_type;
   constexpr uint32_t n = lwe_params::n;
 
-  TLWE<fTorus, n> tlwe =
-      SampleExtraction<lwe_params, glwe_params>::exec(this->trlwe_, 0);
-  fTorus actual = this->tlwe_cryptor_.decrypt(tlwe);
+  // ==================================
+  // Reference
+  // ==================================
+  fTorus ref_pt = this->pt_[0];
 
-  fTorus expected = this->message_[0];
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TLWE<fTorus, n> res_ct =
+      SampleExtraction<lwe_params, glwe_params>::exec(this->pt_ct_, 0);
+  fTorus res_pt = this->tlwe_cryptor_.decrypt(res_ct);
+
+  // ----------------------------------
 
   std::cout << "\n=== Sample Extraction Test ===\n";
   std::cout << std::left;
-  std::cout << std::setw(14) << "message " << ": " << this->message_ << "\n";
-  std::cout << std::setw(14) << "tlwe " << ": " << tlwe << "\n";
-  std::cout << std::setw(14) << "actual " << ": " << actual << "\n";
-  std::cout << std::setw(14) << "expected " << ": " << expected << "\n";
+  std::cout << std::setw(14) << "message " << ": " << this->pt_ << "\n";
+  std::cout << std::setw(14) << "tlwe " << ": " << this->pt_ct_ << "\n";
+  std::cout << std::setw(14) << "expected " << ": " << ref_pt << "\n";
+  std::cout << std::setw(14) << "actual " << ": " << res_pt << "\n";
   std::cout << "===============================\n\n";
 
-  EXPECT_EQ(expected, actual);
+  EXPECT_EQ(ref_pt, res_pt);
 }

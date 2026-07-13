@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <random>
 
 #include "primitive/modint.hpp"
@@ -12,6 +13,7 @@
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
+#include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
@@ -54,7 +56,7 @@ template <typename Ctx>
 class BlindRotateFixture : public ::testing::Test {
  protected:
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
+  std::mt19937 eng_{10};
   using lwe_params = Ctx::lwe_params;
   using glwe_params = Ctx::glwe_params;
 
@@ -65,50 +67,31 @@ class BlindRotateFixture : public ::testing::Test {
   static constexpr uint32_t l = glwe_params::l;
   static constexpr uint32_t M = 2 * N;
 
-  ModInt<M> phase_;
   Poly<bTorus, N> tv_;
+  TRLWE<bTorus, N> tv_ct_;
+
+  BootstrapKey<bTorus, N, l, n> BK_;
 
   TrackedCryptor<Cryptor<glwe_params>> cryptor_;
-
-  Vector<ModInt<M>, n + 1> mod_tlwe_;
-  TRLWE<bTorus, N> trlwe_tv_;
-  BootstrapKey<bTorus, N, l, n> bk_;
+  std::optional<SecretHolder<lwe_params>> lwe_kr;
 
   void SetUp() override {
     SecretHolder<glwe_params> glwe_kr(this->eng_);
-    this->cryptor_ =
-        TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
+    cryptor_ = TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
 
-    SecretHolder<lwe_params> lwe_kr(this->eng_);
+    // Prepare TestVector
+    tv_ = testvector::generate<bTorus, N>();
+    tv_ct_ = cryptor_.encrypt(this->tv_);
+
+    // Prepare SecretHolder
+    lwe_kr = std::move(SecretHolder<lwe_params>(eng_));
 
     // Prepare Bootstrapkey
     for (size_t i = 0; i < n; ++i) {
       Poly<UInt, N> tmp;
-      tmp[0] = static_cast<UInt>((lwe_kr.secret())[i]);
-      this->bk_[i] = cryptor_.encrypt(tmp);
+      tmp[0] = static_cast<UInt>((lwe_kr->secret())[i]);
+      BK_[i] = cryptor_.encrypt(tmp);
     }
-
-    // Prepare Vector<ModInt<M>, n+1>
-    std::uniform_int_distribution<typename ModInt<M>::raw_value_type>
-        modint_dist(ModInt<M>::raw_min(), ModInt<M>::raw_max());
-
-    this->phase_ = ModInt<M>(10);
-    this->mod_tlwe_ =
-        Vector<ModInt<M>, n + 1>([&eng = this->eng_, &dist = modint_dist]() {
-          return static_cast<ModInt<M>>(dist(eng));
-        });
-
-    ModInt<M> b{};
-    for (size_t i = 0; i < n; ++i) {
-      b += static_cast<UInt>(lwe_kr.secret()[i]) *
-           static_cast<ModInt<M>>(this->mod_tlwe_[i]);
-    }
-    b += this->phase_;
-    this->mod_tlwe_[n] = b;  // Overwrite
-
-    // Prepare TestVector
-    this->tv_ = testvector::generate<bTorus, N>();
-    this->trlwe_tv_ = cryptor_.encrypt(this->tv_);
   }
 };
 
@@ -122,23 +105,44 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   using lwe_params = typename TypeParam::context::lwe_params;
   using glwe_params = typename TypeParam::context::glwe_params;
 
+  constexpr uint32_t n = lwe_params::n;
+
   using bTorus = glwe_params::torus_type;
 
   constexpr uint32_t N = glwe_params::N;
   constexpr uint32_t M = 2 * N;
 
-  ModInt<M> phase = this->phase_;
+  ModInt<M> phase(10);
 
   // ==================================
-  Poly<bTorus, N> expected = rotate(this->tv_, (-phase).value());
-  // ----------------------------------
-  TRLWE<bTorus, N> encrypted =
+  // Reference
+  // ==================================
+  Poly<bTorus, N> ref_pt = rotate(this->tv_, (-phase).value());
+
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+
+  // Prepare Vector<ModInt<M>, n+1>
+  Vector<ModInt<M>, n + 1> phase_ct;
+  randomize(phase_ct, this->eng_);
+
+  ModInt<M> b{};
+  for (size_t i = 0; i < n; ++i) {
+    b += static_cast<UInt>(this->lwe_kr->secret()[i]) *
+         static_cast<ModInt<M>>(phase_ct[i]);
+  }
+  b += phase;
+  phase_ct[n] = b;  // Overwrite
+
+  // BlindRotate
+  TRLWE<bTorus, N> res_ct =
       TrackedEvaluator<BlindRotate<lwe_params, glwe_params>>::exec(
-          this->trlwe_tv_, this->mod_tlwe_, this->bk_);
-  Poly<bTorus, N> decrypted = this->cryptor_.decrypt(encrypted);
-  // ==================================
+          this->tv_ct_, phase_ct, this->BK_);
+  Poly<bTorus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
-  Poly<bTorus, N> err = decrypted - expected;
+  // ----------------------------------
+  Poly<bTorus, N> err = ref_pt - res_pt;
   double norm = infinity_norm(err);
 
   std::cout << "\n========================================\n";
@@ -148,8 +152,8 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   if (TypeParam::verbose) {
     std::cout << std::left;
     std::cout << std::setw(14) << "tv" << ": " << this->tv_ << '\n';
-    std::cout << std::setw(14) << "expected" << ": " << expected << '\n';
-    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << '\n';
+    std::cout << std::setw(14) << "expected" << ": " << ref_pt << '\n';
+    std::cout << std::setw(14) << "actual" << ": " << res_pt << '\n';
   }
 
   std::cout << std::left;
@@ -157,9 +161,9 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   std::cout << std::setw(14) << "-phase" << ": " << -phase << '\n';
   std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
   std::cout << std::setw(14) << "errror_bound " << ": "
-            << get_noise_tracker_if()->get(encrypted) << '\n';
+            << get_noise_tracker_if()->get(res_ct) << '\n';
 
   std::cout << "========================================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
+  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }
