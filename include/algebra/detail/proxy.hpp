@@ -44,4 +44,9 @@ class Proxy {
   raw_value_type* ptr_;
 };
 
+template <class Container>
+typename Container::value_type operator-(const Proxy<Container>& p) {
+  return -static_cast<typename Container::value_type>(p);
+}
+
 #endif  // ALGEBRA_PROXY_HPP

@@ -19,12 +19,12 @@ class SampleExtraction {
   static TLWE<Torus, N> exec(const TRLWE<Torus, N>& trlwe, size_t p) {
     TLWE<Torus, N> tlwe([&trlwe, p](std::size_t i) {
       if (i <= p) {
-        return trlwe.a()[i];
+        return static_cast<Torus>(trlwe.a()[i]);
       } else {
-        return -trlwe.a()[N + p - i];
+        return static_cast<Torus>(-trlwe.a()[N + p - i]);
       }
     });
-    tlwe.b() = trlwe.b()[p];
+    tlwe.b() = static_cast<Torus>(trlwe.b()[p]);
     return tlwe;
   }
 };

@@ -9,124 +9,33 @@
 #include <cstdint>
 #include <functional>
 #include <iostream>
-#include <memory>
 
 #include "primitive/concept/convertible.hpp"
 #include "primitive/concept/primitive.hpp"
 
-#include "detail/proxy.hpp"
+#include "algebra/container.hpp"
 
-template <typename T, typename = void>
-struct vector_traits {
-  using value_type = T;
-  using raw_value_type = T;
-  static constexpr bool use_proxy = false;
-};
+template <typename T, uint32_t N>
+class Vector
+    : public Container<Vector<T, N>, T, N, storage_traits<T>::use_proxy> {
+  using Base = Container<Vector<T, N>, T, N, storage_traits<T>::use_proxy>;
 
-template <primitive T>
-struct vector_traits<T, std::void_t<typename T::raw_value_type>> {
-  using value_type = T;
-  using raw_value_type = typename T::raw_value_type;
-  static constexpr bool use_proxy = !std::same_as<T, raw_value_type>;
-};
-
-template <typename T, uint32_t n>
-class Vector {
  public:
-  using traits = vector_traits<T>;
+  using Base::Base;
 
-  using value_type = typename traits::value_type;
-  using raw_value_type = typename traits::raw_value_type;
+  using typename Base::raw_value_type;
+  using typename Base::value_type;
 
-  using iterator = raw_value_type*;
-  using const_iterator = const raw_value_type*;
-
-  Vector() = default;
-
-  Vector(const Vector& other) {
-    std::copy_n(other.data_.get(), n, data_.get());
-  }
-
-  Vector& operator=(const Vector& other) {
-    if (this == &other) return *this;
-    std::copy_n(other.data_.get(), n, data_.get());
-    return *this;
-  }
-
-  Vector(Vector&&) noexcept = default;
-  Vector& operator=(Vector&&) noexcept = default;
-
-  template <typename F>
-    requires requires(F& f, std::size_t i) {
-      { std::invoke(f, i) } -> explicitly_convertible_to<T>;
-    }
-  Vector(F&& f) {
-    std::size_t i = 0;
-    std::ranges::generate(begin(), end(), [&] {
-      return static_cast<raw_value_type>(std::invoke(f, i++));
-    });
-  }
-
-  template <typename F>
-    requires(
-        !requires(F& f, std::size_t i) {
-          { std::invoke(f, i) } -> explicitly_convertible_to<T>;
-        } &&
-        requires(F& f) {
-          { std::invoke(f) } -> explicitly_convertible_to<T>;
-        })
-  Vector(F&& f) {
-    std::ranges::generate(begin(), end(), [&] {
-      return static_cast<raw_value_type>(std::invoke(f));
-    });
-  }
-
-  template <std::forward_iterator It>
-    requires std::convertible_to<std::iter_value_t<It>, raw_value_type>
-  Vector(It first, It last) {
-    assert(std::distance(first, last) == n);
-    std::copy(first, last, begin());
-  }
-
-  decltype(auto) operator[](size_t idx) noexcept {
-    if constexpr (traits::use_proxy)
-      return Proxy<Vector>(data_.get() + idx);
-    else
-      return static_cast<value_type&>(data_[idx]);
-  }
-  decltype(auto) operator[](size_t idx) const noexcept {
-    if constexpr (traits::use_proxy)
-      return Proxy<Vector>(data_.get() + idx);
-    else
-      return static_cast<value_type&>(data_[idx]);
-  }
-
-  constexpr iterator begin() noexcept { return data_.get(); }
-  constexpr iterator end() noexcept { return data_.get() + n; }
-
-  constexpr const_iterator begin() const noexcept { return data_.get(); }
-  constexpr const_iterator end() const noexcept { return data_.get() + n; }
-
-  T* data() { return data_.get(); }
-  const T* data() const { return data_.get(); }
-
-  constexpr size_t size() const { return n; }
+  using Base::operator[];
 
   friend std::ostream& operator<<(std::ostream& os, const Vector& vec) {
     os << "Vec(";
-    for (size_t i = 0; i < vec.size(); ++i) {
+    for (size_t i = 0; i < N; ++i) {
       os << vec[i];
-      if (i + 1 < vec.size()) {
-        os << ", ";
-      }
+      if (i + 1 != N) os << ", ";
     }
-    os << ")";
-    return os;
+    return os << ")";
   }
-
- private:
-  std::unique_ptr<raw_value_type[]> data_ =
-      std::make_unique<raw_value_type[]>(n);
 };
 
 // If operator+(Proxy lhs, const Proxy<T>& rhs) is used,

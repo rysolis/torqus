@@ -119,7 +119,8 @@ class GadgetRepr {
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < N; ++j) {
       for (size_t i = 0; i < l; ++i) {
-        repr_[i][j] = balanced::decompose<params>(poly[j], i);
+        repr_[i][j] =
+            balanced::decompose<params>(static_cast<Torus>(poly[j]), i);
       }
     }
   }
