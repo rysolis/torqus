@@ -24,6 +24,12 @@ struct gadget_params {
   static constexpr uint32_t l = l_;
 };
 
+template <uint32_t K_, uint32_t t_>
+struct key_switch_params {
+  static constexpr uint32_t K = K_;
+  static constexpr uint32_t t = t_;
+};
+
 template <typename Core, typename... Features>
 struct lwe_params : Core, Features... {};
 

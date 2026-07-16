@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "primitive/concept/torus.hpp"
+#include "primitive/uint.hpp"
 
 #include "algebra/vector.hpp"
 
@@ -17,17 +18,18 @@ class TLWE {
  public:
   TLWE() = default;
 
-  TLWE(const TLWE& other) : b_(other.b()) {
-    std::copy(other.a().begin(), other.a().end(), a_.begin());
-  }
+  TLWE(const TLWE& other) : a_(other.a()), b_(other.b()) {}
 
-  TLWE& operator=(const TLWE& other) {
-    if (this == &other) return *this;
+  TLWE(TLWE&&) = default;
+  TLWE& operator=(TLWE&&) = default;
 
-    std::copy(other.a().begin(), other.a().end(), a_.begin());
-    b_ = other.b_;
-    return *this;
-  }
+  // TLWE& operator=(const TLWE& other) {
+  // if (this == &other) return *this;
+
+  // std::copy(other.a().begin(), other.a().end(), a_.begin());
+  // b_ = other.b_;
+  // return *this;
+  // }
 
   template <typename F>
     requires requires(F& f, std::size_t i) {
@@ -50,7 +52,23 @@ class TLWE {
   Torus& b() { return b_; }
   const Torus& b() const { return b_; }
 
+  TLWE& operator+=(const TLWE& other) {
+    a_ += other.a_;
+    b_ += other.b_;
+    return *this;
+  }
+
+  TLWE& operator-=(const TLWE& other) {
+    a_ -= other.a_;
+    b_ -= other.b_;
+    return *this;
+  }
+
   constexpr uint32_t dimension() const noexcept { return n; }
+
+  const void* identity() const noexcept {
+    return static_cast<const void*>(a_.data());
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const TLWE& tlwe) {
     os << "TLWE(a: ";
@@ -65,5 +83,15 @@ class TLWE {
   Vector<Torus, n> a_;
   Torus b_{};
 };
+
+template <torus_type Torus, uint32_t n>
+inline constexpr TLWE<Torus, n> operator*(UInt lhs, const TLWE<Torus, n>& rhs) {
+  TLWE<Torus, n> res;
+  res.b() = lhs * Torus(rhs.b());
+  for (size_t i = 0; i < rhs.dimension(); ++i) {
+    res.a()[i] = lhs * Torus(rhs.a()[i]);
+  }
+  return res;
+}
 
 #endif  // TFHE_TLWE_HPP

@@ -28,6 +28,26 @@ class Vector
 
   using Base::operator[];
 
+  Vector& operator+=(const Vector& other) {
+    assert(other.size() == this->size());
+
+    for (size_t i = 0; i < other.size(); ++i) {
+      (*this)[i] = value_type((*this)[i]) + value_type(other[i]);
+    }
+
+    return *this;
+  }
+
+  Vector& operator-=(const Vector& other) {
+    assert(other.size() == this->size());
+
+    for (size_t i = 0; i < other.size(); ++i) {
+      (*this)[i] = value_type((*this)[i]) - value_type(other[i]);
+    }
+
+    return *this;
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const Vector& vec) {
     os << "Vec(";
     for (size_t i = 0; i < N; ++i) {

@@ -93,4 +93,23 @@ struct NoisePolicy<BlindRotate<fparams, bparams>> {
   }
 };
 
+template <tlwe_concept fparams, tlwe_concept bparams>
+  requires key_switch_concept<bparams>
+struct NoisePolicy<KeySwitch<fparams, bparams>> {
+  static constexpr uint32_t n = fparams::n;
+
+  using bTorus = typename bparams::torus_type;
+  static constexpr uint32_t N = bparams::n;
+  static constexpr uint32_t K = bparams::K;
+  static constexpr uint32_t t = bparams::t;
+
+  template <typename Tracker>
+  static double compute(const Tracker* tracker, const TLWE<bTorus, N>& src,
+                        const KeySwitchKey<bTorus, n, t, N>& ksk) {
+    double bound = tracker->get(src) + (N * t * tracker->get(ksk[0][0])) +
+                   N / std::pow(2., t + 1);
+    return bound;
+  }
+};
+
 #endif  // TFHE_NOISE_HPP
