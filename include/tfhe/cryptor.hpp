@@ -53,8 +53,6 @@ class Cryptor {
       return tlwe::encrypt<params>(secret_, eng_, pt);
     } else if constexpr (torus_type<typename Plaintext::value_type>) {
       return trlwe::encrypt<params>(secret_, eng_, pt);
-    } else if constexpr (std::same_as<UInt, typename Plaintext::value_type>) {
-      return trgsw::encrypt<params, Torus>(secret_, eng_, pt);
     } else {
       static_assert(always_false_v<Plaintext>, "Unsupported plaintext type");
     }

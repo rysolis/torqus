@@ -19,17 +19,18 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Rlwe, typename Dcp>
 struct ParameterSet {
-  using params = T;
+  using rlwe_params = Rlwe;
+  using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
-using Ctx2 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
-using Ctx3 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<2, 4>>>;
+using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                          dcp_params<4, 3>>;
+using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                          dcp_params<4, 3>>;
+using Ctx3 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                          dcp_params<2, 4>>;
 
 using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
                                       TestConfig<Ctx3, false>>;
@@ -42,9 +43,9 @@ class GadgetReprTest : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using params = typename Ctx::context::params;
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
+  using rlwe_params = typename Ctx::context::rlwe_params;
+  using Torus = typename rlwe_params::torus_type;
+  static constexpr uint32_t N = rlwe_params::N;
 
   // ============================================================
   // test inputs
@@ -66,15 +67,17 @@ class GadgetReprTest : public ::testing::Test {
 TYPED_TEST_SUITE(GadgetReprTest, gadget_repr_test::TestContexts);
 
 TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
-  using params = typename TypeParam::context::params;
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
+
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   Poly<Torus, N> poly = this->plaintext_;
 
   EXPECT_EQ(N, poly.size());
 
-  GadgetRepr<params> repr(poly);
+  GadgetRepr<Rlwe, Dcp> repr(poly);
   Poly<Torus, N> reconstructed = repr.template reconstruct<Torus>();
 
   double error_norm = infinity_norm(poly - reconstructed);
@@ -88,10 +91,10 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
 
   std::cout << "Analysis:\n";
   std::cout << "  Infinity norm: " << error_norm << "\n";
-  std::cout << "  Threshold: " << GadgetRepr<params>::template threshold<Torus>
+  std::cout << "  Threshold: " << GadgetRepr<Rlwe, Dcp>::template threshold<Torus>
   << "\n"; std::cout <<
   "=====================================================\n\n";
   // clang-format on
 
-  EXPECT_LT(error_norm, (GadgetRepr<params>::template threshold<Torus>));
+  EXPECT_LT(error_norm, (GadgetRepr<Rlwe, Dcp>::template threshold<Torus>));
 }

@@ -19,19 +19,20 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename SRC, typename DST>
+template <typename Src, typename Dst, typename Kst>
 struct ParameterSet {
-  using src_lwe_params = SRC;
-  using dst_lwe_params = DST;
+  using src_params = Src;
+  using dst_params = Dst;
+  using kst_params = Kst;
 };
 
-using Ctx1 = ParameterSet<
-    lwe_params<tlwe_core_params<ModTorus<16>, 8>, key_switch_params<8, 5>>,
-    lwe_params<tlwe_core_params<ModTorus<16>, 5>>>;
+using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 8>>,
+                          lwe_params<tlwe_core_params<ModTorus<16>, 5>>,
+                          kst_params<8, 5>>;
 
-using Ctx2 = ParameterSet<
-    lwe_params<tlwe_core_params<ModTorus<32>, 1024>, key_switch_params<4, 12>>,
-    lwe_params<tlwe_core_params<ModTorus<32>, 200>>>;
+using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
+                          lwe_params<tlwe_core_params<ModTorus<32>, 200>>,
+                          kst_params<4, 12>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
@@ -44,48 +45,39 @@ class KeySwitchFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{1};
 
-  using src_lwe_params = Ctx::src_lwe_params;
-  using dst_lwe_params = Ctx::dst_lwe_params;
+  using Src = Ctx::src_params;
+  using Dst = Ctx::dst_params;
+  using Kst = Ctx::kst_params;
 
-  using bTorus = src_lwe_params::torus_type;
-  static constexpr uint32_t N = src_lwe_params::n;
-  static constexpr uint32_t K = src_lwe_params::K;
-  static constexpr uint32_t t = src_lwe_params::t;
-  static constexpr uint32_t Kbit = std::bit_width(K - 1);
+  using rTorus = Src::torus_type;
+  static constexpr uint32_t N = Src::n;
 
-  using fTorus = dst_lwe_params::torus_type;
-  static constexpr uint32_t n = dst_lwe_params::n;
+  using Torus = Dst::torus_type;
+  static constexpr uint32_t n = Dst::n;
 
-  bTorus pt_ = bTorus(1);
-  TrackedCryptor<Cryptor<src_lwe_params>> src_cryptor_;
-  TrackedCryptor<Cryptor<dst_lwe_params>> dst_cryptor_;
+  static constexpr uint32_t K = Kst::K;
+  static constexpr uint32_t t = Kst::t;
 
-  TLWE<bTorus, N> src_tlwe_;
+  rTorus pt_ = rTorus(1);
+  TrackedCryptor<Cryptor<Src>> src_cryptor_;
+  TrackedCryptor<Cryptor<Dst>> dst_cryptor_;
 
-  KeySwitchKey<fTorus, n, t, N> KSK_;
+  TLWE<rTorus, N> src_tlwe_;
+
+  KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
-    SecretHolder<src_lwe_params> src_kr(eng_);
-    SecretHolder<dst_lwe_params> dst_kr(eng_);
+    SecretHolder<Src> src_kr(eng_);
+    SecretHolder<Dst> dst_kr(eng_);
 
-    src_cryptor_ =
-        TrackedCryptor<Cryptor<src_lwe_params>>(src_kr.secret_ptr(), eng_);
-    dst_cryptor_ =
-        TrackedCryptor<Cryptor<dst_lwe_params>>(dst_kr.secret_ptr(), eng_);
+    src_cryptor_ = TrackedCryptor<Cryptor<Src>>(src_kr.secret_ptr(), eng_);
+    dst_cryptor_ = TrackedCryptor<Cryptor<Dst>>(dst_kr.secret_ptr(), eng_);
 
     // prepare source tlwe
     src_tlwe_ = src_cryptor_.encrypt(pt_);
 
     // Prepare Key Switch Key
-    for (uint32_t i = 0; i < N; ++i) {
-      fTorus s(src_kr.secret_ptr()[i]);
-      for (size_t j = 0; j < t; ++j) {
-        typename fTorus::raw_value_type tmp =
-            static_cast<typename fTorus::raw_value_type>(s)
-            << (fTorus::qbit - Kbit * (j + 1));
-        KSK_[i][j] = dst_cryptor_.encrypt(fTorus(tmp));
-      }
-    }
+    KSK_ = keyswitch_key::generate<Src, Dst, Kst>(dst_cryptor_, src_kr);
   }
 };
 
@@ -96,24 +88,31 @@ class KeySwitchCorrectnessTest
 TYPED_TEST_SUITE(KeySwitchCorrectnessTest, key_switch_test::TestContexts);
 
 TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
-  using src_lwe_params = typename TypeParam::context::src_lwe_params;
-  using dst_lwe_params = typename TypeParam::context::dst_lwe_params;
+  using params = TypeParam::context;
+  using Src = typename params::src_params;
+  using Dst = typename params::dst_params;
+  using Kst = typename params::kst_params;
 
-  using fTorus = dst_lwe_params::torus_type;
-  constexpr uint32_t n = dst_lwe_params::n;
+  using rTorus = Src::torus_type;
 
-  using bTorus = src_lwe_params::torus_type;
+  using Torus = Dst::torus_type;
+  constexpr uint32_t n = Dst::n;
 
   // ==================================
-  fTorus expected = fTorus(static_cast<bTorus::raw_value_type>(this->pt_));
+  // Reference
+  // ==================================
+  Torus expected = Torus(static_cast<rTorus::raw_value_type>(this->pt_));
+
+  // ==================================
+  // TEST LOGIC
+  // ==================================
+  TLWE<Torus, n> encrypted = TrackedEvaluator<KeySwitch<Src, Dst, Kst>>::exec(
+      this->src_tlwe_, this->KSK_);
+  Torus decrypted = this->dst_cryptor_.decrypt(encrypted);
+
   // ----------------------------------
-  TLWE<fTorus, n> encrypted =
-      TrackedEvaluator<KeySwitch<dst_lwe_params, src_lwe_params>>::exec(
-          this->src_tlwe_, this->KSK_);
-  fTorus decrypted = this->dst_cryptor_.decrypt(encrypted);
-  // ==================================
 
-  fTorus error = expected - decrypted;
+  Torus error = expected - decrypted;
   double norm = infinity_norm(error);
 
   std::cout << "\n=== Key Switch Test ===\n";

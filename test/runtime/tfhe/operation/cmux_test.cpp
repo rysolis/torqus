@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <random>
 
 #include "primitive/torus.hpp"
@@ -26,15 +27,16 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Rlwe, typename Dcp>
 struct ParameterSet {
-  using params = T;
+  using rlwe_params = Rlwe;
+  using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
-using Ctx2 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<256, 2>>>;
+using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                          dcp_params<4, 3>>;
+using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                          dcp_params<256, 2>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
@@ -46,17 +48,18 @@ class CMuxFixture : public ::testing::Test {
  protected:
   std::mt19937 eng_{0};
 
-  using params = typename Ctx::context::params;
+  using Rlwe = typename Ctx::context::rlwe_params;
+  using Dcp = typename Ctx::context::dcp_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
+  using Torus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+  static constexpr uint32_t l = Dcp::l;
 
-  TrackedCryptor<Cryptor<params>> cryptor_;
+  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
 
   void SetUp() override {
-    SecretHolder<params> kr(this->eng_);
-    cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> kr_(this->eng_);
+    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(kr_.secret_ptr(), eng_);
   }
 };
 
@@ -65,7 +68,8 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
  protected:
   using Base = CMuxFixture<Ctx>;
 
-  using typename Base::params;
+  using typename Base::Dcp;
+  using typename Base::Rlwe;
   using typename Base::Torus;
 
   static constexpr uint32_t N = Base::N;
@@ -88,8 +92,8 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
     zero_pt_[0] = UInt(0);
     one_pt_[0] = UInt(1);
 
-    zero_ct_ = this->cryptor_.encrypt(zero_pt_);
-    one_ct_ = this->cryptor_.encrypt(one_pt_);
+    zero_ct_ = trgsw::encrypt<Rlwe, Dcp, Torus>(this->cryptor_, zero_pt_);
+    one_ct_ = trgsw::encrypt<Rlwe, Dcp, Torus>(this->cryptor_, one_pt_);
 
     // Prepare candidate cand0 and cand1
     randomize(cand0_pt_, this->eng_);
@@ -102,10 +106,11 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
 TYPED_TEST_SUITE(CMuxCorrectnessTest, cmux_test::TestContexts);
 
 TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   // ==================================
   // Reference
@@ -115,7 +120,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<params>>::exec(
+  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<Rlwe, Dcp>>::exec(
       this->zero_ct_, this->cand0_ct_, this->cand1_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
@@ -140,10 +145,11 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
 }
 
 TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
-  using params = typename TypeParam::context::params;
+  using rlwe_params = typename TypeParam::context::rlwe_params;
+  using dcp_params = typename TypeParam::context::dcp_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = typename rlwe_params::torus_type;
+  constexpr uint32_t N = rlwe_params::N;
 
   // ==================================
   // Reference
@@ -153,8 +159,9 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<params>>::exec(
-      this->one_ct_, this->cand0_ct_, this->cand1_ct_);
+  TRLWE<Torus, N> res_ct =
+      TrackedEvaluator<CMux<rlwe_params, dcp_params>>::exec(
+          this->one_ct_, this->cand0_ct_, this->cand1_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------

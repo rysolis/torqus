@@ -21,19 +21,14 @@ concept trlwe_concept = requires {
 
 template <typename T>
 concept decompose_concept = requires {
-  { T::N } -> std::convertible_to<uint32_t>;
   { T::B } -> std::convertible_to<uint32_t>;
   { T::l } -> std::convertible_to<uint32_t>;
 };
 
 template <typename T>
-concept key_switch_concept = requires {
-  { T::n } -> std::convertible_to<uint32_t>;
+concept kst_concept = requires {
   { T::K } -> std::convertible_to<uint32_t>;
   { T::t } -> std::convertible_to<uint32_t>;
 };
-
-template <typename T>
-concept trgsw_concept = trlwe_concept<T> && decompose_concept<T>;
 
 #endif  // TFHE_CONCEPT_HPP

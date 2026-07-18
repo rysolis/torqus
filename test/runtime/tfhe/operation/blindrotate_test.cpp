@@ -33,19 +33,20 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename LWE, typename GLWE>
+template <typename Lwe, typename Rlwe, typename Dcp>
 struct ParameterSet {
-  using lwe_params = LWE;
-  using glwe_params = GLWE;
+  using lwe_params = Lwe;
+  using rlwe_params = Rlwe;
+  using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<
-    lwe_params<tlwe_core_params<void, 1>>,
-    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
+using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
+                          rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                          dcp_params<4, 3>>;
 
-using Ctx2 = ParameterSet<
-    lwe_params<tlwe_core_params<void, 20>>,
-    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<256, 2>>>;
+using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<void, 20>>,
+                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                          dcp_params<256, 2>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
@@ -57,41 +58,39 @@ class BlindRotateFixture : public ::testing::Test {
  protected:
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{10};
-  using lwe_params = Ctx::lwe_params;
-  using glwe_params = Ctx::glwe_params;
+  using Lwe = Ctx::lwe_params;
+  using Rlwe = Ctx::rlwe_params;
+  using Dcp = Ctx::dcp_params;
 
-  static constexpr uint32_t n = lwe_params::n;
+  static constexpr uint32_t n = Lwe::n;
 
-  using bTorus = glwe_params::torus_type;
-  static constexpr uint32_t N = glwe_params::N;
-  static constexpr uint32_t l = glwe_params::l;
+  using Torus = Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
-  Poly<bTorus, N> tv_;
-  TRLWE<bTorus, N> tv_ct_;
+  static constexpr uint32_t l = Dcp::l;
 
-  BootstrapKey<bTorus, N, l, n> BK_;
+  Poly<Torus, N> tv_;
+  TRLWE<Torus, N> tv_ct_;
 
-  TrackedCryptor<Cryptor<glwe_params>> cryptor_;
-  std::optional<SecretHolder<lwe_params>> lwe_kr;
+  BootstrapKey<Torus, N, l, n> BK_;
+
+  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
+  std::optional<SecretHolder<Lwe>> lwe_kr;
 
   void SetUp() override {
-    SecretHolder<glwe_params> glwe_kr(this->eng_);
-    cryptor_ = TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> glwe_kr(this->eng_);
+    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(glwe_kr.secret_ptr(), eng_);
 
     // Prepare TestVector
-    tv_ = testvector::generate<bTorus, N>();
+    tv_ = testvector::generate<Torus, N>();
     tv_ct_ = cryptor_.encrypt(this->tv_);
 
     // Prepare SecretHolder
-    lwe_kr = std::move(SecretHolder<lwe_params>(eng_));
+    lwe_kr = std::move(SecretHolder<Lwe>(eng_));
 
     // Prepare Bootstrapkey
-    for (size_t i = 0; i < n; ++i) {
-      Poly<UInt, N> tmp;
-      tmp[0] = static_cast<UInt>((lwe_kr->secret())[i]);
-      BK_[i] = cryptor_.encrypt(tmp);
-    }
+    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(cryptor_, *lwe_kr);
   }
 };
 
@@ -102,14 +101,15 @@ class BlindRotateCorrectnessTest
 TYPED_TEST_SUITE(BlindRotateCorrectnessTest, blindrotate_test::TestContexts);
 
 TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
-  using lwe_params = typename TypeParam::context::lwe_params;
-  using glwe_params = typename TypeParam::context::glwe_params;
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
 
-  constexpr uint32_t n = lwe_params::n;
+  constexpr uint32_t n = Lwe::n;
 
-  using bTorus = glwe_params::torus_type;
+  using Torus = Rlwe::torus_type;
 
-  constexpr uint32_t N = glwe_params::N;
+  constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
   ModInt<M> phase(10);
@@ -117,7 +117,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   // ==================================
   // Reference
   // ==================================
-  Poly<bTorus, N> ref_pt = rotate(this->tv_, (-phase).value());
+  Poly<Torus, N> ref_pt = rotate(this->tv_, (-phase).value());
 
   // ==================================
   // TEST LOGIC
@@ -136,13 +136,12 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   phase_ct[n] = b;  // Overwrite
 
   // BlindRotate
-  TRLWE<bTorus, N> res_ct =
-      TrackedEvaluator<BlindRotate<lwe_params, glwe_params>>::exec(
-          this->tv_ct_, phase_ct, this->BK_);
-  Poly<bTorus, N> res_pt = this->cryptor_.decrypt(res_ct);
+  TRLWE<Torus, N> res_ct = TrackedEvaluator<BlindRotate<Lwe, Rlwe, Dcp>>::exec(
+      this->tv_ct_, phase_ct, this->BK_);
+  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------
-  Poly<bTorus, N> err = ref_pt - res_pt;
+  Poly<Torus, N> err = ref_pt - res_pt;
   double norm = infinity_norm(err);
 
   std::cout << "\n========================================\n";

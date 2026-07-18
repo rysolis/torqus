@@ -15,19 +15,19 @@
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
-template <decompose_concept params>
+template <typename Rlwe, typename Dcp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
 class CMux {
  public:
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
+  static constexpr uint32_t N = Rlwe::N;
+  static constexpr uint32_t l = Dcp::l;
 
   template <torus_type Torus>
-  inline static TRLWE<Torus, params::N> exec(
-      const TRGSW<Torus, params::N, params::l>& bk,
-      const TRLWE<Torus, params::N> cand0,
-      const TRLWE<Torus, params::N> cand1) {
-    return Add<params>::exec(
-        ExternalProduct<params>::exec(bk, Sub<params>::exec(cand1, cand0)),
+  inline static TRLWE<Torus, N> exec(const TRGSW<Torus, N, l>& bk,
+                                     const TRLWE<Torus, N> cand0,
+                                     const TRLWE<Torus, N> cand1) {
+    return Add<Rlwe>::exec(
+        ExternalProduct<Rlwe, Dcp>::exec(bk, Sub<Rlwe>::exec(cand1, cand0)),
         cand0);
   }
 };

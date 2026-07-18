@@ -6,35 +6,36 @@
 
 #include <cstdint>
 
-template <typename Torus, uint32_t n_>
+template <typename Torus, uint32_t dim>
 struct tlwe_core_params {
   using torus_type = Torus;
-  static constexpr uint32_t n = n_;
+  static constexpr uint32_t n = dim;
 };
 
-template <typename Torus, uint32_t N_>
+template <typename Torus, uint32_t dim>
 struct trlwe_core_params {
   using torus_type = Torus;
-  static constexpr uint32_t N = N_;
+  static constexpr uint32_t N = dim;
 };
 
-template <uint32_t B_, uint32_t l_>
-struct gadget_params {
-  static constexpr uint32_t B = B_;
-  static constexpr uint32_t l = l_;
+template <uint32_t Base, uint32_t Digit>
+struct dcp_params {
+  static constexpr uint32_t B = Base;
+  static constexpr uint32_t l = Digit;
 };
 
-template <uint32_t K_, uint32_t t_>
-struct key_switch_params {
-  static constexpr uint32_t K = K_;
-  static constexpr uint32_t t = t_;
+// For key switch
+template <uint32_t Base, uint32_t Digit>
+struct kst_params {
+  static constexpr uint32_t K = Base;
+  static constexpr uint32_t t = Digit;
 };
 
 template <typename Core, typename... Features>
 struct lwe_params : Core, Features... {};
 
 template <typename Core, typename... Features>
-struct glwe_params : Core, Features... {};
+struct rlwe_params : Core, Features... {};
 
 template <typename Message, typename Codec>
 struct encoding_params {

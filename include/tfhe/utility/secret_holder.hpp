@@ -25,7 +25,7 @@ struct secret_size<params> {
 };
 
 template <typename params>
-  requires(trlwe_concept<params> || trgsw_concept<params>)
+  requires trlwe_concept<params>
 struct secret_size<params> {
   static constexpr uint32_t value = params::N;
 };

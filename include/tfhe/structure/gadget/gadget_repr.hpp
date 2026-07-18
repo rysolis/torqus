@@ -36,12 +36,15 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <decompose_concept params, torus_type Torus>
-Torus reconstruct(const Vector<Poly<UInt, params::N>, params::l>& repr,
-                  size_t j) {
-  static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
+template <typename Rlwe, typename Dcp, torus_type Torus>
+  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Dcp::l>& repr, size_t j) {
+  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Dcp::B;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
+
   typename Torus::raw_value_type m = 0;
-  for (size_t i = 0; i < params::l; ++i) {
+  for (size_t i = 0; i < l; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
     UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
@@ -80,21 +83,24 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <decompose_concept params, torus_type Torus>
-Torus reconstruct(const Vector<Poly<UInt, params::N>, params::l>& repr,
-                  size_t j) {
-  static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
+template <typename Rlwe, typename Dcp, torus_type Torus>
+  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Dcp::l>& repr, size_t j) {
+  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Dcp::B;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
+
   UInt::raw_value_type offset = 0;
-  for (size_t i = 0; i < params::l; ++i) {
-    offset += (params::B / 2) << (Torus::qbit - (Bbit * (i + 1)));
+  for (size_t i = 0; i < l; ++i) {
+    offset += (B / 2) << (Torus::qbit - (Bbit * (i + 1)));
   }
   typename Torus::raw_value_type m = 0;
-  for (size_t i = 0; i < params::l; ++i) {
+  for (size_t i = 0; i < l; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
 
     UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
-    m |= ((v + (params::B / 2)) & (params::B - 1)) << shift;
+    m |= ((v + (B / 2)) & (B - 1)) << shift;
   }
   m -= offset;
   return Torus(m);
@@ -104,12 +110,14 @@ Torus reconstruct(const Vector<Poly<UInt, params::N>, params::l>& repr,
 
 }  // namespace
 
-template <decompose_concept params>
+template <typename Rlwe, typename Dcp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
 class GadgetRepr {
  public:
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
-  static constexpr uint32_t B = params::B;
+  static constexpr uint32_t N = Rlwe::N;
+
+  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
   // Torus shoule be ModTorus<QBit> !!
@@ -119,8 +127,7 @@ class GadgetRepr {
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < N; ++j) {
       for (size_t i = 0; i < l; ++i) {
-        repr_[i][j] =
-            balanced::decompose<params>(static_cast<Torus>(poly[j]), i);
+        repr_[i][j] = balanced::decompose<Dcp>(static_cast<Torus>(poly[j]), i);
       }
     }
   }
@@ -130,7 +137,7 @@ class GadgetRepr {
     Poly<Torus, N> poly;
 
     for (size_t j = 0; j < N; ++j) {
-      poly[j] = balanced::reconstruct<params, Torus>(repr_, j);
+      poly[j] = balanced::reconstruct<Rlwe, Dcp, Torus>(repr_, j);
     }
 
     return poly;
@@ -155,30 +162,31 @@ class GadgetRepr {
   Vector<Poly<UInt, N>, l> repr_;
 };
 
-template <typename params>
+template <typename Rlwe, typename Dcp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
 class GadgetTRLWE {
  public:
   // NOLINT(bugprone-easily-swappable-parameters)
-  GadgetTRLWE(GadgetRepr<params> a, GadgetRepr<params> b)
+  GadgetTRLWE(GadgetRepr<Rlwe, Dcp> a, GadgetRepr<Rlwe, Dcp> b)
       : a_(std::move(a)), b_(std::move(b)) {}
 
   template <typename Torus>
-  explicit GadgetTRLWE(const TRLWE<Torus, params::N>& trlwe)
+  explicit GadgetTRLWE(const TRLWE<Torus, Rlwe::N>& trlwe)
       : a_(trlwe.a()), b_(trlwe.b()) {}
 
   [[nodiscard]]
-  const GadgetRepr<params>& a() const noexcept {
+  const GadgetRepr<Rlwe, Dcp>& a() const noexcept {
     return a_;
   }
 
   [[nodiscard]]
-  const GadgetRepr<params>& b() const noexcept {
+  const GadgetRepr<Rlwe, Dcp>& b() const noexcept {
     return b_;
   }
 
  private:
-  GadgetRepr<params> a_;
-  GadgetRepr<params> b_;
+  GadgetRepr<Rlwe, Dcp> a_;
+  GadgetRepr<Rlwe, Dcp> b_;
 };
 
 #endif  // TFHE_GADGET_REPR_HPP

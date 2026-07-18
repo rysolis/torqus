@@ -18,7 +18,7 @@
 
 namespace {
 
-template <key_switch_concept params, torus_type Torus>
+template <kst_concept params, torus_type Torus>
 UInt decompose(const Torus& v, size_t i) {
   static constexpr uint32_t Bbit = std::bit_width(params::K - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -30,7 +30,7 @@ UInt decompose(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <key_switch_concept params, torus_type Torus>
+template <kst_concept params, torus_type Torus>
 Torus reconstruct(const Vector<Poly<UInt, params::N>, params::t>& repr,
                   size_t j) {
   static constexpr uint32_t Bbit = std::bit_width(params::K - 1);
@@ -46,31 +46,64 @@ Torus reconstruct(const Vector<Poly<UInt, params::N>, params::t>& repr,
 
 }  // namespace
 
-template <tlwe_concept fparams, tlwe_concept bparams>
-  requires key_switch_concept<bparams>
+template <typename SrcLwe, typename DstLwe, typename Kst>
+  requires tlwe_concept<SrcLwe> && tlwe_concept<DstLwe> && kst_concept<Kst>
 class KeySwitch {
  public:
-  using fTorus = typename fparams::torus_type;
-  static constexpr uint32_t n = fparams::n;
+  using dTorus = typename DstLwe::torus_type;
+  static constexpr uint32_t n = DstLwe::n;
 
-  using bTorus = typename bparams::torus_type;
-  static constexpr uint32_t N = bparams::n;
-  static constexpr uint32_t K = bparams::K;
-  static constexpr uint32_t t = bparams::t;
+  using sTorus = typename SrcLwe::torus_type;
+  static constexpr uint32_t N = SrcLwe::n;
 
-  inline static TLWE<fTorus, n> exec(const TLWE<bTorus, N>& src,
-                                     const KeySwitchKey<bTorus, n, t, N>& KSK) {
-    TLWE<fTorus, n> dst;
-    dst.b() = fTorus(static_cast<bTorus::raw_value_type>(src.b()));
+  static constexpr uint32_t K = Kst::K;
+  static constexpr uint32_t t = Kst::t;
+
+  inline static TLWE<dTorus, n> exec(const TLWE<sTorus, N>& src,
+                                     const KeySwitchKey<dTorus, n, t, N>& KSK) {
+    TLWE<dTorus, n> dst;
+    dst.b() = dTorus(static_cast<sTorus::raw_value_type>(src.b()));
     for (size_t i = 0; i < N; ++i) {
-      bTorus ai = src.a()[i];
+      dTorus ai = src.a()[i];
       for (size_t j = 0; j < t; ++j) {
-        UInt d = decompose<bparams>(ai, j);
+        UInt d = decompose<Kst>(ai, j);
         dst -= d * KSK[i][j];
       }
     }
     return dst;
   }
 };
+
+namespace keyswitch_key {
+
+template <typename SrcLwe, typename DstLwe, typename Kst, typename Cryptor,
+          typename Holder>
+  requires tlwe_concept<SrcLwe> && tlwe_concept<DstLwe> && kst_concept<Kst>
+KeySwitchKey<typename DstLwe::torus_type, DstLwe::n, Kst::t,
+             SrcLwe::n> static generate(Cryptor& cryptor,
+                                        const Holder& holder) {
+  static constexpr uint32_t N = SrcLwe::n;
+  using Torus = DstLwe::torus_type;
+  static constexpr uint32_t n = DstLwe::n;
+  static constexpr uint32_t t = Kst::t;
+  static constexpr uint32_t K = Kst::K;
+  static constexpr uint32_t Kbit = std::bit_width(K - 1);
+
+  KeySwitchKey<Torus, n, t, N> KSK;
+
+  for (uint32_t i = 0; i < N; ++i) {
+    Torus s(holder.secret_ptr()[i]);
+    for (size_t j = 0; j < t; ++j) {
+      typename Torus::raw_value_type tmp =
+          static_cast<typename Torus::raw_value_type>(s)
+          << (Torus::qbit - Kbit * (j + 1));
+      KSK[i][j] = cryptor.encrypt(Torus(tmp));
+    }
+  }
+
+  return KSK;
+}
+
+}  // namespace keyswitch_key
 
 #endif

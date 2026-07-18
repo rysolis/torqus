@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <random>
 
 #include "algebra/poly.hpp"
@@ -22,17 +23,18 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Rlwe, typename Dcp>
 struct ParameterSet {
-  using params = T;
+  using rlwe_params = Rlwe;
+  using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<16>, 4>, gadget_params<4, 3>>>;
-using Ctx2 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<16>, 8>, gadget_params<8, 3>>>;
-using Ctx3 = ParameterSet<
-    glwe_params<trlwe_core_params<ModTorus<32>, 1024>, gadget_params<256, 2>>>;
+using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                          dcp_params<4, 3>>;
+using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 8>>,
+                          dcp_params<8, 3>>;
+using Ctx3 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                          dcp_params<256, 2>>;
 
 using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
                                       TestConfig<Ctx3, false>>;
@@ -45,17 +47,19 @@ class ExternalProductFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using params = typename Ctx::context::params;
+  using Rlwe = typename Ctx::context::rlwe_params;
+  using Dcp = typename Ctx::context::dcp_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
+  using Torus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
 
-  TrackedCryptor<Cryptor<params>> cryptor_;
+  static constexpr uint32_t l = Dcp::l;
+
+  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
 
   void SetUp() override {
-    SecretHolder<params> kr(eng_);
-    cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> kr(eng_);
+    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -64,7 +68,6 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
  protected:
   using Base = ExternalProductFixture<Ctx>;
 
-  using typename Base::params;
   using typename Base::Torus;
 
   static constexpr uint32_t N = Base::N;
@@ -86,11 +89,13 @@ TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
                  external_product_test::TestContexts);
 
 TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
-  static constexpr uint32_t l = params::l;
+  using Torus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+
+  static constexpr uint32_t l = Dcp::l;
 
   // mp means multiplier
   Poly<UInt, N> mp_pt_;
@@ -104,10 +109,11 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRGSW<Torus, N, l> mp_ct = this->cryptor_.encrypt(mp_pt_);
+  TRGSW<Torus, N, l> mp_ct =
+      trgsw::encrypt<Rlwe, Dcp, Torus>(this->cryptor_, mp_pt_);
 
   TRLWE<Torus, N> res_ct =
-      TrackedEvaluator<ExternalProduct<params>>::exec(mp_ct, this->pt_ct_);
+      TrackedEvaluator<ExternalProduct<Rlwe, Dcp>>::exec(mp_ct, this->pt_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------

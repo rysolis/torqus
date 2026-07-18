@@ -30,8 +30,8 @@ struct ParameterSet {
   using params = T;
 };
 
-using Ctx1 = ParameterSet<glwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
-using Ctx2 = ParameterSet<glwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
+using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
+using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;

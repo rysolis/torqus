@@ -21,11 +21,11 @@ struct TestConfig {
 template <typename LWE, typename GLWE>
 struct ParameterSet {
   using lwe_params = LWE;
-  using glwe_params = GLWE;
+  using rlwe_params = GLWE;
 };
 
 using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 4>>,
-                          glwe_params<trlwe_core_params<ModTorus<32>, 4>>>;
+                          rlwe_params<trlwe_core_params<ModTorus<32>, 4>>>;
 
 using TestContexts = ::testing::Types<TestConfig<Ctx1>>;
 
@@ -37,31 +37,29 @@ class SampleExtractionFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  using lwe_params = Ctx::lwe_params;
-  using glwe_params = Ctx::glwe_params;
+  using Lwe = Ctx::lwe_params;
+  using Rlwe = Ctx::rlwe_params;
 
-  using fTorus = typename lwe_params::torus_type;
-  static constexpr uint32_t n = lwe_params::n;
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
 
-  using bTorus = typename glwe_params::torus_type;
-  static constexpr uint32_t N = glwe_params::N;
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
 
-  Poly<bTorus, N> pt_;
-  TRLWE<bTorus, N> pt_ct_;
+  Poly<rTorus, N> pt_;
+  TRLWE<rTorus, N> pt_ct_;
 
-  TrackedCryptor<Cryptor<lwe_params>> tlwe_cryptor_;
-  TrackedCryptor<Cryptor<glwe_params>> trlwe_cryptor_;
+  TrackedCryptor<Cryptor<Lwe>> tlwe_cryptor_;
+  TrackedCryptor<Cryptor<Rlwe>> trlwe_cryptor_;
 
   void SetUp() override {
-    SecretHolder<glwe_params> glwe_kr(this->eng_);
-    SecretHolder<lwe_params> lwe_kr(glwe_kr.begin(), glwe_kr.end());
-    tlwe_cryptor_ =
-        TrackedCryptor<Cryptor<lwe_params>>(lwe_kr.secret_ptr(), eng_);
-    trlwe_cryptor_ =
-        TrackedCryptor<Cryptor<glwe_params>>(glwe_kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> glwe_kr(this->eng_);
+    SecretHolder<Lwe> lwe_kr(glwe_kr.begin(), glwe_kr.end());
+    tlwe_cryptor_ = TrackedCryptor<Cryptor<Lwe>>(lwe_kr.secret_ptr(), eng_);
+    trlwe_cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(glwe_kr.secret_ptr(), eng_);
 
     // Prepare plaintext and its ciphertext
-    this->pt_[0] = bTorus(1);
+    this->pt_[0] = rTorus(1);
     randomize(this->pt_, eng_);
     this->pt_ct_ = trlwe_cryptor_.encrypt(this->pt_);
   }
@@ -75,23 +73,22 @@ TYPED_TEST_SUITE(SampleExtractionCorrectnessTest,
                  sample_extraction_test::TestContexts);
 
 TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
-  using lwe_params = typename TypeParam::context::lwe_params;
-  using glwe_params = typename TypeParam::context::glwe_params;
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using fTorus = lwe_params::torus_type;
-  constexpr uint32_t n = lwe_params::n;
+  using Torus = Lwe::torus_type;
+  constexpr uint32_t n = Lwe::n;
 
   // ==================================
   // Reference
   // ==================================
-  fTorus ref_pt = this->pt_[0];
+  Torus ref_pt = this->pt_[0];
 
   // ==================================
   // TEST LOGIC
   // ==================================
-  TLWE<fTorus, n> res_ct =
-      SampleExtraction<lwe_params, glwe_params>::exec(this->pt_ct_, 0);
-  fTorus res_pt = this->tlwe_cryptor_.decrypt(res_ct);
+  TLWE<Torus, n> res_ct = SampleExtraction<Lwe, Rlwe>::exec(this->pt_ct_, 0);
+  Torus res_pt = this->tlwe_cryptor_.decrypt(res_ct);
 
   // ----------------------------------
 
