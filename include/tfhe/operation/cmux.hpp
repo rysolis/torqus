@@ -23,12 +23,12 @@ class CMux {
   static constexpr uint32_t l = Dcp::l;
 
   template <torus_type Torus>
-  inline static TRLWE<Torus, N> exec(const TRGSW<Torus, N, l>& bk,
-                                     const TRLWE<Torus, N> cand0,
-                                     const TRLWE<Torus, N> cand1) {
-    return Add<Rlwe>::exec(
-        ExternalProduct<Rlwe, Dcp>::exec(bk, Sub<Rlwe>::exec(cand1, cand0)),
-        cand0);
+  static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& bk,
+                                   const TRLWE<Torus, N> cand0,
+                                   const TRLWE<Torus, N> cand1) {
+    return Add<Rlwe>::exec_impl(ExternalProduct<Rlwe, Dcp>::exec_impl(
+                                    bk, Sub<Rlwe>::exec_impl(cand1, cand0)),
+                                cand0);
   }
 };
 

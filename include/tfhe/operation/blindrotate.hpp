@@ -30,9 +30,12 @@ class BlindRotate {
   static constexpr uint32_t l = Dcp::l;
 
  public:
-  inline static TRLWE<Torus, N> exec(const TRLWE<Torus, N>& tv,
-                                     const Vector<ModInt<M>, n + 1>& t,
-                                     const BootstrapKey<Torus, N, l, n>& bk) {
+  // NOTE:
+  // exec_impl must not consume (move from) its arguments, as they are
+  // forwarded again to tracking::update().
+  static TRLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& tv,
+                                   const Vector<ModInt<M>, n + 1>& t,
+                                   const BootstrapKey<Torus, N, l, n>& bk) {
     ModInt<M> b = t[n];
     TRLWE<Torus, N> cand0(rotate(tv.a(), -b.value()),
                           rotate(tv.b(), -b.value()));
@@ -42,7 +45,7 @@ class BlindRotate {
       TRLWE<Torus, N> cand1(rotate(cand0.a(), ai.value()),
                             rotate(cand0.b(), ai.value()));
 
-      cand0 = CMux<Rlwe, Dcp>::exec(bk[i], cand0, cand1);
+      cand0 = CMux<Rlwe, Dcp>::exec_impl(bk[i], cand0, cand1);
     }
     return cand0;
   }

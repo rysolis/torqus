@@ -15,8 +15,11 @@ class SampleExtraction {
  public:
   static constexpr uint32_t N = bparams::N;
 
+  // NOTE:
+  // exec_impl must not consume (move from) its arguments, as they are
+  // forwarded again to tracking::update().
   template <torus_type Torus>
-  static TLWE<Torus, N> exec(const TRLWE<Torus, N>& trlwe, size_t p) {
+  static TLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& trlwe, size_t p) {
     TLWE<Torus, N> tlwe([&trlwe, p](std::size_t i) {
       if (i <= p) {
         return static_cast<Torus>(trlwe.a()[i]);

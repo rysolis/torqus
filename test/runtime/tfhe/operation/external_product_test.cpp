@@ -9,6 +9,7 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -113,7 +114,8 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
       trgsw::encrypt<Rlwe, Dcp, Torus>(this->cryptor_, mp_pt_);
 
   TRLWE<Torus, N> res_ct =
-      TrackedEvaluator<ExternalProduct<Rlwe, Dcp>>::exec(mp_ct, this->pt_ct_);
+      Evaluator<ExternalProduct<Rlwe, Dcp>, Tracking>::exec(mp_ct,
+                                                            this->pt_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------

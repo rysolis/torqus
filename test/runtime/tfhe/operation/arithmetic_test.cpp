@@ -11,6 +11,7 @@
 
 #include "tfhe/cryptor.hpp"
 #include "tfhe/operation/add.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -76,7 +77,7 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
-      TrackedEvaluator<Add<Rlwe>>::exec(encrypted_lhs, encrypted_rhs);
+      Evaluator<Add<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
 
   Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================
@@ -116,7 +117,7 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
-      TrackedEvaluator<Sub<Rlwe>>::exec(encrypted_lhs, encrypted_rhs);
+      Evaluator<Sub<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
 
   Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================

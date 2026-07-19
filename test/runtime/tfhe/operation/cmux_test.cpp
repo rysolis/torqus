@@ -13,6 +13,7 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -120,7 +121,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<Rlwe, Dcp>>::exec(
+  TRLWE<Torus, N> res_ct = Evaluator<CMux<Rlwe, Dcp>, Tracking>::exec(
       this->zero_ct_, this->cand0_ct_, this->cand1_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
@@ -159,7 +160,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<Rlwe, Dcp>>::exec(
+  TRLWE<Torus, N> res_ct = Evaluator<CMux<Rlwe, Dcp>, Tracking>::exec(
       this->one_ct_, this->cand0_ct_, this->cand1_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 

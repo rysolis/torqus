@@ -59,8 +59,11 @@ class KeySwitch {
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
 
-  inline static TLWE<dTorus, n> exec(const TLWE<sTorus, N>& src,
-                                     const KeySwitchKey<dTorus, n, t, N>& KSK) {
+  // NOTE:
+  // exec_impl must not consume (move from) its arguments, as they are
+  // forwarded again to tracking::update().
+  static TLWE<dTorus, n> exec_impl(const TLWE<sTorus, N>& src,
+                                   const KeySwitchKey<dTorus, n, t, N>& KSK) {
     TLWE<dTorus, n> dst;
     dst.b() = dTorus(static_cast<sTorus::raw_value_type>(src.b()));
     for (size_t i = 0; i < N; ++i) {

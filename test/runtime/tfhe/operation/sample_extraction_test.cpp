@@ -6,6 +6,7 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -87,7 +88,8 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TLWE<Torus, n> res_ct = SampleExtraction<Lwe, Rlwe>::exec(this->pt_ct_, 0);
+  TLWE<Torus, n> res_ct = Evaluator<SampleExtraction<Lwe, Rlwe>>::exec(
+      this->pt_ct_, std::size_t{0});
   Torus res_pt = this->tlwe_cryptor_.decrypt(res_ct);
 
   // ----------------------------------

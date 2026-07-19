@@ -18,6 +18,7 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -136,8 +137,9 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   phase_ct[n] = b;  // Overwrite
 
   // BlindRotate
-  TRLWE<Torus, N> res_ct = TrackedEvaluator<BlindRotate<Lwe, Rlwe, Dcp>>::exec(
-      this->tv_ct_, phase_ct, this->BK_);
+  TRLWE<Torus, N> res_ct =
+      Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(
+          this->tv_ct_, phase_ct, this->BK_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------

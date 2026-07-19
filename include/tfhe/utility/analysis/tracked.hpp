@@ -14,27 +14,6 @@
 #include "tfhe/utility/analysis/noise.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
 
-template <typename Operation>
-class TrackedEvaluator {
- public:
-  template <typename... Args>
-  static auto exec(const Args&... args) {
-    NoiseTrackerInterface* tracker = get_noise_tracker_if();
-    auto res = Operation::exec(args...);
-    double bound = NoisePolicy<Operation>::compute(tracker, args...);
-
-#ifndef NDEBUG
-    if (bound >= 0.25) {
-      std::cerr << "error_bound = " << bound << '\n';
-    }
-    assert(bound < 0.25);
-#endif
-
-    tracker->update(res, bound);
-    return res;
-  }
-};
-
 template <typename Cryptor, typename Engine = std::mt19937>
 class TrackedCryptor {
  public:

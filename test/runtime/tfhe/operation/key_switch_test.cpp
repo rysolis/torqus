@@ -5,6 +5,7 @@
 #include <random>
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
@@ -107,8 +108,8 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   // TEST LOGIC
   // ==================================
   TLWE<Torus, n> encrypted =
-      TrackedEvaluator<KeySwitch<SrcLwe, DstLwe, Kst>>::exec(this->src_tlwe_,
-                                                             this->KSK_);
+      Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(this->src_tlwe_,
+                                                                this->KSK_);
   Torus decrypted = this->dst_cryptor_.decrypt(encrypted);
 
   // ----------------------------------

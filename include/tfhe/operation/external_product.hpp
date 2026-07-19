@@ -23,9 +23,12 @@ class ExternalProduct {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
+  // NOTE:
+  // exec_impl must not consume (move from) its arguments, as they are
+  // forwarded again to tracking::update().
   template <torus_type Torus>
-  inline static TRLWE<Torus, N> exec(const TRGSW<Torus, N, l>& trgsw,
-                                     const TRLWE<Torus, N>& trlwe) {
+  static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& trgsw,
+                                   const TRLWE<Torus, N>& trlwe) {
     GadgetTRLWE<Rlwe, Dcp> gd(trlwe);
     TRLWE<Torus, N> res;
     for (size_t i = 0; i < Dcp::l; ++i) {
