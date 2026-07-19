@@ -2,13 +2,14 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
-#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace sample_extraction_test {
@@ -50,19 +51,19 @@ class SampleExtractionFixture : public ::testing::Test {
   Poly<rTorus, N> pt_;
   TRLWE<rTorus, N> pt_ct_;
 
-  TrackedCryptor<Cryptor<Lwe>> tlwe_cryptor_;
-  TrackedCryptor<Cryptor<Rlwe>> trlwe_cryptor_;
+  std::optional<Cryptor<Lwe, Tracking>> tlwe_cryptor_;
+  std::optional<Cryptor<Rlwe, Tracking>> trlwe_cryptor_;
 
   void SetUp() override {
     SecretHolder<Rlwe> glwe_kr(this->eng_);
     SecretHolder<Lwe> lwe_kr(glwe_kr.begin(), glwe_kr.end());
-    tlwe_cryptor_ = TrackedCryptor<Cryptor<Lwe>>(lwe_kr.secret_ptr(), eng_);
-    trlwe_cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(glwe_kr.secret_ptr(), eng_);
+    tlwe_cryptor_ = Cryptor<Lwe, Tracking>(lwe_kr.secret_ptr(), eng_);
+    trlwe_cryptor_ = Cryptor<Rlwe, Tracking>(glwe_kr.secret_ptr(), eng_);
 
     // Prepare plaintext and its ciphertext
     this->pt_[0] = rTorus(1);
     randomize(this->pt_, eng_);
-    this->pt_ct_ = trlwe_cryptor_.encrypt(this->pt_);
+    this->pt_ct_ = trlwe_cryptor_->encrypt(this->pt_);
   }
 };
 
@@ -90,7 +91,7 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
   // ==================================
   TLWE<Torus, n> res_ct = Evaluator<SampleExtraction<Lwe, Rlwe>>::exec(
       this->pt_ct_, std::size_t{0});
-  Torus res_pt = this->tlwe_cryptor_.decrypt(res_ct);
+  Torus res_pt = this->tlwe_cryptor_->decrypt(res_ct);
 
   // ----------------------------------
 

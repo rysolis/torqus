@@ -1,14 +1,15 @@
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <random>
 
 #include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace trlwe_encrypt_test {
@@ -41,11 +42,11 @@ class TrlweEncryptionFixture : public ::testing::Test {
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
 
-  TrackedCryptor<Cryptor<params>> cryptor_;
+  std::optional<Cryptor<params, Tracking>> cryptor_;
 
   void SetUp() override {
     SecretHolder<params> kr(eng_);
-    this->cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
+    this->cryptor_ = Cryptor<params, Tracking>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -83,8 +84,8 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = this->cryptor_.encrypt(this->pt_);
-  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+  TRLWE<Torus, N> res_ct = this->cryptor_->encrypt(this->pt_);
+  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
 
   // ----------------------------------
   Poly<Torus, N> err = ref_pt - res_pt;

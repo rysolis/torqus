@@ -2,14 +2,15 @@
 #include <gtest/gtest.h>
 
 #include <bit>
+#include <optional>
 #include <random>
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
-#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace key_switch_test {
@@ -60,8 +61,8 @@ class KeySwitchFixture : public ::testing::Test {
   static constexpr uint32_t t = Kst::t;
 
   rTorus pt_ = rTorus(1);
-  TrackedCryptor<Cryptor<SrcLwe>> src_cryptor_;
-  TrackedCryptor<Cryptor<DstLwe>> dst_cryptor_;
+  std::optional<Cryptor<SrcLwe, Tracking>> src_cryptor_;
+  std::optional<Cryptor<DstLwe, Tracking>> dst_cryptor_;
 
   TLWE<rTorus, N> src_tlwe_;
 
@@ -71,14 +72,14 @@ class KeySwitchFixture : public ::testing::Test {
     SecretHolder<SrcLwe> src_kr(eng_);
     SecretHolder<DstLwe> dst_kr(eng_);
 
-    src_cryptor_ = TrackedCryptor<Cryptor<SrcLwe>>(src_kr.secret_ptr(), eng_);
-    dst_cryptor_ = TrackedCryptor<Cryptor<DstLwe>>(dst_kr.secret_ptr(), eng_);
+    src_cryptor_ = Cryptor<SrcLwe, Tracking>(src_kr.secret_ptr(), eng_);
+    dst_cryptor_ = Cryptor<DstLwe, Tracking>(dst_kr.secret_ptr(), eng_);
 
     // prepare source tlwe
-    src_tlwe_ = src_cryptor_.encrypt(pt_);
+    src_tlwe_ = src_cryptor_->encrypt(pt_);
 
     // Prepare Key Switch Key
-    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(dst_cryptor_, src_kr);
+    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(*dst_cryptor_, src_kr);
   }
 };
 
@@ -110,7 +111,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   TLWE<Torus, n> encrypted =
       Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(this->src_tlwe_,
                                                                 this->KSK_);
-  Torus decrypted = this->dst_cryptor_.decrypt(encrypted);
+  Torus decrypted = this->dst_cryptor_->decrypt(encrypted);
 
   // ----------------------------------
 

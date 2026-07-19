@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <random>
 
 #include "primitive/torus.hpp"
@@ -10,12 +11,12 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace arithmetic_executor_test {
@@ -47,14 +48,14 @@ class ArithmeticFixture : public ::testing::Test {
   using Torus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
+  std::optional<Cryptor<Rlwe, Tracking>> cryptor_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
-    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(kr.secret_ptr(), eng_);
+    cryptor_ = Cryptor<Rlwe, Tracking>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -73,13 +74,13 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   // ==================================
   Poly<Torus, N> expected = lhs + rhs;
   // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.encrypt(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
+  TRLWE<Torus, N> encrypted_lhs = this->cryptor_->encrypt(lhs);
+  TRLWE<Torus, N> encrypted_rhs = this->cryptor_->encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
       Evaluator<Add<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
 
-  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
+  Poly<Torus, N> decrypted = this->cryptor_->decrypt(encrypted);
   // ==================================
 
   Poly<Torus, N> err = decrypted - expected;
@@ -113,13 +114,13 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   // ==================================
   Poly<Torus, N> expected = lhs - rhs;
   // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->cryptor_.encrypt(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
+  TRLWE<Torus, N> encrypted_lhs = this->cryptor_->encrypt(lhs);
+  TRLWE<Torus, N> encrypted_rhs = this->cryptor_->encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
       Evaluator<Sub<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
 
-  Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
+  Poly<Torus, N> decrypted = this->cryptor_->decrypt(encrypted);
   // ==================================
 
   Poly<Torus, N> err = decrypted - expected;

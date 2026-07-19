@@ -10,7 +10,18 @@
 
 #include "tfhe/cryptor/glwe_cryptor.hpp"
 #include "tfhe/cryptor/lwe_cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/utility/always_false.hpp"
+#include "tfhe/utility/analysis/tracker_if.hpp"
+
+namespace cryptor {
+template <typename Result>
+void update(const Result& res) {
+  auto* tracker = get_noise_tracker_if();
+  double bound = 0.0;  // TODO: use parameters to compute
+  tracker->update(res, bound);
+}
+}  // namespace cryptor
 
 template <typename T>
 struct is_tlwe : std::false_type {};
@@ -39,20 +50,30 @@ struct is_trgsw<TRGSW<Torus, N, l>> : std::true_type {};
 template <typename T>
 concept trgsw_ciphertext = is_trgsw<std::remove_cvref_t<T>>::value;
 
-template <typename params, typename Engine = std::mt19937>
+template <typename params, typename... Feature>
 class Cryptor {
  public:
+  using Engine = std::mt19937;
   using params_type = params;
   using Torus = params::torus_type;
+
   Cryptor(std::shared_ptr<UInt::raw_value_type[]> s, Engine& eng)
       : secret_(std::move(s)), eng_(eng) {}
 
   template <typename Plaintext>
   auto encrypt(const Plaintext& pt) {
     if constexpr (torus_type<Plaintext>) {
-      return tlwe::encrypt<params>(secret_, eng_, pt);
+      auto res = tlwe::encrypt<params>(secret_, eng_, pt);
+      if constexpr ((std::same_as<Tracking, Feature> || ...)) {
+        cryptor::update(res);
+      }
+      return res;
     } else if constexpr (torus_type<typename Plaintext::value_type>) {
-      return trlwe::encrypt<params>(secret_, eng_, pt);
+      auto res = trlwe::encrypt<params>(secret_, eng_, pt);
+      if constexpr ((std::same_as<Tracking, Feature> || ...)) {
+        cryptor::update(res);
+      }
+      return res;
     } else {
       static_assert(always_false_v<Plaintext>, "Unsupported plaintext type");
     }

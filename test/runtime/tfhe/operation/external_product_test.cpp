@@ -9,11 +9,11 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/analysis/tracked.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace external_product_test {
@@ -56,11 +56,11 @@ class ExternalProductFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
+  std::optional<Cryptor<Rlwe, Tracking>> cryptor_;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
-    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(kr.secret_ptr(), eng_);
+    cryptor_ = Cryptor<Rlwe, Tracking>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -82,7 +82,7 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
 
     // Prepare plaintext and its ciphertext
     randomize(pt_, this->eng_);
-    pt_ct_ = this->cryptor_.encrypt(pt_);
+    pt_ct_ = this->cryptor_->encrypt(pt_);
   }
 };
 
@@ -111,12 +111,12 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   // TEST LOGIC
   // ==================================
   TRGSW<Torus, N, l> mp_ct =
-      trgsw::encrypt<Rlwe, Dcp, Torus>(this->cryptor_, mp_pt_);
+      trgsw::encrypt<Rlwe, Dcp, Torus>(*this->cryptor_, mp_pt_);
 
   TRLWE<Torus, N> res_ct =
       Evaluator<ExternalProduct<Rlwe, Dcp>, Tracking>::exec(mp_ct,
                                                             this->pt_ct_);
-  Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
+  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
 
   // ----------------------------------
   Poly<Torus, N> err = ref_pt - res_pt;
