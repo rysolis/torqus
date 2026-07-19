@@ -25,9 +25,9 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Rlwe>
 struct ParameterSet {
-  using params = T;
+  using rlwe_params = Rlwe;
 };
 
 using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
@@ -41,29 +41,29 @@ using TestContexts =
 template <typename Ctx>
 class ArithmeticFixture : public ::testing::Test {
  protected:
-  using params = typename Ctx::context::params;
+  using Rlwe = typename Ctx::context::rlwe_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
 
-  TrackedCryptor<Cryptor<params>> cryptor_;
+  TrackedCryptor<Cryptor<Rlwe>> cryptor_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
   void SetUp() override {
-    SecretHolder<params> kr(eng_);
-    cryptor_ = TrackedCryptor<Cryptor<params>>(kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> kr(eng_);
+    cryptor_ = TrackedCryptor<Cryptor<Rlwe>>(kr.secret_ptr(), eng_);
   }
 };
 
 TYPED_TEST_SUITE(ArithmeticFixture, arithmetic_executor_test::TestContexts);
 
 TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   Poly<Torus, N> lhs, rhs;
   lhs[0] = Torus(1);
@@ -76,7 +76,7 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
-      TrackedEvaluator<Add<params>>::exec(encrypted_lhs, encrypted_rhs);
+      TrackedEvaluator<Add<Rlwe>>::exec(encrypted_lhs, encrypted_rhs);
 
   Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================
@@ -100,10 +100,10 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
 }
 
 TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   Poly<Torus, N> lhs, rhs;
   lhs[0] = Torus(1);
@@ -116,7 +116,7 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   TRLWE<Torus, N> encrypted_rhs = this->cryptor_.encrypt(rhs);
 
   TRLWE<Torus, N> encrypted =
-      TrackedEvaluator<Sub<params>>::exec(encrypted_lhs, encrypted_rhs);
+      TrackedEvaluator<Sub<Rlwe>>::exec(encrypted_lhs, encrypted_rhs);
 
   Poly<Torus, N> decrypted = this->cryptor_.decrypt(encrypted);
   // ==================================

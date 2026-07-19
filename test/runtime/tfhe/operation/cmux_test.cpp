@@ -145,11 +145,11 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
 }
 
 TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
-  using rlwe_params = typename TypeParam::context::rlwe_params;
-  using dcp_params = typename TypeParam::context::dcp_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
 
-  using Torus = typename rlwe_params::torus_type;
-  constexpr uint32_t N = rlwe_params::N;
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   // ==================================
   // Reference
@@ -159,9 +159,8 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct =
-      TrackedEvaluator<CMux<rlwe_params, dcp_params>>::exec(
-          this->one_ct_, this->cand0_ct_, this->cand1_ct_);
+  TRLWE<Torus, N> res_ct = TrackedEvaluator<CMux<Rlwe, Dcp>>::exec(
+      this->one_ct_, this->cand0_ct_, this->cand1_ct_);
   Poly<Torus, N> res_pt = this->cryptor_.decrypt(res_ct);
 
   // ----------------------------------

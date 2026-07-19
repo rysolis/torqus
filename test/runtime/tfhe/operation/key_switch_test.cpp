@@ -19,10 +19,10 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Src, typename Dst, typename Kst>
+template <typename SrcLwe, typename DstLwe, typename Kst>
 struct ParameterSet {
-  using src_params = Src;
-  using dst_params = Dst;
+  using src_params = SrcLwe;
+  using dst_params = DstLwe;
   using kst_params = Kst;
 };
 
@@ -45,39 +45,39 @@ class KeySwitchFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{1};
 
-  using Src = Ctx::src_params;
-  using Dst = Ctx::dst_params;
+  using SrcLwe = Ctx::src_params;
+  using DstLwe = Ctx::dst_params;
   using Kst = Ctx::kst_params;
 
-  using rTorus = Src::torus_type;
-  static constexpr uint32_t N = Src::n;
+  using rTorus = SrcLwe::torus_type;
+  static constexpr uint32_t N = SrcLwe::n;
 
-  using Torus = Dst::torus_type;
-  static constexpr uint32_t n = Dst::n;
+  using Torus = DstLwe::torus_type;
+  static constexpr uint32_t n = DstLwe::n;
 
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
 
   rTorus pt_ = rTorus(1);
-  TrackedCryptor<Cryptor<Src>> src_cryptor_;
-  TrackedCryptor<Cryptor<Dst>> dst_cryptor_;
+  TrackedCryptor<Cryptor<SrcLwe>> src_cryptor_;
+  TrackedCryptor<Cryptor<DstLwe>> dst_cryptor_;
 
   TLWE<rTorus, N> src_tlwe_;
 
   KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
-    SecretHolder<Src> src_kr(eng_);
-    SecretHolder<Dst> dst_kr(eng_);
+    SecretHolder<SrcLwe> src_kr(eng_);
+    SecretHolder<DstLwe> dst_kr(eng_);
 
-    src_cryptor_ = TrackedCryptor<Cryptor<Src>>(src_kr.secret_ptr(), eng_);
-    dst_cryptor_ = TrackedCryptor<Cryptor<Dst>>(dst_kr.secret_ptr(), eng_);
+    src_cryptor_ = TrackedCryptor<Cryptor<SrcLwe>>(src_kr.secret_ptr(), eng_);
+    dst_cryptor_ = TrackedCryptor<Cryptor<DstLwe>>(dst_kr.secret_ptr(), eng_);
 
     // prepare source tlwe
     src_tlwe_ = src_cryptor_.encrypt(pt_);
 
     // Prepare Key Switch Key
-    KSK_ = keyswitch_key::generate<Src, Dst, Kst>(dst_cryptor_, src_kr);
+    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(dst_cryptor_, src_kr);
   }
 };
 
@@ -89,14 +89,14 @@ TYPED_TEST_SUITE(KeySwitchCorrectnessTest, key_switch_test::TestContexts);
 
 TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   using params = TypeParam::context;
-  using Src = typename params::src_params;
-  using Dst = typename params::dst_params;
+  using SrcLwe = typename params::src_params;
+  using DstLwe = typename params::dst_params;
   using Kst = typename params::kst_params;
 
-  using rTorus = Src::torus_type;
+  using rTorus = SrcLwe::torus_type;
 
-  using Torus = Dst::torus_type;
-  constexpr uint32_t n = Dst::n;
+  using Torus = DstLwe::torus_type;
+  constexpr uint32_t n = DstLwe::n;
 
   // ==================================
   // Reference
@@ -106,8 +106,9 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TLWE<Torus, n> encrypted = TrackedEvaluator<KeySwitch<Src, Dst, Kst>>::exec(
-      this->src_tlwe_, this->KSK_);
+  TLWE<Torus, n> encrypted =
+      TrackedEvaluator<KeySwitch<SrcLwe, DstLwe, Kst>>::exec(this->src_tlwe_,
+                                                             this->KSK_);
   Torus decrypted = this->dst_cryptor_.decrypt(encrypted);
 
   // ----------------------------------
