@@ -7,7 +7,7 @@ This project supports both:
 
 The build system is based on CMake and Docker.
 
----
+***
 
 ## Project Structure
 
@@ -38,7 +38,7 @@ The build system is based on CMake and Docker.
 └── README.md
 ```
 
----
+***
 
 ## Requirements
 
@@ -46,7 +46,7 @@ The build system is based on CMake and Docker.
 - CMake 3.28+
 - GNU Make
 
----
+***
 
 ## Build Docker Images
 
@@ -64,7 +64,7 @@ docker build -f Dockerfile -t ppv-libs .
 docker build -f Dockerfile.wasm -t ppv-libs:wasm .
 ```
 
----
+***
 
 ## Run Containers
 
@@ -94,7 +94,7 @@ docker run --rm -it \
   ppv-libs:wasm /bin/bash
 ```
 
----
+***
 
 ## Native Build
 
@@ -114,7 +114,7 @@ cmake --preset clang-release
 cmake --build --preset clang-release -j
 ```
 
----
+***
 
 ## WebAssembly Build (WIP)
 
@@ -131,13 +131,13 @@ cmake --build --preset wasm-release -j
 CMAKE_CXX_COMPILER=em++
 ```
 
----
+***
 
 ## Running the WASM Build
 
 Work in progress.
 
----
+***
 
 ## Running Tests
 
