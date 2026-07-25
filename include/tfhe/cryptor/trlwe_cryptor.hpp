@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_GLWE_CRYPTOR_HPP
-#define TFHE_GLWE_CRYPTOR_HPP
+#ifndef TFHE_TRLWE_CRYPTOR_HPP
+#define TFHE_TRLWE_CRYPTOR_HPP
 
 #include <functional>
 #include <memory>

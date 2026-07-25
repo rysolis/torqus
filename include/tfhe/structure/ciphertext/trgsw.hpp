@@ -52,32 +52,4 @@ inline TRGSW<To, N, l> convert_to(const TRGSW<From, N, l>& src) {
   return dst;
 }
 
-namespace trgsw {
-
-template <typename Rlwe, typename Dcp, torus_type Torus, typename Cryptor>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
-TRGSW<Torus, Rlwe::N, Dcp::l> encrypt(Cryptor& cryptor,
-                                      const Poly<UInt, Rlwe::N>& pt) {
-  constexpr uint32_t N = Rlwe::N;
-  constexpr uint32_t B = Dcp::B;
-  constexpr uint32_t l = Dcp::l;
-
-  TRGSW<Torus, N, l> ct;
-
-  for (size_t i = 0; i < l; ++i) {
-    ct[i] = cryptor.encrypt(ct[i].a());
-    ct[l + i] = cryptor.encrypt(ct[l + i].a());
-
-    detail::Torus v(static_cast<detail::Torus::raw_value_type>(
-                        static_cast<UInt::raw_value_type>(pt[0])) /
-                    (std::pow(B, i + 1)));
-    Torus m = static_cast<Torus>(v);
-
-    ct[i].a()[0] = static_cast<Torus>(ct[i].a()[0]) + m;
-    ct[l + i].b()[0] = static_cast<Torus>(ct[l + i].b()[0]) + m;
-  }
-  return ct;
-}
-
-}  // namespace trgsw
 #endif  // TFHE_TRGSW_HPP

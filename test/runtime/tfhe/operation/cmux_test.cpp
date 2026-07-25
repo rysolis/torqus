@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <optional>
 #include <random>
 
 #include "primitive/torus.hpp"
@@ -12,7 +11,8 @@
 #include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
-#include "tfhe/cryptor.hpp"
+#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -56,11 +56,12 @@ class CMuxFixture : public ::testing::Test {
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t l = Dcp::l;
 
-  std::optional<Cryptor<Rlwe, Tracking>> cryptor_;
+  Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr_(this->eng_);
-    cryptor_ = Cryptor<Rlwe, Tracking>(kr_.secret_ptr(), eng_);
+    Cryptor<ParamsPack<Rlwe, Dcp>> cryptor(kr_.secret_ptr(), eng_);
+    exe_ = Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(cryptor);
   }
 };
 
@@ -93,14 +94,16 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
     zero_pt_[0] = UInt(0);
     one_pt_[0] = UInt(1);
 
-    zero_ct_ = trgsw::encrypt<Rlwe, Dcp, Torus>(*this->cryptor_, zero_pt_);
-    one_ct_ = trgsw::encrypt<Rlwe, Dcp, Torus>(*this->cryptor_, one_pt_);
-
     // Prepare candidate cand0 and cand1
     randomize(cand0_pt_, this->eng_);
     randomize(cand1_pt_, this->eng_);
-    cand0_ct_ = this->cryptor_->encrypt(this->cand0_pt_);
-    cand1_ct_ = this->cryptor_->encrypt(this->cand1_pt_);
+
+    // Encrypt
+    zero_ct_ = this->exe_.encrypt(zero_pt_);
+    one_ct_ = this->exe_.encrypt(one_pt_);
+
+    cand0_ct_ = this->exe_.encrypt(this->cand0_pt_);
+    cand1_ct_ = this->exe_.encrypt(this->cand1_pt_);
   }
 };
 
@@ -123,7 +126,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   // ==================================
   TRLWE<Torus, N> res_ct = Evaluator<CMux<Rlwe, Dcp>, Tracking>::exec(
       this->zero_ct_, this->cand0_ct_, this->cand1_ct_);
-  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
+  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
 
   // ==================================
 
@@ -162,7 +165,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorOneCorrectness) {
   // ==================================
   TRLWE<Torus, N> res_ct = Evaluator<CMux<Rlwe, Dcp>, Tracking>::exec(
       this->one_ct_, this->cand0_ct_, this->cand1_ct_);
-  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
+  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
 
   // ----------------------------------
   double norm = infinity_norm(res_pt - ref_pt);

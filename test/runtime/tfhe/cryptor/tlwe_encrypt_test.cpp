@@ -3,7 +3,8 @@
 #include <optional>
 #include <random>
 
-#include "tfhe/cryptor.hpp"
+#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/executor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -16,9 +17,9 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Lwe>
 struct ParameterSet {
-  using params = T;
+  using lwe_params = Lwe;
 };
 
 using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>>;
@@ -34,16 +35,17 @@ class TlweEncryptionFixture : public ::testing::Test {
  protected:
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
-  using params = typename Ctx::context::params;
+  using Lwe = typename Ctx::context::lwe_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t n = params::n;
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
 
-  std::optional<Cryptor<params>> cryptor_;
+  Executor<Cryptor<Lwe>, Tracking> exe_;
 
   void SetUp() override {
-    SecretHolder<params> kr(eng_);
-    cryptor_ = std::move(Cryptor<params>(kr.secret_ptr(), eng_));
+    SecretHolder<Lwe> kr(eng_);
+    Cryptor<Lwe> cryptor(kr.secret_ptr(), eng_);
+    exe_ = Executor<Cryptor<Lwe>, Tracking>(cryptor);
   }
 };
 
@@ -52,7 +54,7 @@ class TlweEncryptionTest : public TlweEncryptionFixture<Ctx> {
  protected:
   using Base = TlweEncryptionFixture<Ctx>;
 
-  using typename Base::params;
+  using typename Base::Lwe;
   using typename Base::Torus;
 
   static constexpr uint32_t n = Base::n;
@@ -68,10 +70,10 @@ class TlweEncryptionTest : public TlweEncryptionFixture<Ctx> {
 TYPED_TEST_SUITE(TlweEncryptionTest, tlwe_encrypt_test::TestContexts);
 
 TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Lwe = typename TypeParam::context::lwe_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t n = params::n;
+  using Torus = typename Lwe::torus_type;
+  constexpr uint32_t n = Lwe::n;
 
   // ==================================
   // Reference
@@ -81,8 +83,8 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TLWE<Torus, n> res_ct = this->cryptor_->encrypt(this->pt_);
-  Torus res_pt = this->cryptor_->decrypt(res_ct);
+  TLWE<Torus, n> res_ct = this->exe_.encrypt(this->pt_);
+  Torus res_pt = this->exe_.decrypt(res_ct);
 
   // ----------------------------------
   Torus err = ref_pt - res_pt;

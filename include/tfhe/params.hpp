@@ -37,6 +37,9 @@ struct lwe_params : Core, Features... {};
 template <typename Core, typename... Features>
 struct rlwe_params : Core, Features... {};
 
+template <typename... Params>
+struct ParamsPack : Params... {};
+
 template <typename Message, typename Codec>
 struct encoding_params {
   using message_type = Message;

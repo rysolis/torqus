@@ -12,8 +12,7 @@
 
 #include "algebra/poly.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/cryptor/lwe_cryptor.hpp"
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/params.hpp"
 
 template <typename params>

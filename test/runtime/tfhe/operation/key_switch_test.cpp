@@ -2,10 +2,10 @@
 #include <gtest/gtest.h>
 
 #include <bit>
-#include <optional>
 #include <random>
 
-#include "tfhe/cryptor.hpp"
+#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -61,8 +61,8 @@ class KeySwitchFixture : public ::testing::Test {
   static constexpr uint32_t t = Kst::t;
 
   rTorus pt_ = rTorus(1);
-  std::optional<Cryptor<SrcLwe, Tracking>> src_cryptor_;
-  std::optional<Cryptor<DstLwe, Tracking>> dst_cryptor_;
+  Executor<Cryptor<SrcLwe>, Tracking> src_exe_;
+  Executor<Cryptor<DstLwe>, Tracking> dst_exe_;
 
   TLWE<rTorus, N> src_tlwe_;
 
@@ -72,14 +72,17 @@ class KeySwitchFixture : public ::testing::Test {
     SecretHolder<SrcLwe> src_kr(eng_);
     SecretHolder<DstLwe> dst_kr(eng_);
 
-    src_cryptor_ = Cryptor<SrcLwe, Tracking>(src_kr.secret_ptr(), eng_);
-    dst_cryptor_ = Cryptor<DstLwe, Tracking>(dst_kr.secret_ptr(), eng_);
+    Cryptor<SrcLwe> src_cryptor(src_kr.secret_ptr(), eng_);
+    Cryptor<DstLwe> dst_cryptor(dst_kr.secret_ptr(), eng_);
+
+    src_exe_ = Executor<Cryptor<SrcLwe>, Tracking>(src_cryptor);
+    dst_exe_ = Executor<Cryptor<DstLwe>, Tracking>(dst_cryptor);
 
     // prepare source tlwe
-    src_tlwe_ = src_cryptor_->encrypt(pt_);
+    src_tlwe_ = src_exe_.encrypt(pt_);
 
     // Prepare Key Switch Key
-    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(*dst_cryptor_, src_kr);
+    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(dst_exe_, src_kr);
   }
 };
 
@@ -111,7 +114,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   TLWE<Torus, n> encrypted =
       Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(this->src_tlwe_,
                                                                 this->KSK_);
-  Torus decrypted = this->dst_cryptor_->decrypt(encrypted);
+  Torus decrypted = this->dst_exe_.decrypt(encrypted);
 
   // ----------------------------------
 

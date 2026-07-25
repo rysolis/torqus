@@ -17,7 +17,8 @@
 #include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
-#include "tfhe/cryptor.hpp"
+#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/executor.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
@@ -75,22 +76,23 @@ class BlindRotateFixture : public ::testing::Test {
 
   BootstrapKey<Torus, N, l, n> BK_;
 
-  std::optional<Cryptor<Rlwe, Tracking>> cryptor_;
+  Executor<Cryptor<Rlwe>, Tracking> exe_;
   std::optional<SecretHolder<Lwe>> lwe_kr;
 
   void SetUp() override {
     SecretHolder<Rlwe> glwe_kr(this->eng_);
-    cryptor_ = Cryptor<Rlwe, Tracking>(glwe_kr.secret_ptr(), eng_);
+    Cryptor<Rlwe> cryptor(glwe_kr.secret_ptr(), eng_);
+    exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
 
     // Prepare TestVector
     tv_ = testvector::generate<Torus, N>();
-    tv_ct_ = cryptor_->encrypt(this->tv_);
+    tv_ct_ = exe_.encrypt(this->tv_);
 
     // Prepare SecretHolder
     lwe_kr = std::move(SecretHolder<Lwe>(eng_));
 
     // Prepare Bootstrapkey
-    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(*cryptor_, *lwe_kr);
+    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, *lwe_kr);
   }
 };
 
@@ -139,7 +141,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   TRLWE<Torus, N> res_ct =
       Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(
           this->tv_ct_, phase_ct, this->BK_);
-  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
+  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
 
   // ----------------------------------
   Poly<Torus, N> err = ref_pt - res_pt;

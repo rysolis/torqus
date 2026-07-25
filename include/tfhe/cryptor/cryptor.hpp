@@ -8,8 +8,9 @@
 
 #include "primitive/concept/torus.hpp"
 
-#include "tfhe/cryptor/glwe_cryptor.hpp"
-#include "tfhe/cryptor/lwe_cryptor.hpp"
+#include "tfhe/cryptor/tlwe_cryptor.hpp"
+#include "tfhe/cryptor/trgsw_cryptor.hpp"
+#include "tfhe/cryptor/trlwe_cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/utility/always_false.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
@@ -70,6 +71,12 @@ class Cryptor {
       return res;
     } else if constexpr (torus_type<typename Plaintext::value_type>) {
       auto res = trlwe::encrypt<params>(secret_, eng_, pt);
+      if constexpr ((std::same_as<Tracking, Feature> || ...)) {
+        cryptor::update(res);
+      }
+      return res;
+    } else if constexpr (std::same_as<typename Plaintext::value_type, UInt>) {
+      auto res = trgsw::encrypt<params>(secret_, eng_, pt);
       if constexpr ((std::same_as<Tracking, Feature> || ...)) {
         cryptor::update(res);
       }

@@ -6,7 +6,8 @@
 #include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
-#include "tfhe/cryptor.hpp"
+#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -20,9 +21,9 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename T>
+template <typename Rlwe>
 struct ParameterSet {
-  using params = T;
+  using rlwe_params = Rlwe;
 };
 
 using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
@@ -37,16 +38,17 @@ class TrlweEncryptionFixture : public ::testing::Test {
  protected:
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
-  using params = typename Ctx::context::params;
+  using Rlwe = typename Ctx::context::rlwe_params;
 
-  using Torus = typename params::torus_type;
-  static constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
 
-  std::optional<Cryptor<params, Tracking>> cryptor_;
+  Executor<Cryptor<Rlwe>, Tracking> exe_;
 
   void SetUp() override {
-    SecretHolder<params> kr(eng_);
-    this->cryptor_ = Cryptor<params, Tracking>(kr.secret_ptr(), eng_);
+    SecretHolder<Rlwe> kr(eng_);
+    Cryptor<Rlwe> cryptor(kr.secret_ptr(), eng_);
+    exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
   }
 };
 
@@ -55,9 +57,7 @@ class TrlweEncryptionTest : public TrlweEncryptionFixture<Ctx> {
  protected:
   using Base = TrlweEncryptionFixture<Ctx>;
 
-  using typename Base::params;
   using typename Base::Torus;
-
   static constexpr uint32_t N = Base::N;
 
   Poly<Torus, N> pt_;
@@ -71,10 +71,10 @@ class TrlweEncryptionTest : public TrlweEncryptionFixture<Ctx> {
 TYPED_TEST_SUITE(TrlweEncryptionTest, trlwe_encrypt_test::TestContexts);
 
 TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
-  using params = typename TypeParam::context::params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
   // ==================================
   // Reference
@@ -84,8 +84,8 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = this->cryptor_->encrypt(this->pt_);
-  Poly<Torus, N> res_pt = this->cryptor_->decrypt(res_ct);
+  TRLWE<Torus, N> res_ct = this->exe_.encrypt(this->pt_);
+  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
 
   // ----------------------------------
   Poly<Torus, N> err = ref_pt - res_pt;

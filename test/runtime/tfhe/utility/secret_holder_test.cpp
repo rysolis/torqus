@@ -2,6 +2,7 @@
 
 #include <random>
 
+#include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
