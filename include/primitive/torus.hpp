@@ -47,6 +47,7 @@ namespace detail {
  */
 class Torus : public TorusBase<Torus> {
  public:
+  using value_type = Torus;
   using raw_value_type = double;
 
   explicit Torus() noexcept = default;
@@ -96,6 +97,7 @@ class Torus : public TorusBase<Torus> {
 template <uint32_t QBit>
 class ModTorus : public TorusBase<ModTorus<QBit>> {
  public:
+  using value_type = ModTorus;
   using raw_value_type = uint32_t;
   static constexpr uint32_t qbit = QBit;
 

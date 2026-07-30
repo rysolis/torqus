@@ -8,6 +8,7 @@
 
 #include "primitive/concept/torus.hpp"
 
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/cryptor/tlwe_cryptor.hpp"
 #include "tfhe/cryptor/trgsw_cryptor.hpp"
 #include "tfhe/cryptor/trlwe_cryptor.hpp"
@@ -63,19 +64,21 @@ class Cryptor {
 
   template <typename Plaintext>
   auto encrypt(const Plaintext& pt) {
-    if constexpr (torus_type<Plaintext>) {
+    if constexpr (tlwe_concept<params> && torus_type<Plaintext>) {
       auto res = tlwe::encrypt<params>(secret_, eng_, pt);
       if constexpr ((std::same_as<Tracking, Feature> || ...)) {
         cryptor::update(res);
       }
       return res;
-    } else if constexpr (torus_type<typename Plaintext::value_type>) {
+    } else if constexpr (trlwe_concept<params> &&
+                         torus_type<typename Plaintext::value_type>) {
       auto res = trlwe::encrypt<params>(secret_, eng_, pt);
       if constexpr ((std::same_as<Tracking, Feature> || ...)) {
         cryptor::update(res);
       }
       return res;
-    } else if constexpr (std::same_as<typename Plaintext::value_type, UInt>) {
+    } else if constexpr (trlwe_concept<params> &&
+                         std::same_as<typename Plaintext::value_type, UInt>) {
       auto res = trgsw::encrypt<params>(secret_, eng_, pt);
       if constexpr ((std::same_as<Tracking, Feature> || ...)) {
         cryptor::update(res);
@@ -88,9 +91,11 @@ class Cryptor {
 
   template <typename Ciphertext>
   auto decrypt(const Ciphertext& ct) {
-    if constexpr (tlwe_ciphertext<Ciphertext>) {
+    if constexpr (tlwe_concept<params> && tlwe_ciphertext<Ciphertext>) {
       return tlwe::decrypt<params>(secret_, ct);
-    } else if constexpr (trlwe_ciphertext<Ciphertext>) {
+    } else if constexpr (trlwe_concept<params> &&
+                         (trlwe_ciphertext<Ciphertext> ||
+                          tlwe_ciphertext<Ciphertext>)) {
       return trlwe::decrypt<params>(secret_, ct);
     } else {
       static_assert(always_false_v<Ciphertext>, "Unsupported ciphertext type");

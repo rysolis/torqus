@@ -4,8 +4,6 @@
 #ifndef ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
 #define ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
 
-#include "primitive/concept/torus.hpp"
-
 #include "algebra/poly.hpp"
 
 #include "arithmetic/expr_impl.hpp"

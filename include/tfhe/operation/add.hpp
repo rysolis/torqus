@@ -5,6 +5,7 @@
 #define TFHE_ADD_HPP
 
 #include "tfhe/concept/tfhe.hpp"
+#include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
 template <trlwe_concept params>
@@ -16,8 +17,13 @@ class Add {
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
   // forwarded again to tracking::update().
-  inline static TRLWE<Torus, N> exec_impl(TRLWE<Torus, N> lhs,
-                                          const TRLWE<Torus, N>& rhs) {
+  static TRLWE<Torus, N> exec_impl(TRLWE<Torus, N> lhs,
+                                   const TRLWE<Torus, N>& rhs) {
+    return lhs += rhs;
+  }
+
+  static TLWE<Torus, N> exec_impl(TLWE<Torus, N> lhs,
+                                  const TLWE<Torus, N>& rhs) {
     return lhs += rhs;
   }
 };

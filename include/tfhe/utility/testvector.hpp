@@ -4,6 +4,8 @@
 #ifndef TFHE_TESTVECTOR_HPP
 #define TFHE_TESTVECTOR_HPP
 
+#include <cstdint>
+
 #include "primitive/concept/torus.hpp"
 
 #include "algebra/poly.hpp"
@@ -13,11 +15,17 @@
 
 namespace testvector {
 
-// 1/8 + 1/8x + 1/8x^2 + ...
+// -c + -cx + -cx^2 + ... + cx^{N/2} + cx^{N/2+1} + ...
 // TODO: use MessageCodec!!!
 template <torus_type Torus, uint32_t N>
-Poly<Torus, N> generate() {
-  return Poly<Torus, N>([] { return 1 << (Torus::qbit - 3); });
+Poly<Torus, N> generate(Torus c) {
+  return Poly<Torus, N>([c](uint32_t i) {
+    if (i >= (N / 2)) {
+      return c;
+    } else {
+      return -c;
+    }
+  });
 }
 
 }  // namespace testvector

@@ -45,6 +45,16 @@ Poly<Torus, params::N> decrypt(std::shared_ptr<UInt::raw_value_type[]> s,
   return ct.b() - negacyclic_convolution(secret, ct.a());
 }
 
+template <trlwe_concept params, torus_type Torus>
+Torus decrypt(std::shared_ptr<UInt::raw_value_type[]> s,
+              const TLWE<Torus, params::N>& ct) {
+  Torus pt = ct.b();
+  for (uint32_t i = 0; i < ct.dimension(); ++i) {
+    pt -= static_cast<UInt>(s[i]) * static_cast<Torus>(ct.a()[i]);
+  }
+  return pt;
+}
+
 }  // namespace trlwe
 
-#endif  // TFHE_GLWE_CRYPTOR_HPP
+#endif  // TFHE_TRLWE_CRYPTOR_HPP

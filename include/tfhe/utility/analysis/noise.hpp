@@ -4,6 +4,8 @@
 #ifndef TFHE_NOISE_HPP
 #define TFHE_NOISE_HPP
 
+#include <cmath>
+
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation.hpp"
 
@@ -56,15 +58,14 @@ struct NoisePolicy<CMux<Rlwe, Dcp>> {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
-  static constexpr double ep = 1. / (B << (l + 1));
+  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
 
   template <typename Tracker, torus_type Torus>
   static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& ml,
                         const TRLWE<Torus, N>& cand0,
                         const TRLWE<Torus, N>& cand1) {
-    return (2 * l * N * (B << 1) * tracker->get(ml)) +
-           ((1. / B) * (1 + N) * ep) +
-           ((1. / B) * std::max(tracker->get(cand0), tracker->get(cand1)));
+    return (2 * l * N * (B << 1) * tracker->get(ml)) + ((1 + N) * ep) +
+           (std::max(tracker->get(cand0), tracker->get(cand1)));
   }
 };
 
@@ -78,18 +79,37 @@ struct NoisePolicy<BlindRotate<Lwe, Rlwe, Dcp>> {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
-  static constexpr double ep = 1. / (B << (l + 1));
+  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
 
   template <typename Tracker>
   static double compute(const Tracker* tracker, const TRLWE<Torus, N>& tv,
                         const Vector<ModInt<M>, n + 1>&,
                         const BootstrapKey<Torus, N, l, n>& bk) {
     double bound = tracker->get(tv);
-    for (size_t i = 0; i < n; ++i) {
-      bound += (2 * l * N * (B << 1) * tracker->get(bk[i])) +
-               ((1. / B) * (1 + N) * ep) +
-               ((1. / B) * std::max(tracker->get(tv), tracker->get(tv)));
-    }
+    bound +=
+        (n * 2 * l * N * (B << 1) * tracker->get(bk[0])) + (n * (1 + N) * ep);
+    return bound;
+  }
+};
+template <typename Lwe, typename Rlwe, typename Dcp>
+  requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Dcp>
+struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Dcp>> {
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+  static constexpr uint32_t M = 2 * N;
+  static constexpr uint32_t B = Dcp::B;
+  static constexpr uint32_t l = Dcp::l;
+
+  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
+
+  template <typename Tracker>
+  static double compute(const Tracker* tracker, const rTorus,
+                        const TRLWE<rTorus, N>&, const TLWE<Torus, n>&,
+                        const BootstrapKey<rTorus, N, l, n>& bk) {
+    double bound =
+        n * 2 * l * N * (B << 1) * tracker->get(bk[0]) + (n * (1 + N) * ep);
     return bound;
   }
 };
