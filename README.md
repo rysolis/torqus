@@ -107,7 +107,7 @@ cmake --preset gcc-release
 cmake --build --preset gcc-release -j
 ```
 
-### Clang (WIP)
+### Clang
 
 ```bash
 cmake --preset clang-release
