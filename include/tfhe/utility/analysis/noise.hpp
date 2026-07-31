@@ -58,7 +58,8 @@ struct NoisePolicy<CMux<Rlwe, Dcp>> {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
-  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
+  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker, torus_type Torus>
   static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& ml,
@@ -79,7 +80,8 @@ struct NoisePolicy<BlindRotate<Lwe, Rlwe, Dcp>> {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
-  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
+  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
   static double compute(const Tracker* tracker, const TRLWE<Torus, N>& tv,
@@ -102,7 +104,8 @@ struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Dcp>> {
   static constexpr uint32_t B = Dcp::B;
   static constexpr uint32_t l = Dcp::l;
 
-  static constexpr double ep = (1. / std::pow(B, l)) * 0.5;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
+  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
   static double compute(const Tracker* tracker, const rTorus,

@@ -25,9 +25,8 @@ inline constexpr double infinity_norm(const Poly<Torus, N>& poly) {
 template <typename To, typename From, uint32_t N>
   requires explicitly_convertible_to<To, From>
 inline Poly<To, N> convert_to(const Poly<From, N>& src) {
-  return Poly<To, N>([](const typename From::raw_value_type& v) {
-    return static_cast<typename To::raw_value_type>(
-        static_cast<To>(static_cast<From>(v)));
+  return Poly<To, N>([&](size_t i) {
+    return static_cast<To>(static_cast<typename To::raw_value_type>(src[i]));
   });
 }
 

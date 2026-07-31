@@ -4,6 +4,7 @@ RUN apt-get update && \
     apt-get install -y \
     wget \
     build-essential \
+    clang \
     cmake \
     libgtest-dev
 
