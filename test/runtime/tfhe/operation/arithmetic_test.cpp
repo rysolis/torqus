@@ -49,6 +49,11 @@ class ArithmeticFixture : public ::testing::Test {
   using Torus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
+  struct TestCase {
+    Poly<Torus, N> lhs;
+    Poly<Torus, N> rhs;
+  };
+
   Executor<Cryptor<Rlwe>, Tracking> exe_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
@@ -58,6 +63,34 @@ class ArithmeticFixture : public ::testing::Test {
     SecretHolder<Rlwe> kr(eng_);
     Cryptor<Rlwe> cryptor(kr.secret_ptr(), eng_);
     exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
+  }
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    // Fixed corner cases
+    {
+      TestCase tc;
+      for (size_t i = 0; i < N; ++i) {
+        tc.lhs = Poly<Torus, N>();
+        tc.rhs = Poly<Torus, N>();
+      }
+      cases.push_back(std::move(tc));  // all zeros
+    }
+    {
+      TestCase tc;
+      tc.lhs[0] = Torus(1u);
+      tc.rhs[0] = Torus(Torus::raw_max());
+      cases.push_back(std::move(tc));
+    }
+    // Random cases
+    std::uniform_int_distribution<typename Torus::raw_value_type> dist;
+    for (int k = 0; k < 2; ++k) {
+      TestCase tc;
+      randomize(tc.lhs, eng_);
+      randomize(tc.rhs, eng_);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
   }
 };
 
@@ -69,38 +102,49 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   using Torus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  Poly<Torus, N> lhs, rhs;
-  lhs[0] = Torus(1);
-  rhs[0] = Torus(100);
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    Poly<Torus, N> lhs, rhs;
+    lhs = tc.lhs;
+    rhs = tc.rhs;
 
-  // ==================================
-  Poly<Torus, N> expected = lhs + rhs;
-  // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->exe_.encrypt(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->exe_.encrypt(rhs);
+    TRLWE<Torus, N> lhs_ct = this->exe_.encrypt(lhs);
+    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
 
-  TRLWE<Torus, N> encrypted =
-      Evaluator<Add<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
+    // ==================================
+    // Act
+    // ==================================
+    TRLWE<Torus, N> res_ct =
+        Evaluator<Add<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
+    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
 
-  Poly<Torus, N> decrypted = this->exe_.decrypt(encrypted);
-  // ==================================
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Poly<Torus, N> ref = lhs + rhs;
 
-  Poly<Torus, N> err = decrypted - expected;
-  double norm = infinity_norm(err);
+    Poly<Torus, N> err = res - ref;
+    double norm = infinity_norm(err);
 
-  std::cout << "\n=== Add Executor Test ===\n";
-  if (TypeParam::verbose) {
+    std::cout << "\n=== Add Executor Test ===\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+      std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
+      std::cout << std::setw(14) << "actual" << ": " << res << "\n";
+      std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
+    }
     std::cout << std::left;
-    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << expected << "\n";
-  }
-  std::cout << std::left;
-  std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
-  std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(encrypted) << "\n";
-  std::cout << "===============================\n\n";
+    std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
+    std::cout << std::setw(14) << "error_bound" << ": "
+              << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+  }
 }
 
 TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
@@ -109,36 +153,49 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   using Torus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  Poly<Torus, N> lhs, rhs;
-  lhs[0] = Torus(1);
-  rhs[0] = Torus(100);
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    Poly<Torus, N> lhs, rhs;
+    lhs = tc.lhs;
+    rhs = tc.rhs;
 
-  // ==================================
-  Poly<Torus, N> expected = lhs - rhs;
-  // ----------------------------------
-  TRLWE<Torus, N> encrypted_lhs = this->exe_.encrypt(lhs);
-  TRLWE<Torus, N> encrypted_rhs = this->exe_.encrypt(rhs);
+    TRLWE<Torus, N> lhs_ct = this->exe_.encrypt(lhs);
+    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
 
-  TRLWE<Torus, N> encrypted =
-      Evaluator<Sub<Rlwe>, Tracking>::exec(encrypted_lhs, encrypted_rhs);
+    // ==================================
+    // Act
+    // ==================================
+    TRLWE<Torus, N> res_ct =
+        Evaluator<Sub<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
 
-  Poly<Torus, N> decrypted = this->exe_.decrypt(encrypted);
-  // ==================================
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Poly<Torus, N> ref = lhs - rhs;
 
-  Poly<Torus, N> err = decrypted - expected;
-  double norm = infinity_norm(err);
+    // compute actual result
+    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
 
-  std::cout << "\n=== Sub Executor Test ===\n";
-  if (TypeParam::verbose) {
+    Poly<Torus, N> err = ref - res;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n=== Sub Executor Test ===\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+      std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
+      std::cout << std::setw(14) << "actual" << ": " << res << "\n";
+      std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
+    }
     std::cout << std::left;
-    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << expected << "\n";
-  }
-  std::cout << std::left;
-  std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
-  std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(encrypted) << "\n";
-  std::cout << "===============================\n\n";
+    std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
+    std::cout << std::setw(14) << "error_bound" << ": "
+              << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << "===============================\n\n";
 
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+  }
 }

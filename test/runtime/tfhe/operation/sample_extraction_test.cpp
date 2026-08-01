@@ -30,7 +30,11 @@ struct ParameterSet {
 using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 4>>,
                           rlwe_params<trlwe_core_params<ModTorus<32>, 4>>>;
 
-using TestContexts = ::testing::Types<TestConfig<Ctx1>>;
+using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
+                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
+
+using TestContexts =
+    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
 
 }  // namespace sample_extraction_test
 
@@ -49,11 +53,8 @@ class SampleExtractionFixture : public ::testing::Test {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Poly<rTorus, N> pt_;
-  TRLWE<rTorus, N> pt_ct_;
-
-  Executor<Cryptor<Lwe>, Tracking> tlwe_exe_;
-  Executor<Cryptor<Rlwe>, Tracking> trlwe_exe_;
+  Executor<Cryptor<Lwe>> tlwe_exe_;
+  Executor<Cryptor<Rlwe>> trlwe_exe_;
 
   void SetUp() override {
     SecretHolder<Rlwe> glwe_kr(this->eng_);
@@ -62,19 +63,50 @@ class SampleExtractionFixture : public ::testing::Test {
     Cryptor<Lwe> tlwe_cryptor(lwe_kr.secret_ptr(), eng_);
     Cryptor<Rlwe> trlwe_cryptor(glwe_kr.secret_ptr(), eng_);
 
-    tlwe_exe_ = Executor<Cryptor<Lwe>, Tracking>(tlwe_cryptor);
-    trlwe_exe_ = Executor<Cryptor<Rlwe>, Tracking>(trlwe_cryptor);
-
-    // Prepare plaintext and its ciphertext
-    this->pt_[0] = rTorus(1);
-    randomize(this->pt_, eng_);
-    this->pt_ct_ = trlwe_exe_.encrypt(this->pt_);
+    tlwe_exe_ = Executor<Cryptor<Lwe>>(tlwe_cryptor);
+    trlwe_exe_ = Executor<Cryptor<Rlwe>>(trlwe_cryptor);
   }
 };
 
 template <typename Config>
 class SampleExtractionCorrectnessTest
-    : public SampleExtractionFixture<typename Config::context> {};
+    : public SampleExtractionFixture<typename Config::context> {
+ protected:
+  using Base = SampleExtractionFixture<typename Config::context>;
+
+  using rTorus = typename Base::rTorus;
+  static constexpr uint32_t N = Base::N;
+
+  struct TestCase {
+    size_t idx = 0;
+    Poly<rTorus, N> pt;
+  };
+
+  void SetUp() override { Base::SetUp(); }
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.idx = 0;
+      randomize(tc.pt, this->eng_);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.idx = N / 2;
+      randomize(tc.pt, this->eng_);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.idx = N - 1;
+      randomize(tc.pt, this->eng_);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
+  }
+};
 
 TYPED_TEST_SUITE(SampleExtractionCorrectnessTest,
                  sample_extraction_test::TestContexts);
@@ -86,27 +118,49 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
   using Torus = Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
 
-  // ==================================
-  // Reference
-  // ==================================
-  Torus ref_pt = this->pt_[0];
+  using rTorus = Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
-  TLWE<Torus, n> res_ct = Evaluator<SampleExtraction<Lwe, Rlwe>>::exec(
-      this->pt_ct_, std::size_t{0});
-  Torus res_pt = this->tlwe_exe_.decrypt(res_ct);
+  static_assert(n == N, "n and N must be equal for this test");
 
-  // ----------------------------------
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    size_t idx = tc.idx;
+    Poly<rTorus, N> pt = tc.pt;
 
-  std::cout << "\n=== Sample Extraction Test ===\n";
-  std::cout << std::left;
-  std::cout << std::setw(14) << "message " << ": " << this->pt_ << "\n";
-  std::cout << std::setw(14) << "tlwe " << ": " << this->pt_ct_ << "\n";
-  std::cout << std::setw(14) << "expected " << ": " << ref_pt << "\n";
-  std::cout << std::setw(14) << "actual " << ": " << res_pt << "\n";
-  std::cout << "===============================\n\n";
+    TRLWE<rTorus, N> pt_ct = this->trlwe_exe_.encrypt(pt);
 
-  EXPECT_EQ(ref_pt, res_pt);
+    // ==================================
+    // Act
+    // ==================================
+    TLWE<Torus, n> res_ct =
+        Evaluator<SampleExtraction<Lwe, Rlwe>>::exec(pt_ct, idx);
+
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Torus ref = pt[idx];
+
+    // compute actual result
+    Torus res = this->tlwe_exe_.decrypt(res_ct);
+
+    Torus err = res - ref;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n=== Sample Extraction Test ===\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "src " << ": " << pt << "\n";
+    }
+    std::cout << std::left;
+    std::cout << std::setw(14) << "idx " << ": " << idx << "\n";
+    std::cout << std::setw(14) << "actual " << ": " << res << "\n";
+    std::cout << std::setw(14) << "expected " << ": " << ref << "\n";
+    std::cout << "===============================\n\n";
+
+    EXPECT_LE(norm, 0);
+  }
 }

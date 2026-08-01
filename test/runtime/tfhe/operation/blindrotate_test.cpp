@@ -71,35 +71,79 @@ class BlindRotateFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  Poly<Torus, N> tv_;
-  TRLWE<Torus, N> tv_ct_;
+  Executor<Cryptor<Rlwe>, Tracking> exe_;
 
   BootstrapKey<Torus, N, l, n> BK_;
-
-  Executor<Cryptor<Rlwe>, Tracking> exe_;
-  std::optional<SecretHolder<Lwe>> lwe_kr;
+  Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
     SecretHolder<Rlwe> glwe_kr(this->eng_);
     Cryptor<Rlwe> cryptor(glwe_kr.secret_ptr(), eng_);
     exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
 
-    // Prepare TestVector
-    Torus c = Torus(1u << (Torus::qbit - 3));
-    tv_ = testvector::generate<Torus, N>(c);
-    tv_ct_ = exe_.encrypt(this->tv_);
-
     // Prepare SecretHolder
-    lwe_kr = std::move(SecretHolder<Lwe>(eng_));
+    SecretHolder<Lwe> lwe_kr(eng_);
 
     // Prepare Bootstrapkey
-    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, *lwe_kr);
+    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, lwe_kr);
+
+    // Prepare Vector<ModInt<M>, n + 1> phase_ct;
+    randomize(phase_ct_, this->eng_);
+
+    ModInt<M> b{};
+    for (size_t i = 0; i < n; ++i) {
+      b += static_cast<UInt>(lwe_kr.secret()[i]) *
+           static_cast<ModInt<M>>(phase_ct_[i]);
+    }
+
+    phase_ct_[n] = b;  // Overwrite!
   }
 };
 
 template <typename Config>
 class BlindRotateCorrectnessTest
-    : public BlindRotateFixture<typename Config::context> {};
+    : public BlindRotateFixture<typename Config::context> {
+ protected:
+  using Base = BlindRotateFixture<typename Config::context>;
+
+  using Torus = Base::Torus;
+  static constexpr uint32_t N = Base::N;
+  static constexpr uint32_t l = Base::l;
+
+  static constexpr uint32_t M = 2 * N;
+
+  struct TestCase {
+    Torus mu = Torus(1u << (Torus::qbit - 2));
+    ModInt<M> phase;
+  };
+
+  void SetUp() override { Base::SetUp(); }
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.phase = ModInt<M>(0);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.phase = ModInt<M>(1);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.phase = ModInt<M>(M - 1);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.phase = ModInt<M>(M / 2);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
+  }
+};
 
 TYPED_TEST_SUITE(BlindRotateCorrectnessTest, blindrotate_test::TestContexts);
 
@@ -115,58 +159,60 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
-  ModInt<M> phase(10);
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    Torus mu = tc.mu;
+    ModInt<M> phase = tc.phase;
 
-  // ==================================
-  // Reference
-  // ==================================
-  Poly<Torus, N> ref_pt = rotate(this->tv_, (-phase).value());
+    // Prepare Vector<ModInt<M>, n+1> (contains phase)
+    Vector<ModInt<M>, n + 1> phase_ct = this->phase_ct_;
+    phase_ct[n] = static_cast<ModInt<M>>(phase_ct[n]) + phase;
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
+    // Prepare TestVector
+    Poly<Torus, N> tv = testvector::generate<Torus, N>(Torus(mu.value() >> 1));
+    TRLWE<Torus, N> tv_ct = this->exe_.encrypt(tv);
 
-  // Prepare Vector<ModInt<M>, n+1>
-  Vector<ModInt<M>, n + 1> phase_ct;
-  randomize(phase_ct, this->eng_);
+    // ==================================
+    // Act
+    // ==================================
+    TRLWE<Torus, N> res_ct =
+        Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(tv_ct, phase_ct,
+                                                               this->BK_);
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Poly<Torus, N> ref = rotate(tv, (-phase).value());
 
-  ModInt<M> b{};
-  for (size_t i = 0; i < n; ++i) {
-    b += static_cast<UInt>(this->lwe_kr->secret()[i]) *
-         static_cast<ModInt<M>>(phase_ct[i]);
-  }
-  b += phase;
-  phase_ct[n] = b;  // Overwrite
+    // compute actual result
+    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
 
-  // BlindRotate
-  TRLWE<Torus, N> res_ct =
-      Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(
-          this->tv_ct_, phase_ct, this->BK_);
-  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
+    Poly<Torus, N> err = ref - res;
+    double norm = infinity_norm(err);
 
-  // ----------------------------------
-  Poly<Torus, N> err = ref_pt - res_pt;
-  double norm = infinity_norm(err);
+    std::cout << "\n========================================\n";
+    std::cout << "           BlindRotate Test\n";
+    std::cout << "========================================\n";
 
-  std::cout << "\n========================================\n";
-  std::cout << "           BlindRotate Test\n";
-  std::cout << "========================================\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "tv" << ": " << tv << '\n';
+      std::cout << std::setw(14) << "expected" << ": " << ref << '\n';
+      std::cout << std::setw(14) << "actual" << ": " << res << '\n';
+    }
 
-  if (TypeParam::verbose) {
     std::cout << std::left;
-    std::cout << std::setw(14) << "tv" << ": " << this->tv_ << '\n';
-    std::cout << std::setw(14) << "expected" << ": " << ref_pt << '\n';
-    std::cout << std::setw(14) << "actual" << ": " << res_pt << '\n';
+    std::cout << std::setw(14) << "mu" << ": " << mu << '\n';
+    std::cout << std::setw(14) << "phase " << ": " << phase << '\n';
+    std::cout << std::setw(14) << "-phase" << ": " << -phase << '\n';
+    std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
+    std::cout << std::setw(14) << "errror_bound " << ": "
+              << get_noise_tracker_if()->get(res_ct) << '\n';
+
+    std::cout << "========================================\n\n";
+
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
   }
-
-  std::cout << std::left;
-  std::cout << std::setw(14) << "phase " << ": " << phase << '\n';
-  std::cout << std::setw(14) << "-phase" << ": " << -phase << '\n';
-  std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
-  std::cout << std::setw(14) << "errror_bound " << ": "
-            << get_noise_tracker_if()->get(res_ct) << '\n';
-
-  std::cout << "========================================\n\n";
-
-  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }

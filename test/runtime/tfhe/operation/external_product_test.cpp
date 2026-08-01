@@ -76,15 +76,28 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
-  Poly<Torus, N> pt_;
-  TRLWE<Torus, N> pt_ct_;
+  struct TestCase {
+    UInt lhs;
+    Poly<Torus, N> rhs;
+  };
 
-  void SetUp() override {
-    Base::SetUp();
+  void SetUp() override { Base::SetUp(); }
 
-    // Prepare plaintext and its ciphertext
-    randomize(pt_, this->eng_);
-    pt_ct_ = this->exe_.encrypt(pt_);
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.lhs = UInt(0);
+      randomize(tc.rhs, this->eng_);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.lhs = UInt(1);
+      randomize(tc.rhs, this->eng_);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
   }
 };
 
@@ -100,43 +113,52 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
 
   static constexpr uint32_t l = Dcp::l;
 
-  // mp means multiplier
-  Poly<UInt, N> mp_pt_;
-  mp_pt_[0] = UInt(1);
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    UInt lhs = tc.lhs;
+    Poly<Torus, N> rhs = tc.rhs;
 
-  // ==================================
-  // Reference
-  // ==================================
-  Poly<Torus, N> ref_pt = negacyclic_convolution(mp_pt_, this->pt_);
+    // mp means multiplier
+    Poly<UInt, N> mp;
+    mp[0] = lhs;
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
-  TRGSW<Torus, N, l> mp_ct = this->exe_.encrypt(mp_pt_);
+    TRGSW<Torus, N, l> mp_ct = this->exe_.encrypt(mp);
+    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
 
-  TRLWE<Torus, N> res_ct =
-      Evaluator<ExternalProduct<Rlwe, Dcp>, Tracking>::exec(mp_ct,
-                                                            this->pt_ct_);
-  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
+    // ==================================
+    // Act
+    // ==================================
+    TRLWE<Torus, N> res_ct =
+        Evaluator<ExternalProduct<Rlwe, Dcp>, Tracking>::exec(mp_ct, rhs_ct);
 
-  // ----------------------------------
-  Poly<Torus, N> err = ref_pt - res_pt;
-  double norm = infinity_norm(err);
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Poly<Torus, N> ref = negacyclic_convolution(mp, rhs);
 
-  std::cout << "\n=== External Product Test ===\n";
-  if (TypeParam::verbose) {
+    // compute actual result
+    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+
+    Poly<Torus, N> err = ref - res;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n=== External Product Test ===\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+      std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
+      std::cout << std::setw(14) << "actual" << ": " << res << "\n";
+      std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
+    }
     std::cout << std::left;
-    std::cout << std::setw(14) << "pt" << ": " << this->pt_ << "\n";
-    std::cout << std::setw(14) << "mp" << ": " << mp_pt_ << "\n";
+    std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
+    std::cout << std::setw(14) << "error_bound" << ": "
+              << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << "===============================\n\n";
 
-    std::cout << std::setw(14) << "expected" << ": " << ref_pt << "\n";
-    std::cout << std::setw(14) << "actual" << ": " << res_pt << "\n";
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
   }
-  std::cout << std::left;
-  std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
-  std::cout << std::setw(14) << "error_bound" << ": "
-            << get_noise_tracker_if()->get(res_ct) << "\n";
-  std::cout << "===============================\n\n";
-
-  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }

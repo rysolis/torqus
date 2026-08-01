@@ -20,11 +20,12 @@ class SampleExtraction {
   // forwarded again to tracking::update().
   template <torus_type Torus>
   static TLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& trlwe, size_t p) {
+    assert(p < N);
     TLWE<Torus, N> tlwe([&trlwe, p](std::size_t i) {
       if (i <= p) {
-        return static_cast<Torus>(trlwe.a()[i]);
+        return static_cast<Torus>(trlwe.a()[p - i]);
       } else {
-        return static_cast<Torus>(-trlwe.a()[N + p - i]);
+        return -static_cast<Torus>(trlwe.a()[N + p - i]);
       }
     });
     tlwe.b() = static_cast<Torus>(trlwe.b()[p]);

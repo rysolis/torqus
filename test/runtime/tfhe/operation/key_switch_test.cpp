@@ -60,7 +60,6 @@ class KeySwitchFixture : public ::testing::Test {
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
 
-  rTorus pt_ = rTorus(1);
   Executor<Cryptor<SrcLwe>, Tracking> src_exe_;
   Executor<Cryptor<DstLwe>, Tracking> dst_exe_;
 
@@ -79,7 +78,7 @@ class KeySwitchFixture : public ::testing::Test {
     dst_exe_ = Executor<Cryptor<DstLwe>, Tracking>(dst_cryptor);
 
     // prepare source tlwe
-    src_tlwe_ = src_exe_.encrypt(pt_);
+    src_tlwe_ = src_exe_.encrypt(Torus(0u));
 
     // Prepare Key Switch Key
     KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(dst_exe_, src_kr);
@@ -88,7 +87,30 @@ class KeySwitchFixture : public ::testing::Test {
 
 template <typename Config>
 class KeySwitchCorrectnessTest
-    : public KeySwitchFixture<typename Config::context> {};
+    : public KeySwitchFixture<typename Config::context> {
+ protected:
+  using Base = KeySwitchFixture<typename Config::context>;
+  using rTorus = Base::rTorus;
+
+  struct TestCase {
+    rTorus pt;
+  };
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.pt = rTorus(0u);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.pt = rTorus(1u);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
+  }
+};
 
 TYPED_TEST_SUITE(KeySwitchCorrectnessTest, key_switch_test::TestContexts);
 
@@ -103,34 +125,43 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
   using Torus = DstLwe::torus_type;
   constexpr uint32_t n = DstLwe::n;
 
-  // ==================================
-  // Reference
-  // ==================================
-  Torus expected = Torus(static_cast<rTorus::raw_value_type>(this->pt_));
+  for (const auto& tc : this->cases()) {
+    // // ==================================
+    // // Arrange
+    // // ==================================
+    rTorus pt = tc.pt;
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
-  TLWE<Torus, n> encrypted =
-      Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(this->src_tlwe_,
-                                                                this->KSK_);
-  Torus decrypted = this->dst_exe_.decrypt(encrypted);
+    // Prepare source TLWE (contains pt)
+    this->src_tlwe_.b() = static_cast<rTorus>(this->src_tlwe_.b()) + pt;
 
-  // ----------------------------------
+    // // ==================================
+    // // Act
+    // // ==================================
+    TLWE<Torus, n> res_ct =
+        Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(
+            this->src_tlwe_, this->KSK_);
 
-  Torus error = expected - decrypted;
-  double norm = infinity_norm(error);
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Torus ref = Torus(static_cast<rTorus::raw_value_type>(pt));
 
-  std::cout << "\n=== Key Switch Test ===\n";
-  if (TypeParam::verbose) {
-    std::cout << std::setw(14) << "decrypted" << ": " << decrypted << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << expected << "\n";
+    // compute actual result
+    Torus res = this->dst_exe_.decrypt(res_ct);
+
+    Torus error = ref - res;
+    double norm = infinity_norm(error);
+
+    std::cout << "\n=== Key Switch Test ===\n";
+    std::cout << std::setw(14) << "actual" << ": " << res << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
+    std::cout << std::setw(14) << "error" << ": " << error << "\n";
+    std::cout << std::setw(14) << "norm" << ": " << norm << "\n";
+    std::cout << std::setw(14) << "error_bound " << ": "
+              << get_noise_tracker_if()->get(res_ct) << '\n';
+    std::cout << "=========================\n\n";
+
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
   }
-  std::cout << std::setw(14) << "error" << ": " << error << "\n";
-  std::cout << std::setw(14) << "norm" << ": " << norm << "\n";
-  std::cout << std::setw(14) << "errror_bound " << ": "
-            << get_noise_tracker_if()->get(encrypted) << '\n';
-  std::cout << "=========================\n\n";
-
-  EXPECT_LE(norm, get_noise_tracker_if()->get(encrypted));
 }

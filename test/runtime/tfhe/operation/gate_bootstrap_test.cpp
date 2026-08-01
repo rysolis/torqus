@@ -60,13 +60,6 @@ class GateBootstrapFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  // Choose 1/4 in Torus as output
-  rTorus mu_{1u << (rTorus::qbit - 2)};
-
-  Poly<rTorus, N> tv_;
-  TRLWE<rTorus, N> tv_ct_;
-
-  Torus rot_;
   TLWE<Torus, n> tlwe_rot_;
 
   Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
@@ -83,14 +76,8 @@ class GateBootstrapFixture : public ::testing::Test {
     Cryptor<Lwe> lwe_cryptor(lwe_kr.secret_ptr(), eng_);
     tlwe_exe_ = Executor<Cryptor<Lwe>, Tracking>(lwe_cryptor);
 
-    // Prepare TestVector
-    rTorus c = rTorus(mu_.value() / 2);
-    tv_ = testvector::generate<rTorus, N>(c);
-    tv_ct_ = exe_.encrypt(this->tv_);
-
     // Prepare TLWE
-    Torus phase(1u << (Torus::qbit - 1));  // encode 1/2 in Torus
-    tlwe_rot_ = tlwe_exe_.encrypt(phase);
+    tlwe_rot_ = tlwe_exe_.encrypt(Torus(0u));
 
     // Prepare Bootstrapkey
     BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, lwe_kr);
@@ -99,7 +86,40 @@ class GateBootstrapFixture : public ::testing::Test {
 
 template <typename Config>
 class GateBootstrapCorrectnessTest
-    : public GateBootstrapFixture<typename Config::context> {};
+    : public GateBootstrapFixture<typename Config::context> {
+ protected:
+  using Base = GateBootstrapFixture<typename Config::context>;
+
+  using Torus = Base::Torus;
+  using rTorus = Base::rTorus;
+  static constexpr uint32_t N = Base::N;
+  static constexpr uint32_t l = Base::l;
+
+  static constexpr uint32_t M = 2 * N;
+
+  struct TestCase {
+    // Choose 1/4 in Torus as output
+    rTorus mu = rTorus(1u << (rTorus::qbit - 2));
+    Torus phase;
+  };
+
+  void SetUp() override { Base::SetUp(); }
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.phase = Torus(0u);  // encode 0 in Torus
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.phase = Torus(1u << (Torus::qbit - 1));  // encode 1/2 in Torus
+      cases.push_back(std::move(tc));
+    }
+    return cases;
+  }
+};
 
 TYPED_TEST_SUITE(GateBootstrapCorrectnessTest,
                  gate_bootstrap_test::TestContexts);
@@ -115,53 +135,73 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
-  // ==================================
-  // Reference
-  // ==================================
-  constexpr uint32_t Q = [] {
-    if constexpr (Torus::qbit == 32) {
-      return 0;
-    } else {
-      return 1 << Torus::qbit;
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    rTorus mu = tc.mu;
+    Torus phase = tc.phase;
+
+    // Prepare TLWE (constains phase)
+    this->tlwe_rot_.b() = static_cast<Torus>(this->tlwe_rot_.b()) + phase;
+
+    // Prepare TestVector
+    Poly<rTorus, N> tv =
+        testvector::generate<rTorus, N>(rTorus(mu.value() >> 1));
+    TRLWE<rTorus, N> tv_ct = this->exe_.encrypt(tv);
+
+    // ==================================
+    // Act
+    // ==================================
+    TLWE<rTorus, N> res_ct =
+        Evaluator<GateBootstrap<Lwe, Rlwe, Dcp>, Tracking>::exec(
+            mu, tv_ct, this->tlwe_rot_, this->BK_);
+
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    constexpr uint32_t Q = [] {
+      if constexpr (Torus::qbit == 32) {
+        return 0;
+      } else {
+        return 1 << Torus::qbit;
+      }
+    }();
+    ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
+    Poly<rTorus, N> rot = rotate(tv, (-p).value());
+    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() >> 1);
+
+    // compute actual result
+    rTorus res = this->exe_.decrypt(res_ct);
+
+    rTorus err = ref - res;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n========================================\n";
+    std::cout << "           Gate Bootstrap Test\n";
+    std::cout << "========================================\n";
+
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "tv" << ": " << tv << '\n';
     }
-  }();
-  ModInt<M> p = mod_switch<M>(ModInt<Q>(1u << (Torus::qbit - 1)));
-  Poly<rTorus, N> rot = rotate(this->tv_, (-p).value());
-  rTorus ref_pt = static_cast<rTorus>(rot[0]) + rTorus(this->mu_.value() / 2);
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
-
-  // Gate Bootstrap
-  TLWE<rTorus, N> res_ct =
-      Evaluator<GateBootstrap<Lwe, Rlwe, Dcp>, Tracking>::exec(
-          this->mu_, this->tv_ct_, this->tlwe_rot_, this->BK_);
-  rTorus res_pt = this->exe_.decrypt(res_ct);
-
-  // ----------------------------------
-  rTorus err = ref_pt - res_pt;
-  double norm = infinity_norm(err);
-
-  std::cout << "\n========================================\n";
-  std::cout << "           Gate Bootstrap Test\n";
-  std::cout << "========================================\n";
-
-  if (TypeParam::verbose) {
     std::cout << std::left;
-    std::cout << std::setw(14) << "tv" << ": " << this->tv_ << '\n';
-    std::cout << std::setw(14) << "p" << ": " << p << '\n';
-    std::cout << std::setw(14) << "rot" << ": " << rot << '\n';
+    std::cout << std::setw(14) << "mu" << ": " << mu << " ("
+              << detail::Torus(mu) << ")\n";
+    std::cout << std::setw(14) << "phase" << ": " << phase << '\n';
+    std::cout << std::setw(14) << "phase(mod)" << ": " << p << '\n';
+    std::cout << std::setw(14) << "expected" << ": " << ref << "("
+              << detail::Torus(ref) << ")\n";
+    std::cout << std::setw(14) << "actual" << ": " << res << "("
+              << detail::Torus(res) << ")\n";
+    std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
+    std::cout << std::setw(14) << "errror_bound " << ": "
+              << get_noise_tracker_if()->get(res_ct) << '\n';
+
+    std::cout << "========================================\n\n";
+
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
   }
-
-  std::cout << std::left;
-  std::cout << std::setw(14) << "expected" << ": " << ref_pt << '\n';
-  std::cout << std::setw(14) << "actual" << ": " << res_pt << '\n';
-  std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
-  std::cout << std::setw(14) << "errror_bound " << ": "
-            << get_noise_tracker_if()->get(res_ct) << '\n';
-
-  std::cout << "========================================\n\n";
-
-  EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
 }
