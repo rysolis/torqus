@@ -7,7 +7,7 @@
 #include "algebra/poly.hpp"
 
 namespace poly_basic_test {
-using TestContexts = ::testing::Types<UInt, ModTorus<16>, ModInt<7>>;
+using TestContexts = ::testing::Types<UInt, ModTorus<16>, ModInt<32>>;
 }
 
 template <typename T>

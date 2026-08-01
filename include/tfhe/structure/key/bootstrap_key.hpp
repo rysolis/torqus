@@ -35,6 +35,7 @@ BootstrapKey<typename Rlwe::torus_type, Rlwe::N, Dcp::l,
   using Torus = Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t B = Dcp::B;
+  static constexpr uint32_t Bbit = std::bit_width(B - 1);
   static constexpr uint32_t l = Dcp::l;
   static constexpr uint32_t n = Lwe::n;
 
@@ -46,10 +47,8 @@ BootstrapKey<typename Rlwe::torus_type, Rlwe::N, Dcp::l,
       BK[i][j] = cryptor.encrypt(Poly<Torus, N>());
       BK[i][l + j] = cryptor.encrypt(Poly<Torus, N>());
 
-      detail::Torus v(static_cast<detail::Torus::raw_value_type>(
-                          static_cast<UInt::raw_value_type>(tmp[0])) /
-                      (std::pow(B, j + 1)));
-      Torus m = static_cast<Torus>(v);
+      Torus m(static_cast<UInt::raw_value_type>(tmp[0]),
+              1u << (Bbit * (j + 1)));
 
       BK[i][j].a()[0] = static_cast<Torus>(BK[i][j].a()[0]) + m;
       BK[i][l + j].b()[0] = static_cast<Torus>(BK[i][l + j].b()[0]) + m;

@@ -113,7 +113,7 @@ class BlindRotateCorrectnessTest
   static constexpr uint32_t M = 2 * N;
 
   struct TestCase {
-    Torus mu = Torus(1u << (Torus::qbit - 2));
+    Torus mu = Torus(1u, 2u);  // encode 1/2 in Torus
     ModInt<M> phase;
   };
 

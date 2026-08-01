@@ -11,7 +11,6 @@
 
 #include "algebra/utility/randomize.hpp"
 
-#include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
@@ -27,6 +26,7 @@ TRGSW<typename params::torus_type, params::N, params::l> encrypt(
   using Torus = typename params::torus_type;
   constexpr uint32_t N = params::N;
   constexpr uint32_t B = params::B;
+  constexpr uint32_t Bbit = std::bit_width(B - 1);
   constexpr uint32_t l = params::l;
 
   TRGSW<Torus, N, l> ct;
@@ -39,10 +39,7 @@ TRGSW<typename params::torus_type, params::N, params::l> encrypt(
     ct[j].b() = negacyclic_convolution(secret, ct[j].a());
     ct[l + j].b() = negacyclic_convolution(secret, ct[l + j].a());
 
-    detail::Torus v(static_cast<detail::Torus::raw_value_type>(
-                        static_cast<UInt::raw_value_type>(pt[0])) /
-                    (std::pow(B, j + 1)));
-    Torus m = static_cast<Torus>(v);
+    Torus m(static_cast<UInt::raw_value_type>(pt[0]), 1u << (Bbit * (j + 1)));
 
     ct[j].a()[0] = static_cast<Torus>(ct[j].a()[0]) + m;
     ct[l + j].b()[0] = static_cast<Torus>(ct[l + j].b()[0]) + m;

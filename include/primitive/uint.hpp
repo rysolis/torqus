@@ -20,6 +20,11 @@ class UInt {
   constexpr explicit UInt(Raw v = 0) noexcept
       : v_(static_cast<raw_value_type>(v)) {}
 
+  static constexpr raw_value_type raw_min() { return 0; }
+  static constexpr raw_value_type raw_max() {
+    return std::numeric_limits<raw_value_type>::max();
+  }
+
   constexpr explicit operator raw_value_type() const noexcept { return v_; }
 
   inline constexpr UInt& operator+=(const UInt& rhs) {

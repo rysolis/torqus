@@ -6,11 +6,10 @@
 
 #include "algebra/poly.hpp"
 
-#include "arithmetic/expr_impl.hpp"
 #include "arithmetic/expr_trait.hpp"
 
 template <typename Lhs, typename Rhs>
-class NegacyclicConvolutionExpr {
+class NegacyclicConvolutionExpr : public expr_tag {
  public:
   NegacyclicConvolutionExpr(const Lhs& lhs, const Rhs& rhs)
       : lhs_(lhs), rhs_(rhs) {}

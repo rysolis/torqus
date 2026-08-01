@@ -6,7 +6,6 @@
 
 #include "primitive/concept/torus.hpp"
 
-#include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"

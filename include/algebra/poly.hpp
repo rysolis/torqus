@@ -18,6 +18,11 @@
 
 #include "detail/proxy.hpp"
 
+struct expr_tag {};
+
+template <typename Expr>
+struct accumulate_impl;
+
 template <typename T, uint32_t N>
 class Poly : public Container<Poly<T, N>, T, N, true> {
   using Base = Container<Poly<T, N>, T, N, true>;
@@ -59,6 +64,9 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
+    requires requires(Expr& ep) {
+      { std::derived_from<Expr, expr_tag> };
+    }
   Poly(const Expr& ep) {
     std::fill(begin(), end(), typename T::raw_value_type{});
     accumulate_expr(
@@ -72,6 +80,9 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
+    requires requires(Expr& ep) {
+      { std::derived_from<Expr, expr_tag> };
+    }
   Poly& operator=(const Expr& ep) {
     accumulate_expr(
         ep,
@@ -85,6 +96,9 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
+    requires requires(Expr& ep) {
+      { std::derived_from<Expr, expr_tag> };
+    }
   Poly& operator+=(const Expr& ep) {
     accumulate_expr(
         ep,
@@ -98,6 +112,9 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
+    requires requires(Expr& ep) {
+      { std::derived_from<Expr, expr_tag> };
+    }
   Poly& operator-=(const Expr& ep) {
     accumulate_expr(
         ep,
@@ -117,7 +134,7 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
     return std::ranges::equal(*this, other);
   }
 
-  raw_value_type* release() { return this->release_buffer(); }
+  [[nodiscard]] raw_value_type* release() { return this->release_buffer(); }
 
   friend std::ostream& operator<<(std::ostream& os, const Poly& poly) {
     os << "Poly(";
@@ -133,7 +150,9 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
 
  private:
   template <typename Expr, typename AddOp, typename SubOp>
-  void accumulate_expr(const Expr& ep, AddOp add_op, SubOp sub_op);
+  void accumulate_expr(const Expr& ep, AddOp add_op, SubOp sub_op) {
+    accumulate_impl<Expr>::apply(*this, ep, add_op, sub_op);
+  }
 };
 
 template <typename T, uint32_t N>

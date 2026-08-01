@@ -37,14 +37,17 @@ class ModInt {
     if constexpr (MOD == 0) {
       v_ += rhs.v_;
     } else {
+      static_assert(MOD <= std::numeric_limits<raw_value_type>::max() << 1,
+                    "MOD is too large for addition");
       v_ += rhs.v_;
       raw_value_type mask = -static_cast<raw_value_type>(v_ >= MOD);
       v_ -= (MOD & mask);
     }
     return *this;
   }
+
   // when a < b,
-  // compute ((a - b) + 2^{32}) + P mod 2^{32} = (a - b) + P
+  // compute a - b = (a - b) + P
   constexpr ModInt& operator-=(const ModInt& rhs) noexcept {
     if constexpr (MOD == 0) {
       v_ -= rhs.v_;

@@ -99,7 +99,7 @@ class GateBootstrapCorrectnessTest
 
   struct TestCase {
     // Choose 1/4 in Torus as output
-    rTorus mu = rTorus(1u << (rTorus::qbit - 2));
+    rTorus mu = rTorus(1u, 4u);
     Torus phase;
   };
 
@@ -114,7 +114,7 @@ class GateBootstrapCorrectnessTest
     }
     {
       TestCase tc;
-      tc.phase = Torus(1u << (Torus::qbit - 1));  // encode 1/2 in Torus
+      tc.phase = Torus(1u, 2u);  // encode 1/2 in Torus
       cases.push_back(std::move(tc));
     }
     return cases;
@@ -147,7 +147,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
 
     // Prepare TestVector
     Poly<rTorus, N> tv =
-        testvector::generate<rTorus, N>(rTorus(mu.value() >> 1));
+        testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
     TRLWE<rTorus, N> tv_ct = this->exe_.encrypt(tv);
 
     // ==================================
@@ -170,7 +170,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     }();
     ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
     Poly<rTorus, N> rot = rotate(tv, (-p).value());
-    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() >> 1);
+    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() >> 1u);
 
     // compute actual result
     rTorus res = this->exe_.decrypt(res_ct);
@@ -188,14 +188,14 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     }
 
     std::cout << std::left;
-    std::cout << std::setw(14) << "mu" << ": " << mu << " ("
-              << detail::Torus(mu) << ")\n";
+    std::cout << std::setw(14) << "mu" << ": " << mu << " (" << double(mu)
+              << ")\n";
     std::cout << std::setw(14) << "phase" << ": " << phase << '\n';
     std::cout << std::setw(14) << "phase(mod)" << ": " << p << '\n';
-    std::cout << std::setw(14) << "expected" << ": " << ref << "("
-              << detail::Torus(ref) << ")\n";
-    std::cout << std::setw(14) << "actual" << ": " << res << "("
-              << detail::Torus(res) << ")\n";
+    std::cout << std::setw(14) << "expected" << ": " << ref << " ("
+              << double(ref) << ")\n";
+    std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
+              << ")\n";
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
     std::cout << std::setw(14) << "errror_bound " << ": "
               << get_noise_tracker_if()->get(res_ct) << '\n';

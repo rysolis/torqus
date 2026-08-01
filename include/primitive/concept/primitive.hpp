@@ -9,7 +9,7 @@
 #include <utility>
 
 // Primitive types exposed by the library.
-// Internal helper types (e.g. detail::Torus) are intentionally excluded.
+// Internal helper types (e.g. dbl::Torus) are intentionally excluded.
 template <typename T>
 concept primitive =
     std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T> &&

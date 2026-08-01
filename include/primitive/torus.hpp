@@ -38,7 +38,7 @@ class TorusBase {
 template <uint32_t QBit>
 class ModTorus;
 
-namespace detail {
+namespace dbl {
 
 /**
  * \brief Represents the discrete torus $(1/q)\mathbb{R}/\mathbb{Z}$.
@@ -85,7 +85,7 @@ class Torus : public TorusBase<Torus> {
   raw_value_type r_;
 };
 
-}  // namespace detail
+}  // namespace dbl
 
 /**
  * \brief Represents the integer torus $\hat{\mathbb{T}}$.
@@ -107,12 +107,23 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   constexpr explicit ModTorus(Raw m = 0) noexcept
       : m_(static_cast<raw_value_type>(m) & mask()) {}
 
+  template <std::integral Raw>
+  constexpr ModTorus(Raw x, Raw r) noexcept {
+    assert(((r - 1) & (r)) == 0);  // r must be a power of two
+    uint32_t rbit = static_cast<uint32_t>(std::bit_width(r - 1));
+    assert(rbit <= qbit);
+    m_ = x << (qbit - rbit);
+  }
+
   static constexpr raw_value_type raw_min() { return 0; }
   static constexpr raw_value_type raw_max() {
     return static_cast<raw_value_type>(-1) & mask();
   }
 
-  constexpr explicit operator detail::Torus() const noexcept;
+  constexpr explicit operator dbl::Torus() const noexcept;
+  constexpr explicit operator double() const noexcept {
+    return static_cast<double>(m_) / std::pow(2., qbit);
+  }
 
   constexpr explicit operator raw_value_type() const noexcept { return m_; }
   constexpr raw_value_type value() const noexcept { return m_; }
@@ -144,31 +155,30 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
 };
 
 template <uint32_t QBit>
-inline constexpr detail::Torus::operator ModTorus<QBit>() const noexcept {
+inline constexpr dbl::Torus::operator ModTorus<QBit>() const noexcept {
   return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(
-      std::pow(2, ModTorus<QBit>::qbit) * this->value()));
+      std::pow(2., ModTorus<QBit>::qbit) * this->value()));
 }
 
 template <uint32_t QBit>
-inline constexpr ModTorus<QBit>::operator detail::Torus() const noexcept {
-  return detail::Torus(
-      static_cast<detail::Torus::raw_value_type>(this->value()) /
-      std::pow(2, ModTorus<QBit>::qbit));
+inline constexpr ModTorus<QBit>::operator dbl::Torus() const noexcept {
+  return dbl::Torus(static_cast<dbl::Torus::raw_value_type>(this->value()) /
+                    std::pow(2., ModTorus<QBit>::qbit));
 }
 
-inline constexpr detail::Torus operator+(detail::Torus lhs,
-                                         const detail::Torus& rhs) noexcept {
+inline constexpr dbl::Torus operator+(dbl::Torus lhs,
+                                      const dbl::Torus& rhs) noexcept {
   return lhs += rhs;
 }
 
-inline constexpr detail::Torus operator-(detail::Torus lhs,
-                                         const detail::Torus& rhs) noexcept {
+inline constexpr dbl::Torus operator-(dbl::Torus lhs,
+                                      const dbl::Torus& rhs) noexcept {
   return lhs -= rhs;
 }
 
-inline constexpr detail::Torus operator*(UInt lhs,
-                                         const detail::Torus& rhs) noexcept {
-  return detail::Torus(static_cast<UInt::raw_value_type>(lhs) * rhs.value());
+inline constexpr dbl::Torus operator*(UInt lhs,
+                                      const dbl::Torus& rhs) noexcept {
+  return dbl::Torus(static_cast<UInt::raw_value_type>(lhs) * rhs.value());
 }
 
 template <uint32_t QBit>
@@ -195,22 +205,21 @@ inline constexpr ModTorus<QBit> operator-(const ModTorus<QBit>& x) noexcept {
   return ModTorus<QBit>{} - x;
 }
 
-inline constexpr double infinity_norm(const detail::Torus& torus) {
+inline constexpr double infinity_norm(const dbl::Torus& torus) {
   double tmp = static_cast<double>(torus);
   return std::min(tmp, 1 - tmp);
 }
 
 template <uint32_t QBit>
 inline constexpr double infinity_norm(const ModTorus<QBit>& mod_torus) {
-  typename detail::Torus::raw_value_type tmp =
-      detail::Torus::raw_value_type(static_cast<detail::Torus>(mod_torus));
+  typename dbl::Torus::raw_value_type tmp =
+      dbl::Torus::raw_value_type(static_cast<dbl::Torus>(mod_torus));
   return std::min(tmp, 1 - tmp);
 }
 
 // Torus::operator== depends on infinity_norm, which is defined in
 // utility.hpp, so we define it here to avoid circular dependency
-inline bool detail::Torus::operator==(
-    const detail::Torus& other) const noexcept {
+inline bool dbl::Torus::operator==(const dbl::Torus& other) const noexcept {
   const double eps = 1e-9;
   double norm = infinity_norm((*this) - other);
   return norm < eps;

@@ -15,7 +15,6 @@
 #include "algebra/utility/randomize.hpp"
 #include "algebra/vector.hpp"
 
-#include "arithmetic/expr_impl.hpp"
 #include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
