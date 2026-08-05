@@ -3,12 +3,12 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/hom_and.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
@@ -56,22 +56,22 @@ class HomAndFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
-  Executor<Cryptor<Lwe>, Tracking> tlwe_exe_;
+  Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> glwe_kr(this->eng_);
-    Cryptor<ParamsPack<Rlwe, Dcp>> cryptor(glwe_kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(cryptor);
-
     SecretHolder<Lwe> lwe_kr(eng_);
-    Cryptor<Lwe> lwe_cryptor(lwe_kr.secret_ptr(), eng_);
-    tlwe_exe_ = Executor<Cryptor<Lwe>, Tracking>(lwe_cryptor);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(lwe_kr.secret_ptr(), eng_);
+
+    SecretHolder<Rlwe> rlwe_kr(eng_);
+    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
+        rlwe_kr.secret_ptr(), eng_);
 
     // Prepare Bootstrapkey
-    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, lwe_kr);
+    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+        lwe_kr.secret());
   }
 };
 
@@ -138,8 +138,8 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
     // Prepare TLWE
     Torus lhs = tc.lhs;
     Torus rhs = tc.rhs;
-    TLWE<Torus, n> lhs_ct = this->tlwe_exe_.encrypt(lhs);
-    TLWE<Torus, n> rhs_ct = this->tlwe_exe_.encrypt(rhs);
+    TLWE<Torus, n> lhs_ct = this->lwe_runtime_.encrypt(lhs);
+    TLWE<Torus, n> rhs_ct = this->lwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
@@ -154,7 +154,7 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
     rTorus ref = tc.ref;
 
     // comput actual result
-    rTorus res = this->exe_.decrypt(res_ct);
+    rTorus res = this->rlwe_runtime_.decrypt(res_ct);
 
     rTorus err = res - ref;
     double norm = infinity_norm(err);
@@ -247,8 +247,8 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
     // Prepare TLWE
     Torus lhs = tc.lhs;
     Torus rhs = tc.rhs;
-    TLWE<Torus, n> lhs_ct = this->tlwe_exe_.encrypt(lhs);
-    TLWE<Torus, n> rhs_ct = this->tlwe_exe_.encrypt(rhs);
+    TLWE<Torus, n> lhs_ct = this->lwe_runtime_.encrypt(lhs);
+    TLWE<Torus, n> rhs_ct = this->lwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
@@ -263,7 +263,7 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
     rTorus ref = tc.ref;
 
     // comput actual result
-    rTorus res = this->exe_.decrypt(res_ct);
+    rTorus res = this->rlwe_runtime_.decrypt(res_ct);
 
     rTorus err = res - ref;
     double norm = infinity_norm(err);
