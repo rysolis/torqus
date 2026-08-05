@@ -42,4 +42,33 @@ class HomAnd {
   }
 };
 
+template <typename Lwe, typename Rlwe, typename Dcp>
+class HomAndNot {
+ public:
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
+
+  static constexpr uint32_t l = Dcp::l;
+
+  // NOTE:
+  // exec_impl must not consume (move from) its arguments, as they are
+  // forwarded again to tracking::update().
+  static TLWE<rTorus, N> exec_impl(const TLWE<Torus, n>& c1,
+                                   const TLWE<Torus, n>& c2,
+                                   const BootstrapKey<rTorus, N, l, n>& bk) {
+    static constexpr Torus mu(1u, 4u);
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
+
+    TLWE<Torus, n> offset;
+    offset.b() = Torus(1u, 8u);
+
+    return GateBootstrap<Lwe, Rlwe, Dcp>::exec_impl(
+        mu, tv, Add<Lwe>::exec_impl(offset, Sub<Lwe>::exec_impl(c1, c2)), bk);
+  }
+};
+
 #endif

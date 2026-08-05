@@ -4,12 +4,13 @@
 
 #include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/executor.hpp"
+#include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/hom_and.hpp"
+#include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
-#include "tfhe/utility/testvector.hpp"
 
 namespace hom_and_test {
 template <typename Ctx, bool Verbose = true>
@@ -160,6 +161,115 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
 
     std::cout << "\n========================================\n";
     std::cout << "           HomAnd Test\n";
+    std::cout << "========================================\n";
+
+    std::cout << std::left;
+    std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+    std::cout << std::setw(14) << "rhs" << ": " << lhs << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << ref << " ("
+              << double(ref) << ")\n";
+    std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
+              << ")\n";
+    std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
+
+    EXPECT_LE(norm, 0.1);
+  }
+}
+
+template <typename Config>
+class HomAndNotCorrectnessTest
+    : public HomAndFixture<typename Config::context> {
+ protected:
+  using Base = HomAndFixture<typename Config::context>;
+
+  using Torus = Base::Torus;
+  using rTorus = Base::rTorus;
+
+  void SetUp() override { Base::SetUp(); }
+
+  struct TestCase {
+    Torus lhs;
+    Torus rhs;
+    rTorus ref;
+  };
+
+  [[nodiscard]] std::vector<TestCase> cases() {
+    std::vector<TestCase> cases;
+    {
+      TestCase tc;
+      tc.lhs = Torus(1u, 4u);  // encode 1/4 in Torus
+      tc.rhs = Torus(1u, 4u);  // encode 1/4 in Torus
+      tc.ref = rTorus(0u);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.lhs = Torus(0u);
+      tc.rhs = Torus(1u, 4u);  // encode 1/4 in Torus
+      tc.ref = rTorus(0u);
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.lhs = Torus(1u, 4u);  // encode 1/4 in Torus
+      tc.rhs = Torus(0u);
+      tc.ref = rTorus(1u, 4u);  // encode 1/4 in Torus
+      cases.push_back(std::move(tc));
+    }
+    {
+      TestCase tc;
+      tc.lhs = Torus(0u);
+      tc.rhs = Torus(0u);
+      tc.ref = rTorus(0);
+      cases.push_back(std::move(tc));
+    }
+    return cases;
+  }
+};
+
+TYPED_TEST_SUITE(HomAndNotCorrectnessTest, hom_and_test::TestContexts);
+
+TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Dcp = typename TypeParam::context::dcp_params;
+
+  using Torus = Lwe::torus_type;
+  constexpr uint32_t n = Lwe::n;
+
+  using rTorus = Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
+
+  for (const auto& tc : this->cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    // Prepare TLWE
+    Torus lhs = tc.lhs;
+    Torus rhs = tc.rhs;
+    TLWE<Torus, n> lhs_ct = this->tlwe_exe_.encrypt(lhs);
+    TLWE<Torus, n> rhs_ct = this->tlwe_exe_.encrypt(rhs);
+
+    // ==================================
+    // Act
+    // ==================================
+    TLWE<rTorus, N> res_ct =
+        HomAndNot<Lwe, Rlwe, Dcp>::exec_impl(lhs_ct, rhs_ct, this->BK_);
+
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    rTorus ref = tc.ref;
+
+    // comput actual result
+    rTorus res = this->exe_.decrypt(res_ct);
+
+    rTorus err = res - ref;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n========================================\n";
+    std::cout << "           HomAndNot Test\n";
     std::cout << "========================================\n";
 
     std::cout << std::left;
