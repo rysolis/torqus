@@ -9,10 +9,10 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -57,12 +57,12 @@ class ExternalProductFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
-    Cryptor<ParamsPack<Rlwe, Dcp>> cryptor(kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(cryptor);
+    rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
+        kr.secret_ptr(), eng_);
   }
 };
 
@@ -124,8 +124,8 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     Poly<UInt, N> mp;
     mp[0] = lhs;
 
-    TRGSW<Torus, N, l> mp_ct = this->exe_.encrypt(mp);
-    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
+    TRGSW<Torus, N, l> mp_ct = this->rlwe_runtime.encrypt(mp);
+    TRLWE<Torus, N> rhs_ct = this->rlwe_runtime.encrypt(rhs);
 
     // ==================================
     // Act
@@ -140,7 +140,7 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     Poly<Torus, N> ref = negacyclic_convolution(mp, rhs);
 
     // compute actual result
-    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+    Poly<Torus, N> res = this->rlwe_runtime.decrypt(res_ct);
 
     Poly<Torus, N> err = ref - res;
     double norm = infinity_norm(err);

@@ -4,8 +4,8 @@
 #include <random>
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
@@ -40,12 +40,11 @@ class TlweEncryptionFixture : public ::testing::Test {
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
 
-  Executor<Cryptor<Lwe>, Tracking> exe_;
+  Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
 
   void SetUp() override {
     SecretHolder<Lwe> kr(eng_);
-    Cryptor<Lwe> cryptor(kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<Lwe>, Tracking>(cryptor);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -83,8 +82,8 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TLWE<Torus, n> res_ct = this->exe_.encrypt(this->pt_);
-  Torus res_pt = this->exe_.decrypt(res_ct);
+  TLWE<Torus, n> res_ct = this->lwe_runtime_.encrypt(this->pt_);
+  Torus res_pt = this->lwe_runtime_.decrypt(res_ct);
 
   // ----------------------------------
   Torus err = ref_pt - res_pt;

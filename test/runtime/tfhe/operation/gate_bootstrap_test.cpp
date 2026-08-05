@@ -7,8 +7,8 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/operation/evaluator.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -60,27 +60,22 @@ class GateBootstrapFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
-  TLWE<Torus, n> tlwe_rot_;
-
-  Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
-  Executor<Cryptor<Lwe>, Tracking> tlwe_exe_;
+  Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
 
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> glwe_kr(this->eng_);
-    Cryptor<ParamsPack<Rlwe, Dcp>> cryptor(glwe_kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(cryptor);
-
     SecretHolder<Lwe> lwe_kr(eng_);
-    Cryptor<Lwe> lwe_cryptor(lwe_kr.secret_ptr(), eng_);
-    tlwe_exe_ = Executor<Cryptor<Lwe>, Tracking>(lwe_cryptor);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(lwe_kr.secret_ptr(), eng_);
 
-    // Prepare TLWE
-    tlwe_rot_ = tlwe_exe_.encrypt(Torus(0u));
+    SecretHolder<Rlwe> rlwe_kr(this->eng_);
+    rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
+        rlwe_kr.secret_ptr(), eng_);
 
     // Prepare Bootstrapkey
-    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, lwe_kr);
+    BK_ = rlwe_runtime.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+        lwe_kr.secret());
   }
 };
 
@@ -130,6 +125,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
   using Dcp = typename TypeParam::context::dcp_params;
 
   using Torus = Lwe::torus_type;
+  constexpr uint32_t n = Lwe::n;
 
   using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
@@ -143,19 +139,19 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     Torus phase = tc.phase;
 
     // Prepare TLWE (constains phase)
-    this->tlwe_rot_.b() = static_cast<Torus>(this->tlwe_rot_.b()) + phase;
+    TLWE<Torus, n> tlwe_rot = this->lwe_runtime_.encrypt(Torus(0u));
+    tlwe_rot.b() = static_cast<Torus>(tlwe_rot.b()) + phase;
 
     // Prepare TestVector
-    Poly<rTorus, N> tv =
-        testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
-    TRLWE<rTorus, N> tv_ct = this->exe_.encrypt(tv);
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
 
     // ==================================
     // Act
     // ==================================
     TLWE<rTorus, N> res_ct =
         Evaluator<GateBootstrap<Lwe, Rlwe, Dcp>, Tracking>::exec(
-            mu, tv_ct, this->tlwe_rot_, this->BK_);
+            mu, tv, tlwe_rot, this->BK_);
 
     // ==================================
     // Assert
@@ -169,11 +165,11 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
       }
     }();
     ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
-    Poly<rTorus, N> rot = rotate(tv, (-p).value());
+    Poly<rTorus, N> rot = rotate(tv.b(), (-p).value());
     rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() >> 1u);
 
     // compute actual result
-    rTorus res = this->exe_.decrypt(res_ct);
+    rTorus res = this->rlwe_runtime.decrypt(res_ct);
 
     rTorus err = ref - res;
     double norm = infinity_norm(err);

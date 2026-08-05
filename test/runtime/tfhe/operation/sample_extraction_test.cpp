@@ -7,10 +7,9 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
-#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace sample_extraction_test {
@@ -53,18 +52,15 @@ class SampleExtractionFixture : public ::testing::Test {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Executor<Cryptor<Lwe>> tlwe_exe_;
-  Executor<Cryptor<Rlwe>> trlwe_exe_;
+  Runtime<Cryptor<Rlwe>> rlwe_runtime;
+  Runtime<Cryptor<Lwe>> lwe_runtime_;
 
   void SetUp() override {
     SecretHolder<Rlwe> glwe_kr(this->eng_);
+    rlwe_runtime = Runtime<Cryptor<Rlwe>>(glwe_kr.secret_ptr(), eng_);
+
     SecretHolder<Lwe> lwe_kr(glwe_kr.begin(), glwe_kr.end());
-
-    Cryptor<Lwe> tlwe_cryptor(lwe_kr.secret_ptr(), eng_);
-    Cryptor<Rlwe> trlwe_cryptor(glwe_kr.secret_ptr(), eng_);
-
-    tlwe_exe_ = Executor<Cryptor<Lwe>>(tlwe_cryptor);
-    trlwe_exe_ = Executor<Cryptor<Rlwe>>(trlwe_cryptor);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>>(lwe_kr.secret_ptr(), eng_);
   }
 };
 
@@ -130,7 +126,7 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
     size_t idx = tc.idx;
     Poly<rTorus, N> pt = tc.pt;
 
-    TRLWE<rTorus, N> pt_ct = this->trlwe_exe_.encrypt(pt);
+    TRLWE<rTorus, N> pt_ct = this->rlwe_runtime.encrypt(pt);
 
     // ==================================
     // Act
@@ -145,7 +141,7 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
     Torus ref = pt[idx];
 
     // compute actual result
-    Torus res = this->tlwe_exe_.decrypt(res_ct);
+    Torus res = this->lwe_runtime_.decrypt(res_ct);
 
     Torus err = res - ref;
     double norm = infinity_norm(err);

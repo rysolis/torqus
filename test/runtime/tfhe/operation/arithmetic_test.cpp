@@ -11,12 +11,12 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/sub.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
@@ -46,23 +46,22 @@ class ArithmeticFixture : public ::testing::Test {
  protected:
   using Rlwe = typename Ctx::context::rlwe_params;
 
-  using Torus = typename Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
   struct TestCase {
-    Poly<Torus, N> lhs;
-    Poly<Torus, N> rhs;
+    Poly<rTorus, N> lhs;
+    Poly<rTorus, N> rhs;
   };
 
-  Executor<Cryptor<Rlwe>, Tracking> exe_;
+  Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
-    Cryptor<Rlwe> cryptor(kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(kr.secret_ptr(), eng_);
   }
 
   [[nodiscard]] std::vector<TestCase> cases() {
@@ -71,19 +70,19 @@ class ArithmeticFixture : public ::testing::Test {
     {
       TestCase tc;
       for (size_t i = 0; i < N; ++i) {
-        tc.lhs = Poly<Torus, N>();
-        tc.rhs = Poly<Torus, N>();
+        tc.lhs = Poly<rTorus, N>();
+        tc.rhs = Poly<rTorus, N>();
       }
       cases.push_back(std::move(tc));  // all zeros
     }
     {
       TestCase tc;
-      tc.lhs[0] = Torus(1u);
-      tc.rhs[0] = Torus(Torus::raw_max());
+      tc.lhs[0] = rTorus(1u);
+      tc.rhs[0] = rTorus(rTorus::raw_max());
       cases.push_back(std::move(tc));
     }
     // Random cases
-    std::uniform_int_distribution<typename Torus::raw_value_type> dist;
+    std::uniform_int_distribution<typename rTorus::raw_value_type> dist;
     for (int k = 0; k < 2; ++k) {
       TestCase tc;
       randomize(tc.lhs, eng_);
@@ -99,34 +98,34 @@ TYPED_TEST_SUITE(ArithmeticFixture, arithmetic_executor_test::TestContexts);
 TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = typename Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
   for (const auto& tc : this->cases()) {
     // ==================================
     // Arrange
     // ==================================
-    Poly<Torus, N> lhs, rhs;
+    Poly<rTorus, N> lhs, rhs;
     lhs = tc.lhs;
     rhs = tc.rhs;
 
-    TRLWE<Torus, N> lhs_ct = this->exe_.encrypt(lhs);
-    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
+    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime_.encrypt(lhs);
+    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
     // ==================================
-    TRLWE<Torus, N> res_ct =
+    TRLWE<rTorus, N> res_ct =
         Evaluator<Add<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
-    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+    Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
 
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    Poly<Torus, N> ref = lhs + rhs;
+    Poly<rTorus, N> ref = lhs + rhs;
 
-    Poly<Torus, N> err = res - ref;
+    Poly<rTorus, N> err = res - ref;
     double norm = infinity_norm(err);
 
     std::cout << "\n=== Add Executor Test ===\n";
@@ -150,36 +149,36 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
 TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = typename Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
   for (const auto& tc : this->cases()) {
     // ==================================
     // Arrange
     // ==================================
-    Poly<Torus, N> lhs, rhs;
+    Poly<rTorus, N> lhs, rhs;
     lhs = tc.lhs;
     rhs = tc.rhs;
 
-    TRLWE<Torus, N> lhs_ct = this->exe_.encrypt(lhs);
-    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
+    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime_.encrypt(lhs);
+    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
     // ==================================
-    TRLWE<Torus, N> res_ct =
+    TRLWE<rTorus, N> res_ct =
         Evaluator<Sub<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
 
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    Poly<Torus, N> ref = lhs - rhs;
+    Poly<rTorus, N> ref = lhs - rhs;
 
     // compute actual result
-    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+    Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
 
-    Poly<Torus, N> err = ref - res;
+    Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
     std::cout << "\n=== Sub Executor Test ===\n";

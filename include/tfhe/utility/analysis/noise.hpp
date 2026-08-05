@@ -44,10 +44,10 @@ struct NoisePolicy<ExternalProduct<Rlwe, Dcp>> {
   static constexpr double ep = 1. / (B << (l + 1));
 
   template <typename Tracker, torus_type Torus>
-  static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& bk,
-                        const TRLWE<Torus, N>& in) {
-    return (2 * l * N * (B << 1) * tracker->get(bk)) +
-           ((1. / B) * (1 + N) * ep) + ((1. / B) * tracker->get(in));
+  static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& lhs,
+                        const TRLWE<Torus, N>& rhs) {
+    return (2 * l * N * (B << 1) * tracker->get(lhs)) +
+           ((1. / B) * (1 + N) * ep) + ((1. / B) * tracker->get(rhs));
   }
 };
 
@@ -62,11 +62,12 @@ struct NoisePolicy<CMux<Rlwe, Dcp>> {
   static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker, torus_type Torus>
-  static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& ml,
-                        const TRLWE<Torus, N>& cand0,
-                        const TRLWE<Torus, N>& cand1) {
-    return (2 * l * N * (B << 1) * tracker->get(ml)) + ((1 + N) * ep) +
-           (std::max(tracker->get(cand0), tracker->get(cand1)));
+  static double compute(const Tracker* tracker,
+                        const TRGSW<Torus, N, l>& selector,
+                        const TRLWE<Torus, N>& lhs,
+                        const TRLWE<Torus, N>& rhs) {
+    return (2 * l * N * (B << 1) * tracker->get(selector)) + ((1 + N) * ep) +
+           (std::max(tracker->get(lhs), tracker->get(rhs)));
   }
 };
 
@@ -84,12 +85,12 @@ struct NoisePolicy<BlindRotate<Lwe, Rlwe, Dcp>> {
   static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
-  static double compute(const Tracker* tracker, const TRLWE<Torus, N>& tv,
+  static double compute(const Tracker*, const TRLWE<Torus, N>&,
                         const Vector<ModInt<M>, n + 1>&,
                         const BootstrapKey<Torus, N, l, n>& bk) {
-    double bound = tracker->get(tv);
-    bound +=
-        (n * 2 * l * N * (B << 1) * tracker->get(bk[0])) + (n * (1 + N) * ep);
+    double bound = 0.;  // assume that ||Err(tv)|| = 0
+    bound += (n * 2 * l * N * (B << 1) * get_key_noise_tracker_if()->get(bk)) +
+             (n * (1 + N) * ep);
     return bound;
   }
 };
@@ -108,11 +109,12 @@ struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Dcp>> {
   static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
-  static double compute(const Tracker* tracker, const rTorus,
-                        const TRLWE<rTorus, N>&, const TLWE<Torus, n>&,
+  static double compute(const Tracker*, const rTorus, const TRLWE<rTorus, N>&,
+                        const TLWE<Torus, n>&,
                         const BootstrapKey<rTorus, N, l, n>& bk) {
     double bound =
-        n * 2 * l * N * (B << 1) * tracker->get(bk[0]) + (n * (1 + N) * ep);
+        n * 2 * l * N * (B << 1) * get_key_noise_tracker_if()->get(bk) +
+        (n * (1 + N) * ep);
     return bound;
   }
 };
@@ -129,7 +131,8 @@ struct NoisePolicy<KeySwitch<Src, Dst, Kst>> {
   template <typename Tracker>
   static double compute(const Tracker* tracker, const TLWE<Torus, N>& src,
                         const KeySwitchKey<Torus, n, t, N>& ksk) {
-    double bound = tracker->get(src) + (N * t * tracker->get(ksk[0][0])) +
+    double bound = tracker->get(src) +
+                   (N * t * get_key_noise_tracker_if()->get(ksk[0][0])) +
                    N / std::pow(2., t + 1);
     return bound;
   }

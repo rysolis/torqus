@@ -5,10 +5,10 @@
 #include <random>
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -23,8 +23,8 @@ struct TestConfig {
 
 template <typename SrcLwe, typename DstLwe, typename Kst>
 struct ParameterSet {
-  using src_params = SrcLwe;
-  using dst_params = DstLwe;
+  using src_lwe_runtime_params = SrcLwe;
+  using dst_lwe_runtime_params = DstLwe;
   using kst_params = Kst;
 };
 
@@ -47,8 +47,8 @@ class KeySwitchFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{1};
 
-  using SrcLwe = Ctx::src_params;
-  using DstLwe = Ctx::dst_params;
+  using SrcLwe = Ctx::src_lwe_runtime_params;
+  using DstLwe = Ctx::dst_lwe_runtime_params;
   using Kst = Ctx::kst_params;
 
   using rTorus = SrcLwe::torus_type;
@@ -60,28 +60,24 @@ class KeySwitchFixture : public ::testing::Test {
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
 
-  Executor<Cryptor<SrcLwe>, Tracking> src_exe_;
-  Executor<Cryptor<DstLwe>, Tracking> dst_exe_;
+  Runtime<Cryptor<SrcLwe>, Tracking> src_lwe_runtime_;
 
-  TLWE<rTorus, N> src_tlwe_;
-
+  Runtime<Cryptor<DstLwe>, Tracking> dst_lwe_runtime_;
   KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
     SecretHolder<SrcLwe> src_kr(eng_);
+    src_lwe_runtime_ =
+        Runtime<Cryptor<SrcLwe>, Tracking>(src_kr.secret_ptr(), eng_);
+
     SecretHolder<DstLwe> dst_kr(eng_);
-
-    Cryptor<SrcLwe> src_cryptor(src_kr.secret_ptr(), eng_);
-    Cryptor<DstLwe> dst_cryptor(dst_kr.secret_ptr(), eng_);
-
-    src_exe_ = Executor<Cryptor<SrcLwe>, Tracking>(src_cryptor);
-    dst_exe_ = Executor<Cryptor<DstLwe>, Tracking>(dst_cryptor);
-
-    // prepare source tlwe
-    src_tlwe_ = src_exe_.encrypt(Torus(0u));
+    dst_lwe_runtime_ =
+        Runtime<Cryptor<DstLwe>, Tracking>(dst_kr.secret_ptr(), eng_);
 
     // Prepare Key Switch Key
-    KSK_ = keyswitch_key::generate<SrcLwe, DstLwe, Kst>(dst_exe_, src_kr);
+    KSK_ =
+        dst_lwe_runtime_.template generate_key_switch_key<SrcLwe, DstLwe, Kst>(
+            src_kr.secret());
   }
 };
 
@@ -114,13 +110,14 @@ class KeySwitchCorrectnessTest
 
 TYPED_TEST_SUITE(KeySwitchCorrectnessTest, key_switch_test::TestContexts);
 
-TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
+TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
   using params = TypeParam::context;
-  using SrcLwe = typename params::src_params;
-  using DstLwe = typename params::dst_params;
+  using SrcLwe = typename params::src_lwe_runtime_params;
+  using DstLwe = typename params::dst_lwe_runtime_params;
   using Kst = typename params::kst_params;
 
   using rTorus = SrcLwe::torus_type;
+  constexpr uint32_t N = SrcLwe::n;
 
   using Torus = DstLwe::torus_type;
   constexpr uint32_t n = DstLwe::n;
@@ -132,14 +129,15 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
     rTorus pt = tc.pt;
 
     // Prepare source TLWE (contains pt)
-    this->src_tlwe_.b() = static_cast<rTorus>(this->src_tlwe_.b()) + pt;
+    TLWE<rTorus, N> tlwe = this->src_lwe_runtime_.encrypt(Torus(0u));
+    tlwe.b() = static_cast<rTorus>(tlwe.b()) + pt;
 
     // // ==================================
     // // Act
     // // ==================================
     TLWE<Torus, n> res_ct =
-        Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(
-            this->src_tlwe_, this->KSK_);
+        Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(tlwe,
+                                                                  this->KSK_);
 
     // ==================================
     // Assert
@@ -148,7 +146,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VefiryCorrectness) {
     Torus ref = Torus(static_cast<rTorus::raw_value_type>(pt));
 
     // compute actual result
-    Torus res = this->dst_exe_.decrypt(res_ct);
+    Torus res = this->dst_lwe_runtime_.decrypt(res_ct);
 
     Torus error = ref - res;
     double norm = infinity_norm(error);

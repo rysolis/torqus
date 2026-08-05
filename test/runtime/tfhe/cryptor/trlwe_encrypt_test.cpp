@@ -7,9 +7,9 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
@@ -43,12 +43,11 @@ class TrlweEncryptionFixture : public ::testing::Test {
   using Torus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Executor<Cryptor<Rlwe>, Tracking> exe_;
+  Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
-    Cryptor<Rlwe> cryptor(kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(kr.secret_ptr(), eng_);
   }
 };
 
@@ -84,8 +83,8 @@ TYPED_TEST(TrlweEncryptionTest, VerifyCorrectness) {
   // ==================================
   // TEST LOGIC
   // ==================================
-  TRLWE<Torus, N> res_ct = this->exe_.encrypt(this->pt_);
-  Poly<Torus, N> res_pt = this->exe_.decrypt(res_ct);
+  TRLWE<Torus, N> res_ct = this->rlwe_runtime_.encrypt(this->pt_);
+  Poly<Torus, N> res_pt = this->rlwe_runtime_.decrypt(res_ct);
 
   // ----------------------------------
   Poly<Torus, N> err = ref_pt - res_pt;

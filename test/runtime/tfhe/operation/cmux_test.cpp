@@ -12,10 +12,10 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -52,16 +52,16 @@ class CMuxFixture : public ::testing::Test {
   using Rlwe = typename Ctx::context::rlwe_params;
   using Dcp = typename Ctx::context::dcp_params;
 
-  using Torus = typename Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t l = Dcp::l;
 
-  Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> exe_;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr_(this->eng_);
-    Cryptor<ParamsPack<Rlwe, Dcp>> cryptor(kr_.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(cryptor);
+    rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
+        kr_.secret_ptr(), eng_);
   }
 };
 
@@ -72,15 +72,15 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
 
   using typename Base::Dcp;
   using typename Base::Rlwe;
-  using typename Base::Torus;
+  using typename Base::rTorus;
 
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
   struct TestCase {
     UInt selector;
-    Poly<Torus, N> lhs;
-    Poly<Torus, N> rhs;
+    Poly<rTorus, N> lhs;
+    Poly<rTorus, N> rhs;
   };
 
   void SetUp() override { Base::SetUp(); }
@@ -111,7 +111,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Dcp = typename TypeParam::context::dcp_params;
 
-  using Torus = typename Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t l = Dcp::l;
 
@@ -120,27 +120,27 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
     // Arrange
     // ==================================
     UInt selector = tc.selector;
-    Poly<Torus, N> lhs = tc.lhs;
-    Poly<Torus, N> rhs = tc.rhs;
+    Poly<rTorus, N> lhs = tc.lhs;
+    Poly<rTorus, N> rhs = tc.rhs;
 
     Poly<UInt, N> sl;
     sl[0] = selector;
-    TRGSW<Torus, N, l> selector_ct = this->exe_.encrypt(sl);
+    TRGSW<rTorus, N, l> selector_ct = this->rlwe_runtime.encrypt(sl);
 
-    TRLWE<Torus, N> lhs_ct = this->exe_.encrypt(lhs);
-    TRLWE<Torus, N> rhs_ct = this->exe_.encrypt(rhs);
+    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime.encrypt(lhs);
+    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime.encrypt(rhs);
 
     // ==================================
     // Act
     // ==================================
-    TRLWE<Torus, N> res_ct =
+    TRLWE<rTorus, N> res_ct =
         Evaluator<CMux<Rlwe, Dcp>, Tracking>::exec(selector_ct, lhs_ct, rhs_ct);
 
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    Poly<Torus, N> ref = [selector, &lhs, &rhs] {
+    Poly<rTorus, N> ref = [selector, &lhs, &rhs] {
       if (selector == UInt(0)) {
         return lhs;
       } else {
@@ -149,9 +149,9 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
     }();
 
     // compute actual result
-    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+    Poly<rTorus, N> res = this->rlwe_runtime.decrypt(res_ct);
 
-    Poly<Torus, N> err = ref - res;
+    Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
     std::cout << "\n=== CMux Test ===\n";

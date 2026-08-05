@@ -18,9 +18,9 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
-#include "tfhe/executor.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/secret_holder.hpp"
@@ -65,27 +65,29 @@ class BlindRotateFixture : public ::testing::Test {
 
   static constexpr uint32_t n = Lwe::n;
 
-  using Torus = Rlwe::torus_type;
+  using rTorus = Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
   static constexpr uint32_t l = Dcp::l;
 
-  Executor<Cryptor<Rlwe>, Tracking> exe_;
+  Runtime<Cryptor<Rlwe>> rlwe_runtime_;
 
-  BootstrapKey<Torus, N, l, n> BK_;
+  BootstrapKey<rTorus, N, l, n> BK_;
   Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> glwe_kr(this->eng_);
-    Cryptor<Rlwe> cryptor(glwe_kr.secret_ptr(), eng_);
-    exe_ = Executor<Cryptor<Rlwe>, Tracking>(cryptor);
+    SecretHolder<Rlwe> rlwe_kr(this->eng_);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(rlwe_kr.secret_ptr(), eng_);
 
-    // Prepare SecretHolder
     SecretHolder<Lwe> lwe_kr(eng_);
 
     // Prepare Bootstrapkey
-    BK_ = bootstrap_key::generate<Lwe, Rlwe, Dcp>(exe_, lwe_kr);
+    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+        lwe_kr.secret());
+
+    double bound = 0.0;  // TODO: use parameters to compute
+    get_key_noise_tracker_if()->update(BK_, bound);
 
     // Prepare Vector<ModInt<M>, n + 1> phase_ct;
     randomize(phase_ct_, this->eng_);
@@ -106,14 +108,14 @@ class BlindRotateCorrectnessTest
  protected:
   using Base = BlindRotateFixture<typename Config::context>;
 
-  using Torus = Base::Torus;
+  using rTorus = Base::rTorus;
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
   static constexpr uint32_t M = 2 * N;
 
   struct TestCase {
-    Torus mu = Torus(1u, 2u);  // encode 1/2 in Torus
+    rTorus mu = rTorus(1u, 2u);  // encode 1/2 in rTorus
     ModInt<M> phase;
   };
 
@@ -154,8 +156,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
 
   constexpr uint32_t n = Lwe::n;
 
-  using Torus = Rlwe::torus_type;
-
+  using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
@@ -163,7 +164,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Arrange
     // ==================================
-    Torus mu = tc.mu;
+    rTorus mu = tc.mu;
     ModInt<M> phase = tc.phase;
 
     // Prepare Vector<ModInt<M>, n+1> (contains phase)
@@ -171,25 +172,25 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     phase_ct[n] = static_cast<ModInt<M>>(phase_ct[n]) + phase;
 
     // Prepare TestVector
-    Poly<Torus, N> tv = testvector::generate<Torus, N>(Torus(mu.value() >> 1));
-    TRLWE<Torus, N> tv_ct = this->exe_.encrypt(tv);
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
 
     // ==================================
     // Act
     // ==================================
-    TRLWE<Torus, N> res_ct =
-        Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(tv_ct, phase_ct,
+    TRLWE<rTorus, N> res_ct =
+        Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(tv, phase_ct,
                                                                this->BK_);
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    Poly<Torus, N> ref = rotate(tv, (-phase).value());
+    Poly<rTorus, N> ref = rotate(tv.b(), (-phase).value());
 
     // compute actual result
-    Poly<Torus, N> res = this->exe_.decrypt(res_ct);
+    Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
 
-    Poly<Torus, N> err = ref - res;
+    Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
     std::cout << "\n========================================\n";
@@ -198,7 +199,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
 
     if (TypeParam::verbose) {
       std::cout << std::left;
-      std::cout << std::setw(14) << "tv" << ": " << tv << '\n';
+      std::cout << std::setw(14) << "tv" << ": " << tv.b() << '\n';
       std::cout << std::setw(14) << "expected" << ": " << ref << '\n';
       std::cout << std::setw(14) << "actual" << ": " << res << '\n';
     }
