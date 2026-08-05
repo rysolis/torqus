@@ -8,8 +8,11 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
+template <typename params>
+class Add;
+
 template <trlwe_concept params>
-class Add {
+class Add<params> {
  public:
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
@@ -24,6 +27,18 @@ class Add {
 
   static TLWE<Torus, N> exec_impl(TLWE<Torus, N> lhs,
                                   const TLWE<Torus, N>& rhs) {
+    return lhs += rhs;
+  }
+};
+
+template <tlwe_concept params>
+class Add<params> {
+ public:
+  using Torus = typename params::torus_type;
+  static constexpr uint32_t n = params::n;
+
+  static TLWE<Torus, n> exec_impl(TLWE<Torus, n> lhs,
+                                  const TLWE<Torus, n>& rhs) {
     return lhs += rhs;
   }
 };

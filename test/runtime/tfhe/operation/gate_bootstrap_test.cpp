@@ -69,7 +69,7 @@ class GateBootstrapFixture : public ::testing::Test {
     SecretHolder<Lwe> lwe_kr(eng_);
     lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(lwe_kr.secret_ptr(), eng_);
 
-    SecretHolder<Rlwe> rlwe_kr(this->eng_);
+    SecretHolder<Rlwe> rlwe_kr(eng_);
     rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
         rlwe_kr.secret_ptr(), eng_);
 

@@ -7,8 +7,11 @@
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
+template <typename params>
+class Sub;
+
 template <trlwe_concept params>
-class Sub {
+class Sub<params> {
  public:
   using Torus = typename params::torus_type;
   static constexpr uint32_t N = params::N;
@@ -18,6 +21,18 @@ class Sub {
   // forwarded again to tracking::update().
   static TRLWE<Torus, N> exec_impl(TRLWE<Torus, N> lhs,
                                    const TRLWE<Torus, N>& rhs) {
+    return lhs -= rhs;
+  }
+};
+
+template <tlwe_concept params>
+class Sub<params> {
+ public:
+  using Torus = typename params::torus_type;
+  static constexpr uint32_t n = params::n;
+
+  static TLWE<Torus, n> exec_impl(TLWE<Torus, n> lhs,
+                                  const TLWE<Torus, n>& rhs) {
     return lhs -= rhs;
   }
 };
