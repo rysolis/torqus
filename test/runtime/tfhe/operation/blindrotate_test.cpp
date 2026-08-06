@@ -121,29 +121,11 @@ class BlindRotateCorrectnessTest
 
   void SetUp() override { Base::SetUp(); }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.phase = ModInt<M>(0);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.phase = ModInt<M>(1);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.phase = ModInt<M>(M - 1);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.phase = ModInt<M>(M / 2);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.phase = ModInt<M>(0)},
+            {.phase = ModInt<M>(1)},
+            {.phase = ModInt<M>(M - 1)},
+            {.phase = ModInt<M>(M / 2)}};
   }
 };
 
@@ -160,7 +142,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================

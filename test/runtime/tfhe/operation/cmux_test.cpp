@@ -77,31 +77,14 @@ class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
-  struct TestCase {
-    UInt selector;
-    Poly<rTorus, N> lhs;
-    Poly<rTorus, N> rhs;
-  };
-
   void SetUp() override { Base::SetUp(); }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.selector = UInt(0);
-      randomize(tc.lhs, this->eng_);
-      randomize(tc.rhs, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.selector = UInt(1);
-      randomize(tc.lhs, this->eng_);
-      randomize(tc.rhs, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  struct TestCase {
+    UInt selector;
+  };
+
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.selector = UInt(0)}, {.selector = UInt(1)}};
   }
 };
 
@@ -115,13 +98,17 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t l = Dcp::l;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
     UInt selector = tc.selector;
-    Poly<rTorus, N> lhs = tc.lhs;
-    Poly<rTorus, N> rhs = tc.rhs;
+
+    Poly<rTorus, N> lhs;
+    randomize(lhs, this->eng_);
+
+    Poly<rTorus, N> rhs;
+    randomize(rhs, this->eng_);
 
     Poly<UInt, N> sl;
     sl[0] = selector;

@@ -49,47 +49,24 @@ class ArithmeticFixture : public ::testing::Test {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  struct TestCase {
-    Poly<rTorus, N> lhs;
-    Poly<rTorus, N> rhs;
-  };
-
-  Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
-
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
+  Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
     SecretHolder<Rlwe> kr(eng_);
     rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(kr.secret_ptr(), eng_);
   }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    // Fixed corner cases
-    {
-      TestCase tc;
-      for (size_t i = 0; i < N; ++i) {
-        tc.lhs = Poly<rTorus, N>();
-        tc.rhs = Poly<rTorus, N>();
-      }
-      cases.push_back(std::move(tc));  // all zeros
-    }
-    {
-      TestCase tc;
-      tc.lhs[0] = rTorus(1u);
-      tc.rhs[0] = rTorus(rTorus::raw_max());
-      cases.push_back(std::move(tc));
-    }
-    // Random cases
-    std::uniform_int_distribution<typename rTorus::raw_value_type> dist;
-    for (int k = 0; k < 2; ++k) {
-      TestCase tc;
-      randomize(tc.lhs, eng_);
-      randomize(tc.rhs, eng_);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  struct TestCase {
+    Poly<rTorus, N> lhs;
+    Poly<rTorus, N> rhs;
+  };
+
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.lhs = Poly<rTorus, N>(), .rhs = Poly<rTorus, N>()},
+            {.lhs = Poly<rTorus, N>([] { return rTorus(1); }),
+             .rhs = Poly<rTorus, N>([] { return rTorus(rTorus::raw_max()); })}};
   }
 };
 
@@ -101,7 +78,9 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  for (const auto& tc : this->cases()) {
+  std::uniform_int_distribution<typename rTorus::raw_value_type> dist;
+
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
@@ -152,7 +131,7 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================

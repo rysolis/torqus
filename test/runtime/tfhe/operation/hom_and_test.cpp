@@ -91,30 +91,10 @@ class HomAndCorrectnessTest : public HomAndFixture<typename Config::context> {
     rTorus ref;
   };
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.lhs = Torus(1u, 4u);   // encode 1/4 in Torus
-      tc.rhs = Torus(1u, 4u);   // encode 1/4 in Torus
-      tc.ref = rTorus(1u, 4u);  // encode 1/4 in Torus
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = Torus(0u);
-      tc.rhs = Torus(1u, 4u);  // encode 1/4 in Torus
-      tc.ref = rTorus(0u);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = Torus(0u);
-      tc.rhs = Torus(0u);
-      tc.ref = rTorus(0u);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.lhs = Torus(1u, 4u), .rhs = Torus(1u, 4u), .ref = rTorus(1u, 4u)},
+            {.lhs = Torus(0u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
+            {.lhs = Torus(0u), .rhs = Torus(0u), .ref = rTorus(0u)}};
   }
 };
 
@@ -131,7 +111,7 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
   using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
@@ -193,37 +173,11 @@ class HomAndNotCorrectnessTest
     rTorus ref;
   };
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.lhs = Torus(1u, 4u);  // encode 1/4 in Torus
-      tc.rhs = Torus(1u, 4u);  // encode 1/4 in Torus
-      tc.ref = rTorus(0u);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = Torus(0u);
-      tc.rhs = Torus(1u, 4u);  // encode 1/4 in Torus
-      tc.ref = rTorus(0u);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = Torus(1u, 4u);  // encode 1/4 in Torus
-      tc.rhs = Torus(0u);
-      tc.ref = rTorus(1u, 4u);  // encode 1/4 in Torus
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = Torus(0u);
-      tc.rhs = Torus(0u);
-      tc.ref = rTorus(0);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.lhs = Torus(1u, 4u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
+            {.lhs = Torus(0u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
+            {.lhs = Torus(1u, 4u), .rhs = Torus(0u), .ref = rTorus(1u, 4u)},
+            {.lhs = Torus(0u), .rhs = Torus(0u), .ref = rTorus(0)}};
   }
 };
 
@@ -240,7 +194,7 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
   using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================

@@ -76,28 +76,14 @@ class ExternalProductCorrectnessTest : public ExternalProductFixture<Ctx> {
   static constexpr uint32_t N = Base::N;
   static constexpr uint32_t l = Base::l;
 
-  struct TestCase {
-    UInt lhs;
-    Poly<Torus, N> rhs;
-  };
-
   void SetUp() override { Base::SetUp(); }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.lhs = UInt(0);
-      randomize(tc.rhs, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.lhs = UInt(1);
-      randomize(tc.rhs, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  struct TestCase {
+    UInt lhs;
+  };
+
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.lhs = UInt(0)}, {.lhs = UInt(1)}};
   }
 };
 
@@ -113,12 +99,14 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
 
   static constexpr uint32_t l = Dcp::l;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
     UInt lhs = tc.lhs;
-    Poly<Torus, N> rhs = tc.rhs;
+
+    Poly<Torus, N> rhs;
+    randomize(rhs, this->eng_);
 
     // mp means multiplier
     Poly<UInt, N> mp;

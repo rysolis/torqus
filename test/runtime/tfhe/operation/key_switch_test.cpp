@@ -92,19 +92,8 @@ class KeySwitchCorrectnessTest
     rTorus pt;
   };
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.pt = rTorus(0u);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.pt = rTorus(1u);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.pt = rTorus(0u)}, {.pt = rTorus(1u)}};
   }
 };
 
@@ -122,7 +111,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
   using Torus = DstLwe::torus_type;
   constexpr uint32_t n = DstLwe::n;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // // ==================================
     // // Arrange
     // // ==================================

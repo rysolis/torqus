@@ -100,19 +100,8 @@ class GateBootstrapCorrectnessTest
 
   void SetUp() override { Base::SetUp(); }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.phase = Torus(0u);  // encode 0 in Torus
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.phase = Torus(1u, 2u);  // encode 1/2 in Torus
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.phase = Torus(0u)}, {.phase = Torus(1u, 2u)}};
   }
 };
 
@@ -131,7 +120,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================

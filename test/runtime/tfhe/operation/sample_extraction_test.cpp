@@ -73,34 +73,14 @@ class SampleExtractionCorrectnessTest
   using rTorus = typename Base::rTorus;
   static constexpr uint32_t N = Base::N;
 
-  struct TestCase {
-    size_t idx = 0;
-    Poly<rTorus, N> pt;
-  };
-
   void SetUp() override { Base::SetUp(); }
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    std::vector<TestCase> cases;
-    {
-      TestCase tc;
-      tc.idx = 0;
-      randomize(tc.pt, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.idx = N / 2;
-      randomize(tc.pt, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    {
-      TestCase tc;
-      tc.idx = N - 1;
-      randomize(tc.pt, this->eng_);
-      cases.push_back(std::move(tc));
-    }
-    return cases;
+  struct TestCase {
+    size_t idx = 0;
+  };
+
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.idx = 0}, {.idx = N / 2}, {.idx = N - 1}};
   }
 };
 
@@ -119,12 +99,14 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
 
   static_assert(n == N, "n and N must be equal for this test");
 
-  for (const auto& tc : this->cases()) {
+  for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
     size_t idx = tc.idx;
-    Poly<rTorus, N> pt = tc.pt;
+
+    Poly<rTorus, N> pt;
+    randomize(pt, this->eng_);
 
     TRLWE<rTorus, N> pt_ct = this->rlwe_runtime.encrypt(pt);
 
