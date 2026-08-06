@@ -145,7 +145,7 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
 
     std::cout << std::left;
     std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
-    std::cout << std::setw(14) << "rhs" << ": " << lhs << "\n";
+    std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
     std::cout << std::setw(14) << "expected" << ": " << ref << " ("
               << double(ref) << ")\n";
     std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
@@ -228,7 +228,7 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
 
     std::cout << std::left;
     std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
-    std::cout << std::setw(14) << "rhs" << ": " << lhs << "\n";
+    std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
     std::cout << std::setw(14) << "expected" << ": " << ref << " ("
               << double(ref) << ")\n";
     std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
