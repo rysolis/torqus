@@ -28,9 +28,9 @@
 
 namespace blindrotate_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -41,35 +41,37 @@ struct ParameterSet {
   using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
-                          rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                          dcp_params<4, 3>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
+                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                              dcp_params<4, 3>>;
 
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<void, 20>>,
-                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                          dcp_params<256, 2>>;
+using Context2 =
+    ParameterSet<lwe_params<tlwe_core_params<void, 20>>,
+                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                 dcp_params<256, 2>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace blindrotate_test
 
-template <typename Ctx>
+template <typename Context>
 class BlindRotateFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{10};
-  using Lwe = Ctx::lwe_params;
-  using Rlwe = Ctx::rlwe_params;
-  using Dcp = Ctx::dcp_params;
+  using Lwe = typename Context::lwe_params;
+  using Rlwe = typename Context::rlwe_params;
+  using Dcp = typename Context::dcp_params;
 
   static constexpr uint32_t n = Lwe::n;
 
-  using rTorus = Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
   static constexpr uint32_t l = Dcp::l;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{10};
 
   Runtime<Cryptor<Rlwe>> rlwe_runtime_;
 
@@ -108,18 +110,13 @@ class BlindRotateCorrectnessTest
  protected:
   using Base = BlindRotateFixture<typename Config::context>;
 
-  using rTorus = Base::rTorus;
-  static constexpr uint32_t N = Base::N;
-  static constexpr uint32_t l = Base::l;
-
-  static constexpr uint32_t M = 2 * N;
+  using rTorus = typename Base::rTorus;
+  static constexpr uint32_t M = Base::M;
 
   struct TestCase {
     rTorus mu = rTorus(1u, 2u);  // encode 1/2 in rTorus
     ModInt<M> phase;
   };
-
-  void SetUp() override { Base::SetUp(); }
 
   [[nodiscard]] static std::vector<TestCase> cases() {
     return {{.phase = ModInt<M>(0)},
@@ -138,7 +135,7 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
 
   constexpr uint32_t n = Lwe::n;
 
-  using rTorus = Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 

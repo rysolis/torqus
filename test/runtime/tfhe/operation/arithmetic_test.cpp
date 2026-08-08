@@ -22,9 +22,9 @@
 
 namespace arithmetic_executor_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -33,24 +33,26 @@ struct ParameterSet {
   using rlwe_params = Rlwe;
 };
 
-using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
-using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
+using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
+using Context2 =
+    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace arithmetic_executor_test
 
-template <typename Ctx>
+template <typename Context>
 class ArithmeticFixture : public ::testing::Test {
  protected:
-  using Rlwe = typename Ctx::context::rlwe_params;
+  using Rlwe = typename Context::context::rlwe_params;
 
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
+
   Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
@@ -63,10 +65,12 @@ class ArithmeticFixture : public ::testing::Test {
     Poly<rTorus, N> rhs;
   };
 
-  [[nodiscard]] static std::vector<TestCase> cases() {
+  [[nodiscard]] std::vector<TestCase> cases() {
     return {{.lhs = Poly<rTorus, N>(), .rhs = Poly<rTorus, N>()},
             {.lhs = Poly<rTorus, N>([] { return rTorus(1); }),
-             .rhs = Poly<rTorus, N>([] { return rTorus(rTorus::raw_max()); })}};
+             .rhs = Poly<rTorus, N>([] { return rTorus::raw_max(); })},
+            {.lhs = randomize<Poly<rTorus, N>>(this->eng_),
+             .rhs = randomize<Poly<rTorus, N>>(this->eng_)}};
   }
 };
 
@@ -77,8 +81,6 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
 
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
-
-  std::uniform_int_distribution<typename rTorus::raw_value_type> dist;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================

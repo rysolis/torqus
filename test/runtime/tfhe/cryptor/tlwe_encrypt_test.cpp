@@ -11,9 +11,9 @@
 
 namespace tlwe_encrypt_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -22,23 +22,24 @@ struct ParameterSet {
   using lwe_params = Lwe;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>>;
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 600>>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>>;
+using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 600>>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2>>;
 
 }  // namespace tlwe_encrypt_test
 
-template <typename Ctx>
+template <typename Context>
 class TlweEncryptionFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
-  using Lwe = typename Ctx::context::lwe_params;
+  using Lwe = typename Context::lwe_params;
 
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{0};
 
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
 
@@ -48,21 +49,22 @@ class TlweEncryptionFixture : public ::testing::Test {
   }
 };
 
-template <typename Ctx>
-class TlweEncryptionTest : public TlweEncryptionFixture<Ctx> {
+template <typename Config>
+class TlweEncryptionTest
+    : public TlweEncryptionFixture<typename Config::context> {
  protected:
-  using Base = TlweEncryptionFixture<Ctx>;
+  using Base = TlweEncryptionFixture<typename Config::context>;
 
-  using typename Base::Lwe;
-  using typename Base::Torus;
+  using Torus = typename Base::Torus;
 
-  static constexpr uint32_t n = Base::n;
+  struct TestCase {
+    Torus pt;
+  };
 
-  Torus pt_;
-
-  void SetUp() override {
-    Base::SetUp();
-    pt_ = Torus(10);
+  [[nodiscard]] std::vector<TestCase> cases() {
+    return {{.pt = Torus(10u)},
+            {.pt = Torus(Torus::raw_max())},
+            {.pt = random_value<Torus>(this->eng_)}};
   }
 };
 
@@ -74,29 +76,38 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
   using Torus = typename Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
 
-  // ==================================
-  // Reference
-  // ==================================
-  Torus ref_pt = this->pt_;
+  for (const auto& tc : TestFixture::cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    Torus pt = tc.pt;
 
-  // ==================================
-  // TEST LOGIC
-  // ==================================
-  TLWE<Torus, n> res_ct = this->lwe_runtime_.encrypt(this->pt_);
-  Torus res_pt = this->lwe_runtime_.decrypt(res_ct);
+    // ==================================
+    // Act
+    // ==================================
+    TLWE<Torus, n> res_ct = this->lwe_runtime_.encrypt(pt);
 
-  // ----------------------------------
-  Torus err = ref_pt - res_pt;
-  double norm = infinity_norm(err);
+    // ==================================
+    // Assert
+    // ==================================
+    // compute reference result
+    Torus ref = pt;
 
-  std::cout << "\n=== TLWE Encryption Test ===\n";
-  if (TypeParam::verbose) {
-    std::cout << "expected :  " << ref_pt << "\n";
-    std::cout << "decrypted:  " << res_pt << "\n";
+    // compute actual result
+    Torus res = this->lwe_runtime_.decrypt(res_ct);
+
+    Torus err = ref - res;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n=== TLWE Encryption Test ===\n";
+    if (TypeParam::verbose) {
+      std::cout << "expected :  " << ref << "\n";
+      std::cout << "decrypted:  " << res << "\n";
+    }
+    std::cout << "infinity_norm: " << norm << "\n";
+    // std::cout << "error_bound  : " << sut.error_bound() << "\n";
+    std::cout << "===============================\n\n";
+
+    EXPECT_EQ(norm, 0);
   }
-  std::cout << "infinity_norm: " << norm << "\n";
-  // std::cout << "error_bound  : " << sut.error_bound() << "\n";
-  std::cout << "===============================\n\n";
-
-  EXPECT_EQ(norm, 0);
 }

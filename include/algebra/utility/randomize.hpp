@@ -28,14 +28,25 @@ struct default_distribution<ModInt<P>> {
 template <typename T>
 using default_distribution_t = typename default_distribution<T>::type;
 
+template <typename T, typename Engine>
+inline T random_value(Engine& eng) {
+  default_distribution_t<T> dist(T::raw_min(), T::raw_max());
+  return static_cast<T>(dist(eng));
+}
+
 template <typename Container, typename Engine>
 inline void randomize(Container& ctn, Engine& eng) {
   using value_type = typename Container::value_type;
-  default_distribution_t<value_type> dist(value_type::raw_min(),
-                                          value_type::raw_max());
   for (size_t i = 0; i < ctn.size(); ++i) {
-    ctn[i] = static_cast<value_type>(dist(eng));
+    ctn[i] = random_value<value_type>(eng);
   }
+}
+
+template <typename Container, typename Engine>
+inline Container randomize(Engine& eng) {
+  Container ctn;
+  randomize(ctn, eng);
+  return ctn;
 }
 
 #endif  // UTILITY_RANDOMIZE_HPP

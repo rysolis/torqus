@@ -13,9 +13,9 @@
 #include "tfhe/utility/secret_holder.hpp"
 
 namespace hom_and_test {
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -26,35 +26,37 @@ struct ParameterSet {
   using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
-                          rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                          dcp_params<4, 3>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
+                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                              dcp_params<4, 3>>;
 
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
-                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                          dcp_params<256, 2>>;
+using Context2 =
+    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
+                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                 dcp_params<256, 2>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 }  // namespace hom_and_test
 
-template <typename Ctx>
+template <typename Context>
 class HomAndFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{10};
-  using Lwe = Ctx::lwe_params;
-  using Rlwe = Ctx::rlwe_params;
-  using Dcp = Ctx::dcp_params;
+  using Lwe = Context::lwe_params;
+  using Rlwe = Context::rlwe_params;
+  using Dcp = Context::dcp_params;
 
   static constexpr uint32_t n = Lwe::n;
 
-  using Torus = Lwe::torus_type;
-  using rTorus = Rlwe::torus_type;
+  using Torus = typename Lwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
   static constexpr uint32_t l = Dcp::l;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{0};
 
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
@@ -80,10 +82,8 @@ class HomAndCorrectnessTest : public HomAndFixture<typename Config::context> {
  protected:
   using Base = HomAndFixture<typename Config::context>;
 
-  using Torus = Base::Torus;
-  using rTorus = Base::rTorus;
-
-  void SetUp() override { Base::SetUp(); }
+  using Torus = typename Base::Torus;
+  using rTorus = typename Base::rTorus;
 
   struct TestCase {
     Torus lhs;
@@ -105,10 +105,10 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Dcp = typename TypeParam::context::dcp_params;
 
-  using Torus = Lwe::torus_type;
+  using Torus = typename Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
 
-  using rTorus = Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
   for (const auto& tc : TestFixture::cases()) {
@@ -164,8 +164,6 @@ class HomAndNotCorrectnessTest
 
   using Torus = Base::Torus;
   using rTorus = Base::rTorus;
-
-  void SetUp() override { Base::SetUp(); }
 
   struct TestCase {
     Torus lhs;

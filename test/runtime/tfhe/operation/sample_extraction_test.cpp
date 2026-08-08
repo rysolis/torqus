@@ -14,9 +14,9 @@
 
 namespace sample_extraction_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -26,31 +26,32 @@ struct ParameterSet {
   using rlwe_params = GLWE;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 4>>,
-                          rlwe_params<trlwe_core_params<ModTorus<32>, 4>>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 4>>,
+                              rlwe_params<trlwe_core_params<ModTorus<32>, 4>>>;
 
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
-                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
+using Context2 =
+    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
+                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace sample_extraction_test
 
-template <typename Ctx>
+template <typename Context>
 class SampleExtractionFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
-
-  using Lwe = Ctx::lwe_params;
-  using Rlwe = Ctx::rlwe_params;
+  using Lwe = typename Context::lwe_params;
+  using Rlwe = typename Context::rlwe_params;
 
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
 
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{0};
 
   Runtime<Cryptor<Rlwe>> rlwe_runtime;
   Runtime<Cryptor<Lwe>> lwe_runtime_;
@@ -73,10 +74,8 @@ class SampleExtractionCorrectnessTest
   using rTorus = typename Base::rTorus;
   static constexpr uint32_t N = Base::N;
 
-  void SetUp() override { Base::SetUp(); }
-
   struct TestCase {
-    size_t idx = 0;
+    size_t idx;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
@@ -91,10 +90,10 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
 
-  using Torus = Lwe::torus_type;
+  using Torus = typename Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
 
-  using rTorus = Rlwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
   static_assert(n == N, "n and N must be equal for this test");

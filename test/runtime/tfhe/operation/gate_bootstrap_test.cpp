@@ -16,9 +16,9 @@
 
 namespace gate_bootstrap_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -29,36 +29,38 @@ struct ParameterSet {
   using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
-                          rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                          dcp_params<4, 3>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
+                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                              dcp_params<4, 3>>;
 
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
-                          rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                          dcp_params<256, 2>>;
+using Context2 =
+    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
+                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                 dcp_params<256, 2>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace gate_bootstrap_test
 
-template <typename Ctx>
+template <typename Context>
 class GateBootstrapFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{10};
-  using Lwe = Ctx::lwe_params;
-  using Rlwe = Ctx::rlwe_params;
-  using Dcp = Ctx::dcp_params;
+  using Lwe = Context::lwe_params;
+  using Rlwe = Context::rlwe_params;
+  using Dcp = Context::dcp_params;
 
   static constexpr uint32_t n = Lwe::n;
 
-  using Torus = Lwe::torus_type;
-  using rTorus = Rlwe::torus_type;
+  using Torus = typename Lwe::torus_type;
+  using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
   static constexpr uint32_t l = Dcp::l;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{0};
 
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
@@ -85,22 +87,15 @@ class GateBootstrapCorrectnessTest
  protected:
   using Base = GateBootstrapFixture<typename Config::context>;
 
-  using Torus = Base::Torus;
-  using rTorus = Base::rTorus;
-  static constexpr uint32_t N = Base::N;
-  static constexpr uint32_t l = Base::l;
-
-  static constexpr uint32_t M = 2 * N;
+  using Torus = typename Base::Torus;
+  using rTorus = typename Base::rTorus;
 
   struct TestCase {
-    // Choose 1/4 in Torus as output
-    rTorus mu = rTorus(1u, 4u);
+    rTorus mu = rTorus(1u, 4u);  // Choose 1/4 in Torus as output
     Torus phase;
   };
 
-  void SetUp() override { Base::SetUp(); }
-
-  [[nodiscard]] static std::vector<TestCase> cases() {
+  [[nodiscard]] std::vector<TestCase> cases() {
     return {{.phase = Torus(0u)}, {.phase = Torus(1u, 2u)}};
   }
 };
@@ -155,7 +150,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     }();
     ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
     Poly<rTorus, N> rot = rotate(tv.b(), (-p).value());
-    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() >> 1u);
+    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() / 2);
 
     // compute actual result
     rTorus res = this->rlwe_runtime.decrypt(res_ct);

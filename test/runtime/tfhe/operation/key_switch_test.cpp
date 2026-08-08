@@ -15,9 +15,9 @@
 
 namespace key_switch_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -28,37 +28,36 @@ struct ParameterSet {
   using kst_params = Kst;
 };
 
-using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 8>>,
-                          lwe_params<tlwe_core_params<ModTorus<16>, 5>>,
-                          kst_params<8, 5>>;
+using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 8>>,
+                              lwe_params<tlwe_core_params<ModTorus<16>, 5>>,
+                              kst_params<8, 5>>;
 
-using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
-                          lwe_params<tlwe_core_params<ModTorus<32>, 200>>,
-                          kst_params<4, 12>>;
+using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
+                              lwe_params<tlwe_core_params<ModTorus<32>, 200>>,
+                              kst_params<4, 12>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace key_switch_test
 
-template <typename Ctx>
+template <typename Context>
 class KeySwitchFixture : public ::testing::Test {
  public:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{1};
+  using SrcLwe = Context::src_lwe_runtime_params;
+  using DstLwe = Context::dst_lwe_runtime_params;
+  using Kst = Context::kst_params;
 
-  using SrcLwe = Ctx::src_lwe_runtime_params;
-  using DstLwe = Ctx::dst_lwe_runtime_params;
-  using Kst = Ctx::kst_params;
-
-  using rTorus = SrcLwe::torus_type;
+  using rTorus = typename SrcLwe::torus_type;
   static constexpr uint32_t N = SrcLwe::n;
 
-  using Torus = DstLwe::torus_type;
+  using Torus = typename DstLwe::torus_type;
   static constexpr uint32_t n = DstLwe::n;
 
-  static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  std::mt19937 eng_{1};
 
   Runtime<Cryptor<SrcLwe>, Tracking> src_lwe_runtime_;
 
@@ -86,7 +85,7 @@ class KeySwitchCorrectnessTest
     : public KeySwitchFixture<typename Config::context> {
  protected:
   using Base = KeySwitchFixture<typename Config::context>;
-  using rTorus = Base::rTorus;
+  using rTorus = typename Base::rTorus;
 
   struct TestCase {
     rTorus pt;
@@ -105,10 +104,10 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
   using DstLwe = typename params::dst_lwe_runtime_params;
   using Kst = typename params::kst_params;
 
-  using rTorus = SrcLwe::torus_type;
+  using rTorus = typename SrcLwe::torus_type;
   constexpr uint32_t N = SrcLwe::n;
 
-  using Torus = DstLwe::torus_type;
+  using Torus = typename DstLwe::torus_type;
   constexpr uint32_t n = DstLwe::n;
 
   for (const auto& tc : TestFixture::cases()) {
@@ -127,12 +126,11 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     TLWE<Torus, n> res_ct =
         Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(tlwe,
                                                                   this->KSK_);
-
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    Torus ref = Torus(static_cast<rTorus::raw_value_type>(pt));
+    Torus ref(static_cast<rTorus::raw_value_type>(pt));
 
     // compute actual result
     Torus res = this->dst_lwe_runtime_.decrypt(res_ct);

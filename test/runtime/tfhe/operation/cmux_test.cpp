@@ -22,9 +22,9 @@
 
 namespace cmux_test {
 
-template <typename Ctx, bool Verbose = true>
+template <typename Context, bool Verbose = true>
 struct TestConfig {
-  using context = Ctx;
+  using context = Context;
   static constexpr bool verbose = Verbose;
 };
 
@@ -34,27 +34,25 @@ struct ParameterSet {
   using dcp_params = Dcp;
 };
 
-using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                          dcp_params<4, 3>>;
-using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                          dcp_params<256, 2>>;
+using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
+                              dcp_params<4, 3>>;
+using Context2 =
+    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                 dcp_params<256, 2>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace cmux_test
 
-template <typename Ctx>
+template <typename Context>
 class CMuxFixture : public ::testing::Test {
  protected:
+  using Rlwe = typename Context::rlwe_params;
+  using Dcp = typename Context::dcp_params;
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
-
-  using Rlwe = typename Ctx::context::rlwe_params;
-  using Dcp = typename Ctx::context::dcp_params;
-
-  using rTorus = typename Rlwe::torus_type;
-  static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t l = Dcp::l;
 
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
 
@@ -65,19 +63,10 @@ class CMuxFixture : public ::testing::Test {
   }
 };
 
-template <typename Ctx>
-class CMuxCorrectnessTest : public CMuxFixture<Ctx> {
+template <typename Config>
+class CMuxCorrectnessTest : public CMuxFixture<typename Config::context> {
  protected:
-  using Base = CMuxFixture<Ctx>;
-
-  using typename Base::Dcp;
-  using typename Base::Rlwe;
-  using typename Base::rTorus;
-
-  static constexpr uint32_t N = Base::N;
-  static constexpr uint32_t l = Base::l;
-
-  void SetUp() override { Base::SetUp(); }
+  using Base = CMuxFixture<typename Config::context>;
 
   struct TestCase {
     UInt selector;
