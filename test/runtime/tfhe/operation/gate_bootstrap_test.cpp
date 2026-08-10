@@ -7,11 +7,11 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace gate_bootstrap_test {
@@ -63,21 +63,17 @@ class GateBootstrapFixture : public ::testing::Test {
   std::mt19937 eng_{0};
 
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
-  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    SecretHolder<Lwe> lwe_kr(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(lwe_kr.secret_ptr(), eng_);
-
-    SecretHolder<Rlwe> rlwe_kr(eng_);
-    rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
-        rlwe_kr.secret_ptr(), eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(eng_);
+    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
 
     // Prepare Bootstrapkey
-    BK_ = rlwe_runtime.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_kr.secret());
+    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+        lwe_runtime_.secret());
   }
 };
 
@@ -153,7 +149,7 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() / 2);
 
     // compute actual result
-    rTorus res = this->rlwe_runtime.decrypt(res_ct);
+    rTorus res = this->rlwe_runtime_.decrypt(res_ct);
 
     rTorus err = ref - res;
     double norm = infinity_norm(err);

@@ -18,7 +18,6 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace cmux_test {
 
@@ -51,15 +50,16 @@ class CMuxFixture : public ::testing::Test {
   using Rlwe = typename Context::rlwe_params;
   using Dcp = typename Context::dcp_params;
 
+  using rTorus = Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime;
+  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> kr_(this->eng_);
-    rlwe_runtime = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
-        kr_.secret_ptr(), eng_);
+    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
   }
 };
 
@@ -68,12 +68,22 @@ class CMuxCorrectnessTest : public CMuxFixture<typename Config::context> {
  protected:
   using Base = CMuxFixture<typename Config::context>;
 
+  using rTorus = typename Base::rTorus;
+  static constexpr uint32_t N = Base::N;
+
   struct TestCase {
     UInt selector;
+    Poly<rTorus, N> lhs;
+    Poly<rTorus, N> rhs;
   };
 
-  [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.selector = UInt(0)}, {.selector = UInt(1)}};
+  [[nodiscard]] std::vector<TestCase> cases() {
+    return {{.selector = UInt(0),
+             .lhs = randomize<Poly<rTorus, N>>(this->eng_),
+             .rhs = randomize<Poly<rTorus, N>>(this->eng_)},
+            {.selector = UInt(1),
+             .lhs = randomize<Poly<rTorus, N>>(this->eng_),
+             .rhs = randomize<Poly<rTorus, N>>(this->eng_)}};
   }
 };
 
@@ -92,19 +102,15 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
     // Arrange
     // ==================================
     UInt selector = tc.selector;
-
-    Poly<rTorus, N> lhs;
-    randomize(lhs, this->eng_);
-
-    Poly<rTorus, N> rhs;
-    randomize(rhs, this->eng_);
+    Poly<rTorus, N> lhs = tc.lhs;
+    Poly<rTorus, N> rhs = tc.rhs;
 
     Poly<UInt, N> sl;
     sl[0] = selector;
-    TRGSW<rTorus, N, l> selector_ct = this->rlwe_runtime.encrypt(sl);
+    TRGSW<rTorus, N, l> selector_ct = this->rlwe_runtime_.encrypt(sl);
 
-    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime.encrypt(lhs);
-    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime.encrypt(rhs);
+    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime_.encrypt(lhs);
+    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
@@ -125,7 +131,7 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
     }();
 
     // compute actual result
-    Poly<rTorus, N> res = this->rlwe_runtime.decrypt(res_ct);
+    Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
 
     Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);

@@ -7,7 +7,6 @@
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace tlwe_encrypt_test {
 
@@ -44,8 +43,7 @@ class TlweEncryptionFixture : public ::testing::Test {
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
 
   void SetUp() override {
-    SecretHolder<Lwe> kr(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(kr.secret_ptr(), eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(eng_);
   }
 };
 

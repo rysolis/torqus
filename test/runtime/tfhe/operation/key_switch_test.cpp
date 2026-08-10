@@ -11,7 +11,6 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace key_switch_test {
 
@@ -65,18 +64,13 @@ class KeySwitchFixture : public ::testing::Test {
   KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
-    SecretHolder<SrcLwe> src_kr(eng_);
-    src_lwe_runtime_ =
-        Runtime<Cryptor<SrcLwe>, Tracking>(src_kr.secret_ptr(), eng_);
-
-    SecretHolder<DstLwe> dst_kr(eng_);
-    dst_lwe_runtime_ =
-        Runtime<Cryptor<DstLwe>, Tracking>(dst_kr.secret_ptr(), eng_);
+    src_lwe_runtime_ = Runtime<Cryptor<SrcLwe>, Tracking>(eng_);
+    dst_lwe_runtime_ = Runtime<Cryptor<DstLwe>, Tracking>(eng_);
 
     // Prepare Key Switch Key
     KSK_ =
         dst_lwe_runtime_.template generate_key_switch_key<SrcLwe, DstLwe, Kst>(
-            src_kr.secret());
+            src_lwe_runtime_.secret());
   }
 };
 

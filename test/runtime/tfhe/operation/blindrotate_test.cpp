@@ -18,12 +18,12 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace blindrotate_test {
@@ -79,14 +79,12 @@ class BlindRotateFixture : public ::testing::Test {
   Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> rlwe_kr(this->eng_);
-    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(rlwe_kr.secret_ptr(), eng_);
-
-    SecretHolder<Lwe> lwe_kr(eng_);
+    Runtime<Cryptor<Lwe>> lwe_runtime = Runtime<Cryptor<Lwe>>(eng_);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_kr.secret());
+        lwe_runtime.secret());
 
     double bound = 0.0;  // TODO: use parameters to compute
     get_key_noise_tracker_if()->update(BK_, bound);
@@ -96,7 +94,7 @@ class BlindRotateFixture : public ::testing::Test {
 
     ModInt<M> b{};
     for (size_t i = 0; i < n; ++i) {
-      b += static_cast<UInt>(lwe_kr.secret()[i]) *
+      b += static_cast<UInt>(lwe_runtime.secret()[i]) *
            static_cast<ModInt<M>>(phase_ct_[i]);
     }
 

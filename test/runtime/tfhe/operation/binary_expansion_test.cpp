@@ -10,7 +10,6 @@
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace binary_expansion_test {
 template <typename Context, bool Verbose = true>
@@ -61,16 +60,13 @@ class BinaryExpansionFixture : public ::testing::Test {
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> rlwe_kr(eng_);
-    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(
-        rlwe_kr.secret_ptr(), eng_);
-
-    SecretHolder<Lwe> lwe_kr(rlwe_kr.begin(), rlwe_kr.end());
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(lwe_kr.secret_ptr(), eng_);
+    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(
+        std::begin(rlwe_runtime_), std::end(rlwe_runtime_), eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_kr.secret());
+        lwe_runtime_.secret());
   }
 };
 

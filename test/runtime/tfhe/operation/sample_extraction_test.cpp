@@ -10,7 +10,6 @@
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace sample_extraction_test {
 
@@ -53,15 +52,13 @@ class SampleExtractionFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  Runtime<Cryptor<Rlwe>> rlwe_runtime;
+  Runtime<Cryptor<Rlwe>> rlwe_runtime_;
   Runtime<Cryptor<Lwe>> lwe_runtime_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> glwe_kr(this->eng_);
-    rlwe_runtime = Runtime<Cryptor<Rlwe>>(glwe_kr.secret_ptr(), eng_);
-
-    SecretHolder<Lwe> lwe_kr(glwe_kr.begin(), glwe_kr.end());
-    lwe_runtime_ = Runtime<Cryptor<Lwe>>(lwe_kr.secret_ptr(), eng_);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>>(std::begin(rlwe_runtime_),
+                                         std::end(rlwe_runtime_), eng_);
   }
 };
 
@@ -76,10 +73,13 @@ class SampleExtractionCorrectnessTest
 
   struct TestCase {
     size_t idx;
+    Poly<rTorus, N> pt;
   };
 
-  [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.idx = 0}, {.idx = N / 2}, {.idx = N - 1}};
+  [[nodiscard]] std::vector<TestCase> cases() {
+    return {{.idx = 0, .pt = randomize<Poly<rTorus, N>>(this->eng_)},
+            {.idx = N / 2, .pt = randomize<Poly<rTorus, N>>(this->eng_)},
+            {.idx = N - 1, .pt = randomize<Poly<rTorus, N>>(this->eng_)}};
   }
 };
 
@@ -103,11 +103,9 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
     // Arrange
     // ==================================
     size_t idx = tc.idx;
+    Poly<rTorus, N> pt = tc.pt;
 
-    Poly<rTorus, N> pt;
-    randomize(pt, this->eng_);
-
-    TRLWE<rTorus, N> pt_ct = this->rlwe_runtime.encrypt(pt);
+    TRLWE<rTorus, N> pt_ct = this->rlwe_runtime_.encrypt(pt);
 
     // ==================================
     // Act

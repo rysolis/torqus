@@ -7,20 +7,33 @@
 #include <memory>
 
 #include "primitive/concept/torus.hpp"
+#include "primitive/uint.hpp"
 
 #include "tfhe/feature.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
+#include "tfhe/utility/secret_holder.hpp"
 
 template <typename Cryptor, typename... Feature>
 class Runtime {
  public:
+  using params_type = Cryptor::params_type;
+  using iterator = SecretHolder<params_type>::raw_value_type*;
+  using const_iterator = const SecretHolder<params_type>::raw_value_type*;
+
   Runtime() = default;
 
   template <typename Engine>
-  Runtime(std::shared_ptr<UInt::raw_value_type[]> s, Engine& eng) {
-    cryptor_.emplace(std::move(s), eng);
+  Runtime(Engine& eng) {
+    holder_.emplace(eng);
+    cryptor_.emplace(holder_->secret_ptr(), eng);
+  }
+
+  template <std::forward_iterator It, typename Engine>
+  Runtime(It first, It last, Engine& eng) {
+    holder_ = SecretHolder<params_type>(first, last);
+    cryptor_.emplace(holder_->secret_ptr(), eng);
   }
 
   template <typename Plaintext>
@@ -62,7 +75,18 @@ class Runtime {
     return ksk;
   }
 
+  const SecretHolder<params_type>::raw_value_type* secret() const noexcept {
+    return holder_->secret();
+  }
+
+  iterator begin() noexcept { return holder_->begin(); }
+  iterator end() noexcept { return holder_->end(); }
+
+  const_iterator begin() const noexcept { return holder_.begin(); }
+  const_iterator end() const noexcept { return holder_->end(); }
+
  private:
+  std::optional<SecretHolder<params_type>> holder_;
   std::optional<Cryptor> cryptor_;
 };
 

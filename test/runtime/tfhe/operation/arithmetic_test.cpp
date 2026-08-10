@@ -18,7 +18,6 @@
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
-#include "tfhe/utility/secret_holder.hpp"
 
 namespace arithmetic_executor_test {
 
@@ -56,8 +55,7 @@ class ArithmeticFixture : public ::testing::Test {
   Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
-    SecretHolder<Rlwe> kr(eng_);
-    rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(kr.secret_ptr(), eng_);
+    rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(eng_);
   }
 
   struct TestCase {
