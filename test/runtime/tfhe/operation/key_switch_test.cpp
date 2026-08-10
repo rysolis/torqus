@@ -11,6 +11,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
+#include "tfhe/utility/random_generator.hpp"
 
 namespace key_switch_test {
 
@@ -56,7 +57,7 @@ class KeySwitchFixture : public ::testing::Test {
   static constexpr uint32_t t = Kst::t;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{1};
+  RandomGenerator<std::mt19937> eng_{1};
 
   Runtime<Cryptor<SrcLwe>, Tracking> src_lwe_runtime_;
 
@@ -70,7 +71,7 @@ class KeySwitchFixture : public ::testing::Test {
     // Prepare Key Switch Key
     KSK_ =
         dst_lwe_runtime_.template generate_key_switch_key<SrcLwe, DstLwe, Kst>(
-            src_lwe_runtime_.secret());
+            src_lwe_runtime_.holder().get());
   }
 };
 

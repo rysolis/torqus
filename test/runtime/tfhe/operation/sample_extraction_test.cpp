@@ -10,6 +10,7 @@
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
+#include "tfhe/utility/random_generator.hpp"
 
 namespace sample_extraction_test {
 
@@ -50,15 +51,14 @@ class SampleExtractionFixture : public ::testing::Test {
   static constexpr uint32_t N = Rlwe::N;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
+  RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Cryptor<Rlwe>> rlwe_runtime_;
   Runtime<Cryptor<Lwe>> lwe_runtime_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>>(std::begin(rlwe_runtime_),
-                                         std::end(rlwe_runtime_), eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>>(rlwe_runtime_, eng_);
   }
 };
 

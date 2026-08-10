@@ -53,15 +53,15 @@ TYPED_TEST(SecretHolderTest, ConvertSecret) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
 
-  SecretHolder<Rlwe> glwe_kr(this->eng_);
-  SecretHolder<Lwe> lwe_kr(glwe_kr.begin(), glwe_kr.end());
+  SecretHolder<Rlwe::N> rlwe(this->eng_);
+  SecretHolder<Lwe::n> lwe(rlwe);
 
   std::cout << "\n=== SecretHolder Test ===\n";
   if (TypeParam::verbose) {
-    std::cout << "GLWE Secret: " << glwe_kr.secret() << "\n";
-    std::cout << "LWE Secret:  " << lwe_kr.secret() << "\n";
+    std::cout << "GLWE Secret: " << rlwe.get() << "\n";
+    std::cout << "LWE Secret:  " << lwe.get() << "\n";
   }
   for (size_t i = 0; i < Lwe::n; ++i) {
-    EXPECT_EQ(lwe_kr.secret()[i], glwe_kr.secret()[i]);
+    EXPECT_EQ(lwe.get()[i], rlwe.get()[i]);
   }
 }

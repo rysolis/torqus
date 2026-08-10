@@ -10,6 +10,7 @@
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
+#include "tfhe/utility/random_generator.hpp"
 
 namespace binary_expansion_test {
 template <typename Context, bool Verbose = true>
@@ -40,8 +41,6 @@ using TestContexts =
 template <typename Context>
 class BinaryExpansionFixture : public ::testing::Test {
  protected:
-  // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{10};
   using Lwe = Context::lwe_params;
   using Rlwe = Context::rlwe_params;
   using Dcp = Context::dcp_params;
@@ -54,6 +53,9 @@ class BinaryExpansionFixture : public ::testing::Test {
 
   static constexpr uint32_t l = Dcp::l;
 
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  RandomGenerator<std::mt19937> eng_{0};
+
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
 
@@ -61,12 +63,11 @@ class BinaryExpansionFixture : public ::testing::Test {
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(
-        std::begin(rlwe_runtime_), std::end(rlwe_runtime_), eng_);
+    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(rlwe_runtime_, eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_runtime_.secret());
+        lwe_runtime_.holder().get());
   }
 };
 

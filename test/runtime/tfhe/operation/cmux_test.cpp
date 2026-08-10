@@ -18,6 +18,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/random_generator.hpp"
 
 namespace cmux_test {
 
@@ -54,7 +55,7 @@ class CMuxFixture : public ::testing::Test {
   static constexpr uint32_t N = Rlwe::N;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
+  RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
 

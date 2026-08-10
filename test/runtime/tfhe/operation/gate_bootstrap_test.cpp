@@ -12,6 +12,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/random_generator.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace gate_bootstrap_test {
@@ -60,7 +61,7 @@ class GateBootstrapFixture : public ::testing::Test {
   static constexpr uint32_t l = Dcp::l;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{0};
+  RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
   Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
@@ -73,7 +74,7 @@ class GateBootstrapFixture : public ::testing::Test {
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_runtime_.secret());
+        lwe_runtime_.holder().get());
   }
 };
 

@@ -24,6 +24,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/utility/random_generator.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 namespace blindrotate_test {
@@ -71,7 +72,7 @@ class BlindRotateFixture : public ::testing::Test {
   static constexpr uint32_t l = Dcp::l;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
-  std::mt19937 eng_{10};
+  RandomGenerator<std::mt19937> eng_{10};
 
   Runtime<Cryptor<Rlwe>> rlwe_runtime_;
 
@@ -84,7 +85,7 @@ class BlindRotateFixture : public ::testing::Test {
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
-        lwe_runtime.secret());
+        lwe_runtime.holder().get());
 
     double bound = 0.0;  // TODO: use parameters to compute
     get_key_noise_tracker_if()->update(BK_, bound);
@@ -94,7 +95,7 @@ class BlindRotateFixture : public ::testing::Test {
 
     ModInt<M> b{};
     for (size_t i = 0; i < n; ++i) {
-      b += static_cast<UInt>(lwe_runtime.secret()[i]) *
+      b += static_cast<UInt>(lwe_runtime.holder().get()[i]) *
            static_cast<ModInt<M>>(phase_ct_[i]);
     }
 

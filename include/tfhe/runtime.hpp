@@ -15,25 +15,39 @@
 #include "tfhe/utility/analysis/tracker_if.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
+template <typename params>
+struct secret_size;
+
+template <tlwe_concept params>
+struct secret_size<params> {
+  static constexpr uint32_t value = params::n;
+};
+
+template <typename params>
+  requires trlwe_concept<params>
+struct secret_size<params> {
+  static constexpr uint32_t value = params::N;
+};
+
 template <typename Cryptor, typename... Feature>
 class Runtime {
  public:
   using params_type = Cryptor::params_type;
-  using iterator = SecretHolder<params_type>::raw_value_type*;
-  using const_iterator = const SecretHolder<params_type>::raw_value_type*;
+  static constexpr uint32_t s = secret_size<params_type>::value;
 
   Runtime() = default;
 
   template <typename Engine>
+    requires std::uniform_random_bit_generator<Engine>
   Runtime(Engine& eng) {
     holder_.emplace(eng);
-    cryptor_.emplace(holder_->secret_ptr(), eng);
+    cryptor_.emplace(holder_->shared_get(), eng);
   }
 
-  template <std::forward_iterator It, typename Engine>
-  Runtime(It first, It last, Engine& eng) {
-    holder_ = SecretHolder<params_type>(first, last);
-    cryptor_.emplace(holder_->secret_ptr(), eng);
+  template <typename Engine, typename OtherCryptor, typename... OtherFeature>
+  Runtime(const Runtime<OtherCryptor, OtherFeature...>& other, Engine& eng)
+      : holder_(other.holder()) {
+    cryptor_.emplace(holder_->shared_get(), eng);
   }
 
   template <typename Plaintext>
@@ -75,18 +89,10 @@ class Runtime {
     return ksk;
   }
 
-  const SecretHolder<params_type>::raw_value_type* secret() const noexcept {
-    return holder_->secret();
-  }
-
-  iterator begin() noexcept { return holder_->begin(); }
-  iterator end() noexcept { return holder_->end(); }
-
-  const_iterator begin() const noexcept { return holder_.begin(); }
-  const_iterator end() const noexcept { return holder_->end(); }
+  const SecretHolder<s>& holder() const noexcept { return *holder_; }
 
  private:
-  std::optional<SecretHolder<params_type>> holder_;
+  std::optional<SecretHolder<s>> holder_;
   std::optional<Cryptor> cryptor_;
 };
 
