@@ -26,6 +26,8 @@ class Vector
   using typename Base::raw_value_type;
   using typename Base::value_type;
 
+  using Base::begin;
+  using Base::end;
   using Base::operator[];
 
   Vector& operator+=(const Vector& other) {
@@ -57,6 +59,28 @@ class Vector
     return os << ")";
   }
 };
+
+template <typename T, uint32_t N>
+inline Vector<T, N> operator+(Vector<T, N> lhs, const Vector<T, N>& rhs) {
+  assert(lhs.size() == rhs.size());
+  return lhs += rhs;
+}
+
+template <typename T, uint32_t N, typename Expr>
+inline Vector<T, N> operator+(Vector<T, N> lhs, const Expr& rhs) {
+  return lhs += rhs;
+}
+
+template <typename T, uint32_t N>
+inline Vector<T, N> operator-(Vector<T, N> lhs, const Vector<T, N>& rhs) {
+  assert(lhs.size() == rhs.size());
+  return lhs -= rhs;
+}
+
+template <typename T, uint32_t N, typename Expr>
+inline Vector<T, N> operator-(Vector<T, N> lhs, const Expr& rhs) {
+  return lhs -= rhs;
+}
 
 // If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
 // lhs is copied together with its reference state,

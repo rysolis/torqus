@@ -5,6 +5,7 @@
 #define ALGEBRA_CONTAINER_HPP
 
 #include <cstdint>
+#include <initializer_list>
 #include <memory>
 
 #include "primitive/concept/primitive.hpp"
@@ -48,6 +49,12 @@ class Container {
 
   Container(Container&&) noexcept = default;
   Container& operator=(Container&&) noexcept = default;
+
+  Container(std::initializer_list<T> init) {
+    std::ranges::transform(init, begin(), [](const T& v) {
+      return static_cast<raw_value_type>(v);
+    });
+  }
 
   template <std::forward_iterator It>
     requires std::convertible_to<std::iter_value_t<It>, raw_value_type>

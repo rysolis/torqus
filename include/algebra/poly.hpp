@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cassert>
 #include <functional>
-#include <initializer_list>
 #include <iostream>
 #include <ranges>
 #include <type_traits>
@@ -36,12 +35,6 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   using Base::begin;
   using Base::end;
   using Base::operator[];
-
-  Poly(std::initializer_list<T> init) {
-    std::ranges::transform(init, begin(), [](const T& v) {
-      return static_cast<raw_value_type>(v);
-    });
-  }
 
   Poly& operator+=(const Poly& other) {
     assert(other.size() == this->size());
