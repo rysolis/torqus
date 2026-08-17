@@ -14,7 +14,7 @@
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 
-template <typename Lwe, typename Rlwe, typename Dcp>
+template <typename Lwe, typename Rlwe, typename Decomp>
 class GateBootstrap {
  public:
   using Torus = typename Lwe::torus_type;
@@ -24,7 +24,7 @@ class GateBootstrap {
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
@@ -48,7 +48,7 @@ class GateBootstrap {
 
     // BlindRotate
     TRLWE<rTorus, N> rot =
-        BlindRotate<Lwe, Rlwe, Dcp>::exec_impl(tv, amount, bk);
+        BlindRotate<Lwe, Rlwe, Decomp>::exec_impl(tv, amount, bk);
 
     // prepare offset
     TLWE<rTorus, N> offset;

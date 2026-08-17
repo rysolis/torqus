@@ -54,9 +54,9 @@ class Torus : public TorusBase<Torus> {
 
   template <std::floating_point Raw>
     requires std::convertible_to<Raw, raw_value_type>
-  constexpr explicit Torus(Raw t = 0.0) noexcept
-      : r_(static_cast<raw_value_type>(t) -
-           std::floor(static_cast<raw_value_type>(t))) {}
+  constexpr explicit Torus(Raw raw = 0.0) noexcept
+      : value_(static_cast<raw_value_type>(raw) -
+               std::floor(static_cast<raw_value_type>(raw))) {}
 
   static constexpr raw_value_type raw_min() { return 0.0; }
   static constexpr raw_value_type raw_max() { return 1.0; }
@@ -64,25 +64,27 @@ class Torus : public TorusBase<Torus> {
   template <uint32_t QBit>
   constexpr explicit operator ModTorus<QBit>() const noexcept;
 
-  constexpr explicit operator raw_value_type() const noexcept { return r_; }
-  constexpr raw_value_type value() const noexcept { return r_; }
+  constexpr explicit operator raw_value_type() const noexcept {
+    return value_;
+  }
+  constexpr raw_value_type value() const noexcept { return value_; }
 
   bool operator==(const Torus& other) const noexcept;
 
   constexpr Torus& operator+=(const Torus& other) noexcept {
-    r_ += other.r_;
-    r_ -= std::floor(r_);
+    value_ += other.value_;
+    value_ -= std::floor(value_);
     return *this;
   }
 
   constexpr Torus& operator-=(const Torus& other) noexcept {
-    r_ -= other.r_;
-    r_ -= std::floor(r_);
+    value_ -= other.value_;
+    value_ -= std::floor(value_);
     return *this;
   }
 
  private:
-  raw_value_type r_;
+  raw_value_type value_;
 };
 
 }  // namespace dbl
@@ -104,15 +106,19 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   explicit ModTorus() noexcept = default;
 
   template <std::integral Raw>
-  constexpr explicit ModTorus(Raw m = 0) noexcept
-      : m_(static_cast<raw_value_type>(m) & mask()) {}
+  constexpr explicit ModTorus(Raw raw = 0) noexcept
+      : value_(static_cast<raw_value_type>(raw) & mask()) {}
 
+  // Constructs from a value `raw` given as a numerator over `resolution`
+  // (i.e. representing raw/resolution), where `resolution` must be a power
+  // of two.
   template <std::integral Raw>
-  constexpr ModTorus(Raw x, Raw r) noexcept {
-    assert(((r - 1) & (r)) == 0);  // r must be a power of two
-    uint32_t rbit = static_cast<uint32_t>(std::bit_width(r - 1));
-    assert(rbit <= qbit);
-    m_ = x << (qbit - rbit);
+  constexpr ModTorus(Raw raw, Raw resolution) noexcept {
+    assert(((resolution - 1) & (resolution)) == 0);
+    uint32_t resolution_bits =
+        static_cast<uint32_t>(std::bit_width(resolution - 1));
+    assert(resolution_bits <= qbit);
+    value_ = raw << (qbit - resolution_bits);
   }
 
   static constexpr raw_value_type raw_min() { return 0; }
@@ -122,26 +128,28 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
 
   constexpr explicit operator dbl::Torus() const noexcept;
   constexpr explicit operator double() const noexcept {
-    return static_cast<double>(m_) / std::pow(2., qbit);
+    return static_cast<double>(value_) / std::pow(2., qbit);
   }
 
-  constexpr explicit operator raw_value_type() const noexcept { return m_; }
-  constexpr raw_value_type value() const noexcept { return m_; }
+  constexpr explicit operator raw_value_type() const noexcept {
+    return value_;
+  }
+  constexpr raw_value_type value() const noexcept { return value_; }
 
   bool operator==(const ModTorus<QBit>& other) const noexcept {
     return this->self().value() == other.value();
   }
 
   constexpr ModTorus<QBit>& operator+=(const ModTorus<QBit>& other) noexcept {
-    m_ += other.m_;
-    m_ &= mask();
+    value_ += other.value_;
+    value_ &= mask();
     return *this;
   }
 
   constexpr ModTorus<QBit>& operator-=(const ModTorus<QBit>& other) noexcept {
-    m_ -= other.m_;  // Since Q is a power of two, using an unsigned
-                     // integer for m_ is safe.
-    m_ &= mask();
+    value_ -= other.value_;  // Since Q is a power of two, using an unsigned
+                             // integer for value_ is safe.
+    value_ &= mask();
     return *this;
   }
 
@@ -151,7 +159,7 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   }
 
  private:
-  raw_value_type m_;
+  raw_value_type value_;
 };
 
 template <uint32_t QBit>

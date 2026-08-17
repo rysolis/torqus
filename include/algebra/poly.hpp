@@ -57,13 +57,13 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
-    requires requires(Expr& ep) {
+    requires requires(Expr& expr) {
       { std::derived_from<Expr, expr_tag> };
     }
-  Poly(const Expr& ep) {
+  Poly(const Expr& expr) {
     std::fill(begin(), end(), typename T::raw_value_type{});
     accumulate_expr(
-        ep,
+        expr,
         [](auto x, const auto& y) {
           x = static_cast<value_type>(x) + static_cast<value_type>(y);
         },
@@ -73,28 +73,12 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
-    requires requires(Expr& ep) {
+    requires requires(Expr& expr) {
       { std::derived_from<Expr, expr_tag> };
     }
-  Poly& operator=(const Expr& ep) {
+  Poly& operator=(const Expr& expr) {
     accumulate_expr(
-        ep,
-        [](auto x, const auto& y) {
-          x = static_cast<value_type>(x) + static_cast<value_type>(y);
-        },
-        [](auto x, const auto& y) {
-          x = static_cast<value_type>(x) - static_cast<value_type>(y);
-        });
-    return *this;
-  }
-
-  template <typename Expr>
-    requires requires(Expr& ep) {
-      { std::derived_from<Expr, expr_tag> };
-    }
-  Poly& operator+=(const Expr& ep) {
-    accumulate_expr(
-        ep,
+        expr,
         [](auto x, const auto& y) {
           x = static_cast<value_type>(x) + static_cast<value_type>(y);
         },
@@ -105,12 +89,28 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 
   template <typename Expr>
-    requires requires(Expr& ep) {
+    requires requires(Expr& expr) {
       { std::derived_from<Expr, expr_tag> };
     }
-  Poly& operator-=(const Expr& ep) {
+  Poly& operator+=(const Expr& expr) {
     accumulate_expr(
-        ep,
+        expr,
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) + static_cast<value_type>(y);
+        },
+        [](auto x, const auto& y) {
+          x = static_cast<value_type>(x) - static_cast<value_type>(y);
+        });
+    return *this;
+  }
+
+  template <typename Expr>
+    requires requires(Expr& expr) {
+      { std::derived_from<Expr, expr_tag> };
+    }
+  Poly& operator-=(const Expr& expr) {
+    accumulate_expr(
+        expr,
         [](auto x, const auto& y) {
           x = static_cast<value_type>(x) - static_cast<value_type>(y);
         },
@@ -143,8 +143,8 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
 
  private:
   template <typename Expr, typename AddOp, typename SubOp>
-  void accumulate_expr(const Expr& ep, AddOp add_op, SubOp sub_op) {
-    accumulate_impl<Expr>::apply(*this, ep, add_op, sub_op);
+  void accumulate_expr(const Expr& expr, AddOp add_op, SubOp sub_op) {
+    accumulate_impl<Expr>::apply(*this, expr, add_op, sub_op);
   }
 };
 
@@ -170,24 +170,8 @@ inline Poly<T, N> operator-(Poly<T, N> lhs, const Expr& rhs) {
   return lhs -= rhs;
 }
 
-// If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
-// lhs is copied together with its reference state,
-// which results in unintended behavior.
-template <typename T, uint32_t N>
-inline Poly<T, N>::value_type operator+(const typename Poly<T, N>::Proxy& lhs,
-                                        const typename Poly<T, N>::Proxy& rhs) {
-  return static_cast<Poly<T, N>::raw_value_type>(lhs) +
-         static_cast<Poly<T, N>::raw_value_type>(rhs);
-}
-
-// If operator-(Proxy lhs, const Proxy<T>& rhs) is used,
-// lhs is copied together with its reference state,
-// which results in unintended behavior.
-template <typename T, uint32_t N>
-inline Poly<T, N>::value_type operator-(const typename Poly<T, N>::Proxy& lhs,
-                                        const typename Poly<T, N>::Proxy& rhs) {
-  return static_cast<Poly<T, N>::raw_value_type>(lhs) -
-         static_cast<Poly<T, N>::raw_value_type>(rhs);
-}
+// Proxy<Poly<T, N>> + Proxy<Poly<T, N>> and the corresponding subtraction are
+// handled by the generic operator+/operator- for Proxy<Container> in
+// detail/proxy.hpp.
 
 #endif  // ALGEBRA_POLY_HPP

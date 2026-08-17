@@ -10,7 +10,6 @@
 #include "algebra/poly.hpp"
 #include "algebra/utility/utility.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
@@ -53,11 +52,9 @@ class ArithmeticFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Cryptor<Rlwe>, Tracking> rlwe_runtime_;
+  Runtime<Rlwe, Tracking> rlwe_runtime_;
 
-  void SetUp() override {
-    rlwe_runtime_ = Runtime<Cryptor<Rlwe>, Tracking>(eng_);
-  }
+  void SetUp() override { rlwe_runtime_ = Runtime<Rlwe, Tracking>(eng_); }
 
   struct TestCase {
     Poly<rTorus, N> lhs;

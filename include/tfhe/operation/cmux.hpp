@@ -15,18 +15,18 @@
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 class CMux {
  public:
   static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
-  template <torus_type Torus>
+  template <torus_concept Torus>
   static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& bk,
                                    const TRLWE<Torus, N> cand0,
                                    const TRLWE<Torus, N> cand1) {
-    return Add<Rlwe>::exec_impl(ExternalProduct<Rlwe, Dcp>::exec_impl(
+    return Add<Rlwe>::exec_impl(ExternalProduct<Rlwe, Decomp>::exec_impl(
                                     bk, Sub<Rlwe>::exec_impl(cand1, cand0)),
                                 cand0);
   }

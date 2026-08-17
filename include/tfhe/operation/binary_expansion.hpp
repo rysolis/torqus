@@ -11,7 +11,9 @@
 #include "tfhe/operation/hom_and.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
-template <uint32_t H, typename Lwe, typename Rlwe, typename Dcp>
+// H is the size of the one-hot output vector this expansion produces from
+// k = ceil(log2(H)) input bit-ciphertexts.
+template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp>
 class BinaryExpansion {
  public:
   using Torus = typename Lwe::torus_type;
@@ -20,7 +22,7 @@ class BinaryExpansion {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   static constexpr uint32_t k = std::bit_width(H - 1);
 
@@ -34,8 +36,8 @@ class BinaryExpansion {
       for (size_t i = 0; i < k; ++i) {
         uint32_t bit = (h >> i) & 1u;
         w = [&] {
-          return bit ? HomAnd<Lwe, Rlwe, Dcp>::exec_impl(w, v[i], bk)
-                     : HomAndNot<Lwe, Rlwe, Dcp>::exec_impl(w, v[i], bk);
+          return bit ? HomAnd<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk)
+                     : HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk);
         }();
       }
       res[h] = std::move(w);

@@ -32,13 +32,13 @@ NegacyclicConvolutionExpr<Lhs, Rhs> negacyclic_convolution(const Lhs& lhs,
 template <typename Lhs, typename Rhs>
 struct accumulate_impl<NegacyclicConvolutionExpr<Lhs, Rhs>> {
   template <typename Out, typename AddOp, typename SubOp>
-  static void apply(Out& dist, const NegacyclicConvolutionExpr<Lhs, Rhs>& ep,
+  static void apply(Out& out, const NegacyclicConvolutionExpr<Lhs, Rhs>& expr,
                     AddOp add_op, SubOp sub_op) {
     using lhs_type = evaluated_type_t<Lhs>;
     using rhs_type = evaluated_type_t<Rhs>;
 
-    lhs_type lhs(ep.lhs_);
-    rhs_type rhs(ep.rhs_);
+    lhs_type lhs(expr.lhs_);
+    rhs_type rhs(expr.rhs_);
 
     constexpr size_t N = rhs_type::size();
 
@@ -49,9 +49,9 @@ struct accumulate_impl<NegacyclicConvolutionExpr<Lhs, Rhs>> {
         const size_t k = i + j;
 
         if (k < N) {
-          add_op(dist[k], term);
+          add_op(out[k], term);
         } else {
-          sub_op(dist[k - N], term);
+          sub_op(out[k - N], term);
         }
       }
     }

@@ -15,7 +15,7 @@
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/params.hpp"
 
-template <uint32_t s>
+template <uint32_t SecretSize>
 class SecretHolder {
  public:
   using raw_value_type = UInt::raw_value_type;
@@ -24,7 +24,8 @@ class SecretHolder {
     requires std::uniform_random_bit_generator<Engine>
   explicit SecretHolder(Engine& eng) {
     std::uniform_int_distribution<raw_value_type> dist{0, 1};
-    std::generate(secret_.get(), secret_.get() + s, [&] { return dist(eng); });
+    std::generate(secret_.get(), secret_.get() + SecretSize,
+                  [&] { return dist(eng); });
   }
 
   const raw_value_type* get() const noexcept { return secret_.get(); }
@@ -32,11 +33,11 @@ class SecretHolder {
     return secret_;
   }
 
-  static constexpr uint32_t size() { return s; }
+  static constexpr uint32_t size() { return SecretSize; }
 
  private:
   std::shared_ptr<raw_value_type[]> secret_ =
-      std::make_shared<raw_value_type[]>(s);
+      std::make_shared<raw_value_type[]>(SecretSize);
 };
 
-#endif  // TFHE_KEYRING_HPP
+#endif  // TFHE_UTILITY_SECRET_HOLDER_HPP

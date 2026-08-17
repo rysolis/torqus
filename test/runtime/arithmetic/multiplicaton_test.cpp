@@ -14,16 +14,16 @@ struct Ctx1 {
   static constexpr uint32_t N = 4;
 };
 
-using TestContests = ::testing::Types<Ctx1>;
+using TestContexts = ::testing::Types<Ctx1>;
 
 }  // namespace multiplication_test
 
 template <typename Ctx>
-class ConvolutionTest : public ::testing::Test {};
+class MultiplicationTest : public ::testing::Test {};
 
-TYPED_TEST_SUITE(ConvolutionTest, multiplication_test::TestContests);
+TYPED_TEST_SUITE(MultiplicationTest, multiplication_test::TestContexts);
 
-TYPED_TEST(ConvolutionTest, IdentityCorrectly) {
+TYPED_TEST(MultiplicationTest, IdentityCorrectly) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
 
@@ -37,7 +37,7 @@ TYPED_TEST(ConvolutionTest, IdentityCorrectly) {
   EXPECT_EQ(expected, result);
 }
 
-TYPED_TEST(ConvolutionTest, ZeroPolynomial) {
+TYPED_TEST(MultiplicationTest, ZeroPolynomial) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
   Poly<UInt, Ctx::N> lhs{UInt(0), UInt(0), UInt(0), UInt(0)};
@@ -50,7 +50,7 @@ TYPED_TEST(ConvolutionTest, ZeroPolynomial) {
   EXPECT_EQ(expected, result);
 }
 
-TYPED_TEST(ConvolutionTest, WrapAround) {
+TYPED_TEST(MultiplicationTest, WrapAround) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
   Poly<UInt, Ctx::N> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};
@@ -65,7 +65,7 @@ TYPED_TEST(ConvolutionTest, WrapAround) {
   EXPECT_EQ(expected, result);
 }
 
-TYPED_TEST(ConvolutionTest, DoubleApply) {
+TYPED_TEST(MultiplicationTest, DoubleApply) {
   using Ctx = TypeParam;
   using Torus = typename Ctx::Torus;
   Poly<UInt, Ctx::N> lhs{UInt(0), UInt(1), UInt(0), UInt(0)};

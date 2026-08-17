@@ -11,7 +11,7 @@
 #include "tfhe/params.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
-namespace keyring_test {
+namespace secret_holder_test {
 
 template <typename Ctx, bool Verbose = true>
 struct TestConfig {
@@ -33,7 +33,7 @@ using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
 
 using TestContexts =
     ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2, false>>;
-}  // namespace keyring_test
+}  // namespace secret_holder_test
 
 template <typename T>
 class SecretHolderTest : public ::testing::Test {
@@ -47,7 +47,7 @@ class SecretHolderTest : public ::testing::Test {
   }
 };
 
-TYPED_TEST_SUITE(SecretHolderTest, keyring_test::TestContexts);
+TYPED_TEST_SUITE(SecretHolderTest, secret_holder_test::TestContexts);
 
 TYPED_TEST(SecretHolderTest, ConvertSecret) {
   using Lwe = typename TypeParam::context::lwe_params;

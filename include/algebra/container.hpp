@@ -19,7 +19,7 @@ struct storage_traits {
   static constexpr bool use_proxy = false;
 };
 
-template <primitive T>
+template <primitive_concept T>
 struct storage_traits<T, std::void_t<typename T::raw_value_type>> {
   using value_type = T;
   using raw_value_type = typename T::raw_value_type;
@@ -68,7 +68,7 @@ class Container {
 
   template <typename F>
     requires requires(F& f, std::size_t i) {
-      { std::invoke(f, i) } -> explicitly_convertible_to<T>;
+      { std::invoke(f, i) } -> explicitly_convertible_to_concept<T>;
     }
   Container(F&& f) {
     std::size_t i = 0;
@@ -80,10 +80,10 @@ class Container {
   template <typename F>
     requires(
         !requires(F& f, std::size_t i) {
-          { std::invoke(f, i) } -> explicitly_convertible_to<T>;
+          { std::invoke(f, i) } -> explicitly_convertible_to_concept<T>;
         } &&
         requires(F& f) {
-          { std::invoke(f) } -> explicitly_convertible_to<T>;
+          { std::invoke(f) } -> explicitly_convertible_to_concept<T>;
         })
   Container(F&& f) {
     std::ranges::generate(begin(), end(), [&] {

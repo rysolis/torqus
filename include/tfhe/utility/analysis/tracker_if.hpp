@@ -31,7 +31,7 @@ class NoiseTrackerInterface {
 };
 
 inline NoiseTrackerInterface* get_noise_tracker_if();
-inline void set_noise_tracker_if(NoiseTrackerInterface* persistenfce);
+inline void set_noise_tracker_if(NoiseTrackerInterface* impl);
 
 #include "tracker/tracker_if_impl.hpp"
 

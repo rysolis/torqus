@@ -11,11 +11,11 @@
 // COPY OCCURED!!!
 template <typename T, uint32_t N>
 Poly<T, N> rotate(const Poly<T, N>& p, uint32_t m) {
-  constexpr uint32_t M = 2 * N;
-  m %= M;
+  constexpr uint32_t wrap = 2 * N;
+  m %= wrap;
 
   return Poly<T, N>([&p, m](uint32_t i) {
-    uint32_t j = (i + M - m) % N;
+    uint32_t j = (i + wrap - m) % N;
     bool neg = ((j + m) / N) & 1;
     return neg ? -p[j] : p[j];
   });

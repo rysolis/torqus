@@ -4,7 +4,6 @@
 #include <bit>
 #include <random>
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -59,14 +58,14 @@ class KeySwitchFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{1};
 
-  Runtime<Cryptor<SrcLwe>, Tracking> src_lwe_runtime_;
+  Runtime<SrcLwe, Tracking> src_lwe_runtime_;
 
-  Runtime<Cryptor<DstLwe>, Tracking> dst_lwe_runtime_;
+  Runtime<DstLwe, Tracking> dst_lwe_runtime_;
   KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
-    src_lwe_runtime_ = Runtime<Cryptor<SrcLwe>, Tracking>(eng_);
-    dst_lwe_runtime_ = Runtime<Cryptor<DstLwe>, Tracking>(eng_);
+    src_lwe_runtime_ = Runtime<SrcLwe, Tracking>(eng_);
+    dst_lwe_runtime_ = Runtime<DstLwe, Tracking>(eng_);
 
     // Prepare Key Switch Key
     KSK_ =
@@ -94,10 +93,10 @@ class KeySwitchCorrectnessTest
 TYPED_TEST_SUITE(KeySwitchCorrectnessTest, key_switch_test::TestContexts);
 
 TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
-  using params = TypeParam::context;
-  using SrcLwe = typename params::src_lwe_runtime_params;
-  using DstLwe = typename params::dst_lwe_runtime_params;
-  using Kst = typename params::kst_params;
+  using Params = TypeParam::context;
+  using SrcLwe = typename Params::src_lwe_runtime_params;
+  using DstLwe = typename Params::dst_lwe_runtime_params;
+  using Kst = typename Params::kst_params;
 
   using rTorus = typename SrcLwe::torus_type;
   constexpr uint32_t N = SrcLwe::n;

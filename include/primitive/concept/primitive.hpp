@@ -11,7 +11,7 @@
 // Primitive types exposed by the library.
 // Internal helper types (e.g. dbl::Torus) are intentionally excluded.
 template <typename T>
-concept primitive =
+concept primitive_concept =
     std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T> &&
     std::has_unique_object_representations_v<T>;
 

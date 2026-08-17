@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef ALGEBRA_PROXY_HPP
-#define ALGEBRA_PROXY_HPP
+#ifndef ALGEBRA_DETAIL_PROXY_HPP
+#define ALGEBRA_DETAIL_PROXY_HPP
 
 #include <iostream>
 
@@ -49,4 +49,18 @@ typename Container::value_type operator-(const Proxy<Container>& p) {
   return -static_cast<typename Container::value_type>(p);
 }
 
-#endif  // ALGEBRA_PROXY_HPP
+template <class Container>
+typename Container::value_type operator+(const Proxy<Container>& lhs,
+                                         const Proxy<Container>& rhs) {
+  return static_cast<typename Container::value_type>(lhs) +
+         static_cast<typename Container::value_type>(rhs);
+}
+
+template <class Container>
+typename Container::value_type operator-(const Proxy<Container>& lhs,
+                                         const Proxy<Container>& rhs) {
+  return static_cast<typename Container::value_type>(lhs) -
+         static_cast<typename Container::value_type>(rhs);
+}
+
+#endif  // ALGEBRA_DETAIL_PROXY_HPP

@@ -6,7 +6,6 @@
 
 #include "algebra/utility/utility.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -20,10 +19,10 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename LWE, typename GLWE>
+template <typename Lwe, typename Glwe>
 struct ParameterSet {
-  using lwe_params = LWE;
-  using rlwe_params = GLWE;
+  using lwe_params = Lwe;
+  using rlwe_params = Glwe;
 };
 
 using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 4>>,
@@ -53,12 +52,12 @@ class SampleExtractionFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Cryptor<Rlwe>> rlwe_runtime_;
-  Runtime<Cryptor<Lwe>> lwe_runtime_;
+  Runtime<Rlwe> rlwe_runtime_;
+  Runtime<Lwe> lwe_runtime_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>>(rlwe_runtime_, eng_);
+    rlwe_runtime_ = Runtime<Rlwe>(eng_);
+    lwe_runtime_ = Runtime<Lwe>(rlwe_runtime_, eng_);
   }
 };
 

@@ -14,7 +14,7 @@
 
 #include "algebra/poly.hpp"
 
-template <torus_type Torus, uint32_t N>
+template <torus_concept Torus, uint32_t N>
 class TRLWE {
  public:
   TRLWE() = default;
@@ -23,7 +23,7 @@ class TRLWE {
 
   template <typename F>
     requires requires(F& f) {
-      { std::invoke(f) } -> explicitly_convertible_to<Torus>;
+      { std::invoke(f) } -> explicitly_convertible_to_concept<Torus>;
     }
   TRLWE(F&& f) : a_(std::forward<F>(f)) {}
 
@@ -60,14 +60,14 @@ class TRLWE {
 };
 
 template <typename To, typename From, uint32_t N>
-  requires explicitly_convertible_to<To, From>
+  requires explicitly_convertible_to_concept<To, From>
 inline TRLWE<To, N> convert_to(TRLWE<From, N>&& src) {
   return TRLWE<To, N>(convert_to<To, N>(std::move(src.a())),
                       convert_to<To, N>(std::move(src.b())));
 }
 
 template <typename To, typename From, uint32_t N>
-  requires explicitly_convertible_to<To, From>
+  requires explicitly_convertible_to_concept<To, From>
 inline TRLWE<To, N> convert_to(const TRLWE<From, N>& src) {
   return TRLWE<To, N>(convert_to<To, N>(src.a()), convert_to<To, N>(src.b()));
 }

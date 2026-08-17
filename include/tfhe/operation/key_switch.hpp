@@ -18,24 +18,24 @@
 
 namespace {
 
-template <kst_concept params, torus_type Torus>
+template <kst_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
-  static constexpr uint32_t Bbit = std::bit_width(params::K - 1);
+  static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
   UInt::raw_value_type w =
       UInt::raw_value_type(static_cast<Torus::raw_value_type>(v));
-  UInt::raw_value_type tmp = (w >> shift) & (params::K - 1);
+  UInt::raw_value_type tmp = (w >> shift) & (Params::K - 1);
   return UInt(tmp);
 }
 
-template <kst_concept params, torus_type Torus>
-Torus reconstruct(const Vector<Poly<UInt, params::N>, params::t>& repr,
+template <kst_concept Params, torus_concept Torus>
+Torus reconstruct(const Vector<Poly<UInt, Params::N>, Params::t>& repr,
                   size_t j) {
-  static constexpr uint32_t Bbit = std::bit_width(params::K - 1);
+  static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
   typename Torus::raw_value_type m = 0;
-  for (size_t i = 0; i < params::t; ++i) {
+  for (size_t i = 0; i < Params::t; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
     UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
@@ -50,11 +50,10 @@ template <typename SrcLwe, typename DstLwe, typename Kst>
   requires tlwe_concept<SrcLwe> && tlwe_concept<DstLwe> && kst_concept<Kst>
 class KeySwitch {
  public:
-  using dTorus = typename DstLwe::torus_type;
+  using DstTorus = typename DstLwe::torus_type;
   static constexpr uint32_t n = DstLwe::n;
 
-  using sTorus = typename SrcLwe::torus_type;
-  static constexpr uint32_t N = SrcLwe::n;
+  using SrcTorus = typename SrcLwe::torus_type;
 
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
@@ -62,15 +61,16 @@ class KeySwitch {
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
   // forwarded again to tracking::update().
-  static TLWE<dTorus, n> exec_impl(const TLWE<sTorus, N>& src,
-                                   const KeySwitchKey<dTorus, n, t, N>& KSK) {
-    TLWE<dTorus, n> dst;
-    dst.b() = dTorus(static_cast<sTorus::raw_value_type>(src.b()));
-    for (size_t i = 0; i < N; ++i) {
-      dTorus ai = src.a()[i];
+  static TLWE<DstTorus, n> exec_impl(
+      const TLWE<SrcTorus, SrcLwe::n>& src,
+      const KeySwitchKey<DstTorus, n, t, SrcLwe::n>& ksk) {
+    TLWE<DstTorus, n> dst;
+    dst.b() = DstTorus(static_cast<SrcTorus::raw_value_type>(src.b()));
+    for (size_t i = 0; i < SrcLwe::n; ++i) {
+      DstTorus ai = src.a()[i];
       for (size_t j = 0; j < t; ++j) {
         UInt d = decompose<Kst>(ai, j);
-        dst -= d * KSK[i][j];
+        dst -= d * ksk[i][j];
       }
     }
     return dst;

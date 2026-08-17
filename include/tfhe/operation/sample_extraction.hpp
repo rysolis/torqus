@@ -18,7 +18,7 @@ class SampleExtraction {
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
   // forwarded again to tracking::update().
-  template <torus_type Torus>
+  template <torus_concept Torus>
   static TLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& trlwe, size_t p) {
     assert(p < N);
     TLWE<Torus, N> tlwe([&trlwe, p](std::size_t i) {

@@ -6,7 +6,6 @@
 #include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -19,11 +18,11 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Lwe, typename Rlwe, typename Dcp>
+template <typename Lwe, typename Rlwe, typename Decomp>
 struct ParameterSet {
   using lwe_params = Lwe;
   using rlwe_params = Rlwe;
-  using dcp_params = Dcp;
+  using dcp_params = Decomp;
 };
 
 using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>,
@@ -43,7 +42,7 @@ class BinaryExpansionFixture : public ::testing::Test {
  protected:
   using Lwe = Context::lwe_params;
   using Rlwe = Context::rlwe_params;
-  using Dcp = Context::dcp_params;
+  using Decomp = Context::dcp_params;
 
   static constexpr uint32_t n = Lwe::n;
 
@@ -51,22 +50,22 @@ class BinaryExpansionFixture : public ::testing::Test {
   using rTorus = Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
-  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
+  Runtime<Lwe, Tracking> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(rlwe_runtime_, eng_);
+    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
+    lwe_runtime_ = Runtime<Lwe, Tracking>(rlwe_runtime_, eng_);
 
     // Prepare Bootstrapkey
-    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime_.holder().get());
   }
 };
@@ -103,7 +102,7 @@ TYPED_TEST_SUITE(BinaryExpansionCorrectnessTest,
 TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
-  using Dcp = typename TypeParam::context::dcp_params;
+  using Decomp = typename TypeParam::context::dcp_params;
 
   using Torus = Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
@@ -127,7 +126,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     Vector<TLWE<rTorus, N>, 4> res_ct =
-        BinaryExpansion<4, Lwe, Rlwe, Dcp>::exec_impl(operand_ct, this->BK_);
+        BinaryExpansion<4, Lwe, Rlwe, Decomp>::exec_impl(operand_ct, this->BK_);
 
     // ==================================
     // Assert

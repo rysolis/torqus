@@ -17,7 +17,7 @@ namespace testvector {
 
 // -c + -cx + -cx^2 + ... + cx^{N/2} + cx^{N/2+1} + ...
 // TODO: use MessageCodec!!!
-template <torus_type Torus, uint32_t N>
+template <torus_concept Torus, uint32_t N>
 Poly<Torus, N> generate(Torus c) {
   return Poly<Torus, N>([c](uint32_t i) {
     if (i >= (N / 2)) {

@@ -18,26 +18,26 @@
 
 namespace trgsw {
 
-template <typename params, typename Engine>
-  requires trlwe_concept<params> && decompose_concept<params>
-TRGSW<typename params::torus_type, params::N, params::l> encrypt(
-    std::shared_ptr<UInt::raw_value_type[]> s, Engine& eng,
-    const Poly<UInt, params::N>& pt) {
-  using Torus = typename params::torus_type;
-  constexpr uint32_t N = params::N;
-  constexpr uint32_t B = params::B;
+template <typename Params, typename Engine>
+  requires trlwe_concept<Params> && decompose_concept<Params>
+TRGSW<typename Params::torus_type, Params::N, Params::l> encrypt(
+    std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng,
+    const Poly<UInt, Params::N>& pt) {
+  using Torus = typename Params::torus_type;
+  constexpr uint32_t N = Params::N;
+  constexpr uint32_t B = Params::B;
   constexpr uint32_t Bbit = std::bit_width(B - 1);
-  constexpr uint32_t l = params::l;
+  constexpr uint32_t l = Params::l;
 
   TRGSW<Torus, N, l> ct;
-  const Poly<UInt, N> secret(s.get(), s.get() + N);
+  const Poly<UInt, N> secret_poly(secret.get(), secret.get() + N);
 
   for (size_t j = 0; j < l; ++j) {
     randomize(ct[j].a(), eng.get());
     randomize(ct[l + j].a(), eng.get());
 
-    ct[j].b() = negacyclic_convolution(secret, ct[j].a());
-    ct[l + j].b() = negacyclic_convolution(secret, ct[l + j].a());
+    ct[j].b() = negacyclic_convolution(secret_poly, ct[j].a());
+    ct[l + j].b() = negacyclic_convolution(secret_poly, ct[l + j].a());
 
     Torus m(static_cast<UInt::raw_value_type>(pt[0]), 1u << (Bbit * (j + 1)));
 

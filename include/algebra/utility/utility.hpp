@@ -11,7 +11,7 @@
 #include "algebra/poly.hpp"
 #include "algebra/vector.hpp"
 
-template <torus_type Torus, uint32_t N>
+template <torus_concept Torus, uint32_t N>
 inline constexpr double infinity_norm(const Vector<Torus, N>& poly) {
   double max_norm = 0.0;
   for (size_t i = 0; i < poly.size(); ++i) {
@@ -24,14 +24,14 @@ inline constexpr double infinity_norm(const Vector<Torus, N>& poly) {
 }
 
 template <typename To, typename From, uint32_t N>
-  requires explicitly_convertible_to<To, From>
+  requires explicitly_convertible_to_concept<To, From>
 inline Vector<To, N> convert_to(const Vector<From, N>& src) {
   return Vector<To, N>([&](size_t i) {
     return static_cast<To>(static_cast<typename To::raw_value_type>(src[i]));
   });
 }
 
-template <torus_type Torus, uint32_t N>
+template <torus_concept Torus, uint32_t N>
 inline constexpr double infinity_norm(const Poly<Torus, N>& poly) {
   double max_norm = 0.0;
   for (size_t i = 0; i < poly.size(); ++i) {
@@ -44,7 +44,7 @@ inline constexpr double infinity_norm(const Poly<Torus, N>& poly) {
 }
 
 template <typename To, typename From, uint32_t N>
-  requires explicitly_convertible_to<To, From>
+  requires explicitly_convertible_to_concept<To, From>
 inline Poly<To, N> convert_to(const Poly<From, N>& src) {
   return Poly<To, N>([&](size_t i) {
     return static_cast<To>(static_cast<typename To::raw_value_type>(src[i]));
@@ -52,13 +52,13 @@ inline Poly<To, N> convert_to(const Poly<From, N>& src) {
 }
 
 template <typename To, typename From, uint32_t N>
-  requires interpretable_to<To, From>
+  requires interpretable_to_concept<From, To>
 Poly<To, N> interpret_as(const Poly<From, N>& src) {
   return Poly<To, N>(src.begin(), src.end());
 }
 
 template <typename To, typename From, uint32_t N>
-  requires interpretable_to<To, From>
+  requires interpretable_to_concept<From, To>
 Poly<To, N> interpret_as(Poly<From, N>&& src) {
   return Poly<To, N>(src.release());
 }

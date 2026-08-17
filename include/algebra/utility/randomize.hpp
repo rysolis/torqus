@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef UTILITY_RANDOMIZE_HPP
-#define UTILITY_RANDOMIZE_HPP
+#ifndef ALGEBRA_UTILITY_RANDOMIZE_HPP
+#define ALGEBRA_UTILITY_RANDOMIZE_HPP
 
 #include <concepts>
 #include <cstdint>
@@ -13,10 +13,10 @@
 template <typename T>
 struct default_distribution;
 
-template <uint32_t q>
-struct default_distribution<ModTorus<q>> {
+template <uint32_t QBit>
+struct default_distribution<ModTorus<QBit>> {
   using type =
-      std::uniform_int_distribution<typename ModTorus<q>::raw_value_type>;
+      std::uniform_int_distribution<typename ModTorus<QBit>::raw_value_type>;
 };
 
 template <uint32_t P>
@@ -35,18 +35,18 @@ inline T random_value(Engine& eng) {
 }
 
 template <typename Container, typename Engine>
-inline void randomize(Container& ctn, Engine& eng) {
+inline void randomize(Container& container, Engine& eng) {
   using value_type = typename Container::value_type;
-  for (size_t i = 0; i < ctn.size(); ++i) {
-    ctn[i] = random_value<value_type>(eng);
+  for (size_t i = 0; i < container.size(); ++i) {
+    container[i] = random_value<value_type>(eng);
   }
 }
 
 template <typename Container, typename Engine>
 inline Container randomize(Engine& eng) {
-  Container ctn;
-  randomize(ctn, eng);
-  return ctn;
+  Container container;
+  randomize(container, eng);
+  return container;
 }
 
-#endif  // UTILITY_RANDOMIZE_HPP
+#endif  // ALGEBRA_UTILITY_RANDOMIZE_HPP

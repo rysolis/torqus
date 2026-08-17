@@ -7,7 +7,7 @@
 
 #include "tfhe/params.hpp"
 
-namespace trlwe_basic_test {
+namespace tlwe_basic_test {
 
 template <typename Ctx, bool Verbose = true>
 struct TestConfig {
@@ -17,7 +17,7 @@ struct TestConfig {
 
 template <typename T>
 struct ParameterSet {
-  using params = T;
+  using Params = T;
 };
 
 using Ctx1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 10>>>;
@@ -25,18 +25,18 @@ using Ctx2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 100>>>;
 
 using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>>;
 
-}  // namespace trlwe_basic_test
+}  // namespace tlwe_basic_test
 
 template <typename Ctx>
 class TlweBasicTest : public ::testing::Test {};
 
-TYPED_TEST_SUITE(TlweBasicTest, trlwe_basic_test::TestContexts);
+TYPED_TEST_SUITE(TlweBasicTest, tlwe_basic_test::TestContexts);
 
 TYPED_TEST(TlweBasicTest, Constructor) {
-  using params = TypeParam::context::params;
+  using Params = TypeParam::context::Params;
 
-  using Torus = params::torus_type;
-  constexpr uint32_t n = params::n;
+  using Torus = Params::torus_type;
+  constexpr uint32_t n = Params::n;
 
   TLWE<Torus, n> tlwe;
 

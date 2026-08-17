@@ -33,6 +33,6 @@ inline NoiseTrackerInterface* get_key_noise_tracker_if() {
   return get_tracker_if<KeyNoiseTracker>();
 }
 
-inline void set_noise_tracker_if(NoiseTrackerInterface* itf) { instance = itf; }
+inline void set_noise_tracker_if(NoiseTrackerInterface* impl) { instance = impl; }
 
 #endif

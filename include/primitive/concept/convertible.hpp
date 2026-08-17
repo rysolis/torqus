@@ -8,16 +8,16 @@
 #include <utility>
 
 template <typename From, typename To>
-concept lvalue_explicitly_convertible_to =
+concept lvalue_explicitly_convertible_to_concept =
     requires(From& x) { static_cast<To>(x); };
 
 template <typename From, typename To>
-concept rvalue_explicitly_convertible_to =
+concept rvalue_explicitly_convertible_to_concept =
     requires(From&& x) { static_cast<To>(std::move(x)); };
 
 template <typename From, typename To>
-concept explicitly_convertible_to =
-    lvalue_explicitly_convertible_to<From, To> ||
-    rvalue_explicitly_convertible_to<From, To>;
+concept explicitly_convertible_to_concept =
+    lvalue_explicitly_convertible_to_concept<From, To> ||
+    rvalue_explicitly_convertible_to_concept<From, To>;
 
 #endif  // PRIMITIVE_CONVERTIBLE_CONCEPT_HPP

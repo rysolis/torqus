@@ -13,7 +13,7 @@
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/utility/testvector.hpp"
 
-template <typename Lwe, typename Rlwe, typename Dcp>
+template <typename Lwe, typename Rlwe, typename Decomp>
 class HomAnd {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -22,7 +22,7 @@ class HomAnd {
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
@@ -37,12 +37,12 @@ class HomAnd {
     TLWE<Torus, n> offset;
     offset.b() = -Torus(1u, 8u);
 
-    return GateBootstrap<Lwe, Rlwe, Dcp>::exec_impl(
+    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
         mu, tv, Add<Lwe>::exec_impl(offset, Add<Lwe>::exec_impl(c1, c2)), bk);
   }
 };
 
-template <typename Lwe, typename Rlwe, typename Dcp>
+template <typename Lwe, typename Rlwe, typename Decomp>
 class HomAndNot {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -51,7 +51,7 @@ class HomAndNot {
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
@@ -66,7 +66,7 @@ class HomAndNot {
     TLWE<Torus, n> offset;
     offset.b() = Torus(1u, 8u);
 
-    return GateBootstrap<Lwe, Rlwe, Dcp>::exec_impl(
+    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
         mu, tv, Add<Lwe>::exec_impl(offset, Sub<Lwe>::exec_impl(c1, c2)), bk);
   }
 };

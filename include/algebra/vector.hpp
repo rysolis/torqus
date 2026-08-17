@@ -50,10 +50,10 @@ class Vector
     return *this;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Vector& vec) {
+  friend std::ostream& operator<<(std::ostream& os, const Vector& vector) {
     os << "Vec(";
     for (size_t i = 0; i < N; ++i) {
-      os << vec[i];
+      os << vector[i];
       if (i + 1 != N) os << ", ";
     }
     return os << ")";
@@ -82,26 +82,8 @@ inline Vector<T, N> operator-(Vector<T, N> lhs, const Expr& rhs) {
   return lhs -= rhs;
 }
 
-// If operator+(Proxy lhs, const Proxy<T>& rhs) is used,
-// lhs is copied together with its reference state,
-// which results in unintended behavior.
-template <typename T, uint32_t N>
-inline Vector<T, N>::value_type operator+(
-    const typename Vector<T, N>::Proxy& lhs,
-    const typename Vector<T, N>::Proxy& rhs) {
-  return static_cast<Vector<T, N>::raw_value_type>(lhs) +
-         static_cast<Vector<T, N>::raw_value_type>(rhs);
-}
-
-// If operator-(Proxy lhs, const Proxy<T>& rhs) is used,
-// lhs is copied together with its reference state,
-// which results in unintended behavior.
-template <typename T, uint32_t N>
-inline Vector<T, N>::value_type operator-(
-    const typename Vector<T, N>::Proxy& lhs,
-    const typename Vector<T, N>::Proxy& rhs) {
-  return static_cast<Vector<T, N>::raw_value_type>(lhs) -
-         static_cast<Vector<T, N>::raw_value_type>(rhs);
-}
+// Proxy<Vector<T, N>> + Proxy<Vector<T, N>> and the corresponding
+// subtraction are handled by the generic operator+/operator- for
+// Proxy<Container> in detail/proxy.hpp.
 
 #endif  // ALGEBRA_VECTOR_HPP

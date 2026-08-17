@@ -12,77 +12,77 @@
 template <typename Op>
 struct NoisePolicy;
 
-template <trlwe_concept params>
-struct NoisePolicy<Add<params>> {
-  static constexpr uint32_t N = params::N;
+template <trlwe_concept Params>
+struct NoisePolicy<Add<Params>> {
+  static constexpr uint32_t N = Params::N;
 
-  template <typename Tracker, torus_type Torus>
+  template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker, const TRLWE<Torus, N>& lhs,
                         const TRLWE<Torus, N>& rhs) {
     return tracker->get(lhs) + tracker->get(rhs);
   }
 };
 
-template <trlwe_concept params>
-struct NoisePolicy<Sub<params>> {
-  static constexpr uint32_t N = params::N;
+template <trlwe_concept Params>
+struct NoisePolicy<Sub<Params>> {
+  static constexpr uint32_t N = Params::N;
 
-  template <typename Tracker, torus_type Torus>
+  template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker, const TRLWE<Torus, N>& lhs,
                         const TRLWE<Torus, N>& rhs) {
     return tracker->get(lhs) + tracker->get(rhs);
   }
 };
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
-struct NoisePolicy<ExternalProduct<Rlwe, Dcp>> {
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
+struct NoisePolicy<ExternalProduct<Rlwe, Decomp>> {
   static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t B = Dcp::B;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Decomp::B;
+  static constexpr uint32_t l = Decomp::l;
 
-  static constexpr double ep = 1. / (B << (l + 1));
+  static constexpr double eps = 1. / (B << (l + 1));
 
-  template <typename Tracker, torus_type Torus>
+  template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& lhs,
                         const TRLWE<Torus, N>& rhs) {
     return (2 * l * N * (B << 1) * tracker->get(lhs)) +
-           ((1. / B) * (1 + N) * ep) + ((1. / B) * tracker->get(rhs));
+           ((1. / B) * (1 + N) * eps) + ((1. / B) * tracker->get(rhs));
   }
 };
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
-struct NoisePolicy<CMux<Rlwe, Dcp>> {
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
+struct NoisePolicy<CMux<Rlwe, Decomp>> {
   static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t B = Dcp::B;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Decomp::B;
+  static constexpr uint32_t l = Decomp::l;
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
+  static constexpr double eps = (1. / (1u << Bbit * l)) * 0.5;
 
-  template <typename Tracker, torus_type Torus>
+  template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker,
                         const TRGSW<Torus, N, l>& selector,
                         const TRLWE<Torus, N>& lhs,
                         const TRLWE<Torus, N>& rhs) {
-    return (2 * l * N * (B << 1) * tracker->get(selector)) + ((1 + N) * ep) +
+    return (2 * l * N * (B << 1) * tracker->get(selector)) + ((1 + N) * eps) +
            (std::max(tracker->get(lhs), tracker->get(rhs)));
   }
 };
 
-template <typename Lwe, typename Rlwe, typename Dcp>
-  requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Dcp>
-struct NoisePolicy<BlindRotate<Lwe, Rlwe, Dcp>> {
+template <typename Lwe, typename Rlwe, typename Decomp>
+  requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
+struct NoisePolicy<BlindRotate<Lwe, Rlwe, Decomp>> {
   static constexpr uint32_t n = Lwe::n;
   using Torus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
-  static constexpr uint32_t B = Dcp::B;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Decomp::B;
+  static constexpr uint32_t l = Decomp::l;
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
+  static constexpr double eps = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
   static double compute(const Tracker*, const TRLWE<Torus, N>&,
@@ -90,23 +90,23 @@ struct NoisePolicy<BlindRotate<Lwe, Rlwe, Dcp>> {
                         const BootstrapKey<Torus, N, l, n>& bk) {
     double bound = 0.;  // assume that ||Err(tv)|| = 0
     bound += (n * 2 * l * N * (B << 1) * get_key_noise_tracker_if()->get(bk)) +
-             (n * (1 + N) * ep);
+             (n * (1 + N) * eps);
     return bound;
   }
 };
-template <typename Lwe, typename Rlwe, typename Dcp>
-  requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Dcp>
-struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Dcp>> {
+template <typename Lwe, typename Rlwe, typename Decomp>
+  requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
+struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Decomp>> {
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
-  static constexpr uint32_t B = Dcp::B;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Decomp::B;
+  static constexpr uint32_t l = Decomp::l;
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
-  static constexpr double ep = (1. / (1u << Bbit * l)) * 0.5;
+  static constexpr double eps = (1. / (1u << Bbit * l)) * 0.5;
 
   template <typename Tracker>
   static double compute(const Tracker*, const rTorus, const TRLWE<rTorus, N>&,
@@ -114,7 +114,7 @@ struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Dcp>> {
                         const BootstrapKey<rTorus, N, l, n>& bk) {
     double bound =
         n * 2 * l * N * (B << 1) * get_key_noise_tracker_if()->get(bk) +
-        (n * (1 + N) * ep);
+        (n * (1 + N) * eps);
     return bound;
   }
 };

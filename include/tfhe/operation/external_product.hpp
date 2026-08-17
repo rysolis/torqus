@@ -13,28 +13,28 @@
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/gadget/gadget_repr.hpp"
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 class ExternalProduct {
  public:
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t B = Dcp::B;
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t B = Decomp::B;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOTE:
   // exec_impl must not consume (move from) its arguments, as they are
   // forwarded again to tracking::update().
-  template <torus_type Torus>
+  template <torus_concept Torus>
   static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& trgsw,
                                    const TRLWE<Torus, N>& trlwe) {
-    GadgetTRLWE<Rlwe, Dcp> gd(trlwe);
+    GadgetTRLWE<Rlwe, Decomp> gadget(trlwe);
     TRLWE<Torus, N> res;
-    for (size_t i = 0; i < Dcp::l; ++i) {
-      res.a() += negacyclic_convolution(gd.a()[i], trgsw[i].a());
-      res.a() += negacyclic_convolution(gd.b()[i], trgsw[l + i].a());
-      res.b() += negacyclic_convolution(gd.a()[i], trgsw[i].b());
-      res.b() += negacyclic_convolution(gd.b()[i], trgsw[l + i].b());
+    for (size_t i = 0; i < Decomp::l; ++i) {
+      res.a() += negacyclic_convolution(gadget.a()[i], trgsw[i].a());
+      res.a() += negacyclic_convolution(gadget.b()[i], trgsw[l + i].a());
+      res.b() += negacyclic_convolution(gadget.a()[i], trgsw[i].b());
+      res.b() += negacyclic_convolution(gadget.b()[i], trgsw[l + i].b());
     }
     return res;
   }

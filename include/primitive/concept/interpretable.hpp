@@ -6,8 +6,8 @@
 
 #include <concepts>
 
-template <typename To, typename From>
-concept interpretable_to =
+template <typename From, typename To>
+concept interpretable_to_concept =
     std::same_as<typename std::decay_t<To>::raw_value_type,
                  typename std::decay_t<From>::raw_value_type>;
 

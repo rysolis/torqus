@@ -17,7 +17,6 @@
 #include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -35,11 +34,11 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Lwe, typename Rlwe, typename Dcp>
+template <typename Lwe, typename Rlwe, typename Decomp>
 struct ParameterSet {
   using lwe_params = Lwe;
   using rlwe_params = Rlwe;
-  using dcp_params = Dcp;
+  using dcp_params = Decomp;
 };
 
 using Context1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
@@ -61,7 +60,7 @@ class BlindRotateFixture : public ::testing::Test {
  protected:
   using Lwe = typename Context::lwe_params;
   using Rlwe = typename Context::rlwe_params;
-  using Dcp = typename Context::dcp_params;
+  using Decomp = typename Context::dcp_params;
 
   static constexpr uint32_t n = Lwe::n;
 
@@ -69,22 +68,22 @@ class BlindRotateFixture : public ::testing::Test {
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t M = 2 * N;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{10};
 
-  Runtime<Cryptor<Rlwe>> rlwe_runtime_;
+  Runtime<Rlwe> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
   Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
-    Runtime<Cryptor<Lwe>> lwe_runtime = Runtime<Cryptor<Lwe>>(eng_);
-    rlwe_runtime_ = Runtime<Cryptor<Rlwe>>(eng_);
+    Runtime<Lwe> lwe_runtime = Runtime<Lwe>(eng_);
+    rlwe_runtime_ = Runtime<Rlwe>(eng_);
 
     // Prepare Bootstrapkey
-    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Dcp>(
+    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime.holder().get());
 
     double bound = 0.0;  // TODO: use parameters to compute
@@ -130,7 +129,7 @@ TYPED_TEST_SUITE(BlindRotateCorrectnessTest, blindrotate_test::TestContexts);
 TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
-  using Dcp = typename TypeParam::context::dcp_params;
+  using Decomp = typename TypeParam::context::dcp_params;
 
   constexpr uint32_t n = Lwe::n;
 
@@ -157,8 +156,8 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<BlindRotate<Lwe, Rlwe, Dcp>, Tracking>::exec(tv, phase_ct,
-                                                               this->BK_);
+        Evaluator<BlindRotate<Lwe, Rlwe, Decomp>, Tracking>::exec(tv, phase_ct,
+                                                                  this->BK_);
     // ==================================
     // Assert
     // ==================================

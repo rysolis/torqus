@@ -24,23 +24,23 @@ namespace {
 
 namespace classical {
 
-template <decompose_concept params, torus_type Torus>
+template <decompose_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
-  static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
+  static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
   UInt::raw_value_type w =
       UInt::raw_value_type(static_cast<Torus::raw_value_type>(v));
-  UInt::raw_value_type tmp = (w >> shift) & (params::B - 1);
+  UInt::raw_value_type tmp = (w >> shift) & (Params::B - 1);
   return UInt(tmp);
 }
 
-template <typename Rlwe, typename Dcp, torus_type Torus>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Dcp::l>& repr, size_t j) {
-  static constexpr uint32_t l = Dcp::l;
-  static constexpr uint32_t B = Dcp::B;
+template <typename Rlwe, typename Decomp, torus_concept Torus>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr, size_t j) {
+  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
   typename Torus::raw_value_type m = 0;
@@ -61,33 +61,33 @@ namespace balanced {
 //  v = sum_i (d_i * B^i) = sum_i (e_i - (Bg/2)) * B^i = sum_i (e_i * B^i) -
 // (Bg/2) * sum_i (B^i).
 // Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
-template <decompose_concept params, torus_type Torus>
+template <decompose_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
-  static constexpr uint32_t Bbit = std::bit_width(params::B - 1);
+  static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
   // To mitigate the effect of quantization error, we add a rounding offset
   // before extraction.
   UInt::raw_value_type round = 0;
-  if constexpr (Torus::qbit - (Bbit * params::l) > 0) {
-    round = 1u << (Torus::qbit - (Bbit * params::l) - 1);
+  if constexpr (Torus::qbit - (Bbit * Params::l) > 0) {
+    round = 1u << (Torus::qbit - (Bbit * Params::l) - 1);
   }
   UInt::raw_value_type offset = 0;
-  for (size_t i = 0; i < params::l; ++i) {
-    offset += (params::B / 2) << (Torus::qbit - (Bbit * (i + 1)));
+  for (size_t i = 0; i < Params::l; ++i) {
+    offset += (Params::B / 2) << (Torus::qbit - (Bbit * (i + 1)));
   }
   UInt::raw_value_type w = UInt::raw_value_type(
       static_cast<Torus::raw_value_type>(v) + offset + round);
-  UInt::raw_value_type tmp = ((w >> shift) & (params::B - 1)) - (params::B / 2);
+  UInt::raw_value_type tmp = ((w >> shift) & (Params::B - 1)) - (Params::B / 2);
   return UInt(tmp);
 }
 
-template <typename Rlwe, typename Dcp, torus_type Torus>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Dcp::l>& repr, size_t j) {
-  static constexpr uint32_t l = Dcp::l;
-  static constexpr uint32_t B = Dcp::B;
+template <typename Rlwe, typename Decomp, torus_concept Torus>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr, size_t j) {
+  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
   UInt::raw_value_type offset = 0;
@@ -110,24 +110,24 @@ Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Dcp::l>& repr, size_t j) {
 
 }  // namespace
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 class GadgetRepr {
  public:
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Dcp::l;
-  static constexpr uint32_t B = Dcp::B;
+  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
   // Torus shoule be ModTorus<QBit> !!
-  template <torus_type Torus>
+  template <torus_concept Torus>
   explicit GadgetRepr(const Poly<Torus, N>& poly) {
     static_assert(Torus::qbit >= Bbit * l,
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < N; ++j) {
       for (size_t i = 0; i < l; ++i) {
-        repr_[i][j] = balanced::decompose<Dcp>(static_cast<Torus>(poly[j]), i);
+        repr_[i][j] = balanced::decompose<Decomp>(static_cast<Torus>(poly[j]), i);
       }
     }
   }
@@ -137,7 +137,7 @@ class GadgetRepr {
     Poly<Torus, N> poly;
 
     for (size_t j = 0; j < N; ++j) {
-      poly[j] = balanced::reconstruct<Rlwe, Dcp, Torus>(repr_, j);
+      poly[j] = balanced::reconstruct<Rlwe, Decomp, Torus>(repr_, j);
     }
 
     return poly;
@@ -155,19 +155,19 @@ class GadgetRepr {
 
   // 2^(qbit-Bbit*l) / 2^qbit
   // = 2^(-(Bbit*l))
-  template <torus_type Torus>
+  template <torus_concept Torus>
   static constexpr double threshold = 1.0 / (1ULL << (Bbit * l));
 
  private:
   Vector<Poly<UInt, N>, l> repr_;
 };
 
-template <typename Rlwe, typename Dcp>
-  requires trlwe_concept<Rlwe> && decompose_concept<Dcp>
+template <typename Rlwe, typename Decomp>
+  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 class GadgetTRLWE {
  public:
   // NOLINT(bugprone-easily-swappable-parameters)
-  GadgetTRLWE(GadgetRepr<Rlwe, Dcp> a, GadgetRepr<Rlwe, Dcp> b)
+  GadgetTRLWE(GadgetRepr<Rlwe, Decomp> a, GadgetRepr<Rlwe, Decomp> b)
       : a_(std::move(a)), b_(std::move(b)) {}
 
   template <typename Torus>
@@ -175,18 +175,18 @@ class GadgetTRLWE {
       : a_(trlwe.a()), b_(trlwe.b()) {}
 
   [[nodiscard]]
-  const GadgetRepr<Rlwe, Dcp>& a() const noexcept {
+  const GadgetRepr<Rlwe, Decomp>& a() const noexcept {
     return a_;
   }
 
   [[nodiscard]]
-  const GadgetRepr<Rlwe, Dcp>& b() const noexcept {
+  const GadgetRepr<Rlwe, Decomp>& b() const noexcept {
     return b_;
   }
 
  private:
-  GadgetRepr<Rlwe, Dcp> a_;
-  GadgetRepr<Rlwe, Dcp> b_;
+  GadgetRepr<Rlwe, Decomp> a_;
+  GadgetRepr<Rlwe, Decomp> b_;
 };
 
 #endif  // TFHE_GADGET_REPR_HPP

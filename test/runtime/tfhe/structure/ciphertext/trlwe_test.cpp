@@ -17,7 +17,7 @@ struct TestConfig {
 
 template <typename T>
 struct ParameterSet {
-  using params = T;
+  using Params = T;
 };
 
 using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
@@ -33,10 +33,10 @@ class TrlweBasicTest : public ::testing::Test {};
 TYPED_TEST_SUITE(TrlweBasicTest, trlwe_basic_test::TestContexts);
 
 TYPED_TEST(TrlweBasicTest, SizeConstructor_initializesBuffer) {
-  using params = typename TypeParam::context::params;
+  using Params = typename TypeParam::context::Params;
 
-  using Torus = params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = Params::torus_type;
+  constexpr uint32_t N = Params::N;
 
   TRLWE<Torus, N> trlwe;
   EXPECT_EQ(trlwe.a().size(), N);
@@ -46,10 +46,10 @@ TYPED_TEST(TrlweBasicTest, SizeConstructor_initializesBuffer) {
 }
 
 TYPED_TEST(TrlweBasicTest, Generator_InitializedBuffer) {
-  using params = typename TypeParam::context::params;
+  using Params = typename TypeParam::context::Params;
 
-  using Torus = params::torus_type;
-  constexpr uint32_t N = params::N;
+  using Torus = Params::torus_type;
+  constexpr uint32_t N = Params::N;
 
   TRLWE<Torus, N> trlwe([]() { return Torus(10u); });
   EXPECT_EQ(trlwe.a().size(), N);

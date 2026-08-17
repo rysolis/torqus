@@ -8,7 +8,6 @@
 #include "algebra/poly.hpp"
 #include "algebra/utility/utility.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -25,10 +24,10 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Rlwe, typename Dcp>
+template <typename Rlwe, typename Decomp>
 struct ParameterSet {
   using rlwe_params = Rlwe;
-  using dcp_params = Dcp;
+  using dcp_params = Decomp;
 };
 
 using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
@@ -49,7 +48,7 @@ template <typename Context>
 class ExternalProductFixture : public ::testing::Test {
  protected:
   using Rlwe = typename Context::rlwe_params;
-  using Dcp = typename Context::dcp_params;
+  using Decomp = typename Context::dcp_params;
 
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
@@ -57,10 +56,10 @@ class ExternalProductFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking> rlwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<Cryptor<ParamsPack<Rlwe, Dcp>>, Tracking>(eng_);
+    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
   }
 };
 
@@ -89,12 +88,12 @@ TYPED_TEST_SUITE(ExternalProductCorrectnessTest,
 
 TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
-  using Dcp = typename TypeParam::context::dcp_params;
+  using Decomp = typename TypeParam::context::dcp_params;
 
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Dcp::l;
+  static constexpr uint32_t l = Decomp::l;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -114,7 +113,7 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<ExternalProduct<Rlwe, Dcp>, Tracking>::exec(mp_ct, rhs_ct);
+        Evaluator<ExternalProduct<Rlwe, Decomp>, Tracking>::exec(mp_ct, rhs_ct);
 
     // ==================================
     // Assert

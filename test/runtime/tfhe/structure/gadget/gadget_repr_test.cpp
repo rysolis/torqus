@@ -19,10 +19,10 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Rlwe, typename Dcp>
+template <typename Rlwe, typename Decomp>
 struct ParameterSet {
   using rlwe_params = Rlwe;
-  using dcp_params = Dcp;
+  using dcp_params = Decomp;
 };
 
 using Ctx1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
@@ -68,7 +68,7 @@ TYPED_TEST_SUITE(GadgetReprTest, gadget_repr_test::TestContexts);
 
 TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
   using Rlwe = typename TypeParam::context::rlwe_params;
-  using Dcp = typename TypeParam::context::dcp_params;
+  using Decomp = typename TypeParam::context::dcp_params;
 
   using Torus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
@@ -77,7 +77,7 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
 
   EXPECT_EQ(N, poly.size());
 
-  GadgetRepr<Rlwe, Dcp> repr(poly);
+  GadgetRepr<Rlwe, Decomp> repr(poly);
   Poly<Torus, N> reconstructed = repr.template reconstruct<Torus>();
 
   double error_norm = infinity_norm(poly - reconstructed);
@@ -91,10 +91,10 @@ TYPED_TEST(GadgetReprTest, ReconstructsOriginalPolynomial) {
 
   std::cout << "Analysis:\n";
   std::cout << "  Infinity norm: " << error_norm << "\n";
-  std::cout << "  Threshold: " << GadgetRepr<Rlwe, Dcp>::template threshold<Torus>
+  std::cout << "  Threshold: " << GadgetRepr<Rlwe, Decomp>::template threshold<Torus>
   << "\n"; std::cout <<
   "=====================================================\n\n";
   // clang-format on
 
-  EXPECT_LT(error_norm, (GadgetRepr<Rlwe, Dcp>::template threshold<Torus>));
+  EXPECT_LT(error_norm, (GadgetRepr<Rlwe, Decomp>::template threshold<Torus>));
 }

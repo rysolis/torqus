@@ -45,7 +45,7 @@ TYPED_TEST(ModIntArithmeticTest, Addition) {
     Zp ref = [&lhs, &rhs]() {
       return Zp((static_cast<typename Zp::raw_value_type>(lhs) +
                  static_cast<typename Zp::raw_value_type>(rhs)) %
-                Zp::MOD);
+                Zp::mod);
     }();
 
     EXPECT_EQ(static_cast<typename Zp::raw_value_type>(ref),
@@ -63,7 +63,7 @@ TYPED_TEST(ModIntArithmeticTest, Subtraction) {
 
     Zp ref = [&lhs, &rhs]() {
       if (lhs.value() < rhs.value()) {
-        return Zp(static_cast<typename Zp::raw_value_type>(lhs) + Zp::MOD -
+        return Zp(static_cast<typename Zp::raw_value_type>(lhs) + Zp::mod -
                   static_cast<typename Zp::raw_value_type>(rhs));
       } else {
         return Zp(static_cast<typename Zp::raw_value_type>(lhs) -

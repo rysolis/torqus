@@ -3,7 +3,6 @@
 #include <optional>
 #include <random>
 
-#include "tfhe/cryptor/cryptor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -40,11 +39,9 @@ class TlweEncryptionFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  Runtime<Cryptor<Lwe>, Tracking> lwe_runtime_;
+  Runtime<Lwe, Tracking> lwe_runtime_;
 
-  void SetUp() override {
-    lwe_runtime_ = Runtime<Cryptor<Lwe>, Tracking>(eng_);
-  }
+  void SetUp() override { lwe_runtime_ = Runtime<Lwe, Tracking>(eng_); }
 };
 
 template <typename Config>

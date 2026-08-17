@@ -139,7 +139,8 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
 
   Poly<T, 4> p{T(0), T(1), T(2), T(3)};
 
-  T add = static_cast<T>(p[0]) + static_cast<T>(p[1]);
+  T add = p[0] + p[1];
+
   EXPECT_EQ(T(0), p[0]);
   EXPECT_EQ(T(1), p[1]);
   EXPECT_EQ(T(1), add);
@@ -147,7 +148,7 @@ TYPED_TEST(PolyBasicTest, SubscriptOperator) {
   if constexpr (std::same_as<T, UInt>) {
     EXPECT_THROW({ p[2] - p[3]; }, std::underflow_error);
   } else {
-    T sub = static_cast<T>(p[2]) - static_cast<T>(p[3]);
+    T sub = p[2] - p[3];
     EXPECT_EQ(T(2), p[2]);
     if constexpr (std::same_as<T, ModInt<7>>) {
       EXPECT_EQ(T(6), sub);

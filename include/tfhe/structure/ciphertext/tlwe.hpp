@@ -13,7 +13,7 @@
 
 #include "algebra/vector.hpp"
 
-template <torus_type Torus, uint32_t n>
+template <torus_concept Torus, uint32_t n>
 class TLWE {
  public:
   TLWE() = default;
@@ -33,17 +33,17 @@ class TLWE {
 
   template <typename F>
     requires requires(F& f, std::size_t i) {
-      { std::invoke(f, i) } -> explicitly_convertible_to<Torus>;
+      { std::invoke(f, i) } -> explicitly_convertible_to_concept<Torus>;
     }
   TLWE(F&& f) : a_(std::forward<F>(f)) {}
 
   template <typename F>
     requires(
         requires(F& f, std::size_t i) {
-          { std::invoke(f, i) } -> explicitly_convertible_to<Torus>;
+          { std::invoke(f, i) } -> explicitly_convertible_to_concept<Torus>;
         } &&
         requires(F& f) {
-          { std::invoke(f) } -> explicitly_convertible_to<Torus>;
+          { std::invoke(f) } -> explicitly_convertible_to_concept<Torus>;
         })
   TLWE(F&& f) : a_(std::forward<F>(f)) {}
 
@@ -84,7 +84,7 @@ class TLWE {
   Torus b_{};
 };
 
-template <torus_type Torus, uint32_t n>
+template <torus_concept Torus, uint32_t n>
 inline constexpr TLWE<Torus, n> operator*(UInt lhs, const TLWE<Torus, n>& rhs) {
   TLWE<Torus, n> res;
   res.b() = lhs * Torus(rhs.b());

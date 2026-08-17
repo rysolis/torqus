@@ -18,26 +18,26 @@
 
 namespace tlwe {
 
-template <tlwe_concept params, torus_type Torus, typename Engine>
-TLWE<Torus, params::n> encrypt(
-    std::shared_ptr<typename UInt::raw_value_type[]> s, Engine& eng,
+template <tlwe_concept Params, torus_concept Torus, typename Engine>
+TLWE<Torus, Params::n> encrypt(
+    std::shared_ptr<typename UInt::raw_value_type[]> secret, Engine& eng,
     const Torus& message) {
-  TLWE<Torus, params::n> ct;
+  TLWE<Torus, Params::n> ct;
   randomize(ct.a(), eng.get());
-  // Vector<UInt, params::n> secret ...
+  // Vector<UInt, Params::n> secret ...
   for (uint32_t i = 0; i < ct.dimension(); ++i) {
-    ct.b() += static_cast<UInt>(s[i]) * static_cast<Torus>(ct.a()[i]);
+    ct.b() += static_cast<UInt>(secret[i]) * static_cast<Torus>(ct.a()[i]);
   }
   ct.b() += message;
   return ct;
 }
 
-template <tlwe_concept params, torus_type Torus>
-Torus decrypt(std::shared_ptr<UInt::raw_value_type[]> s,
-              const TLWE<Torus, params::n>& ct) {
+template <tlwe_concept Params, torus_concept Torus>
+Torus decrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
+              const TLWE<Torus, Params::n>& ct) {
   Torus pt = ct.b();
   for (uint32_t i = 0; i < ct.dimension(); ++i) {
-    pt -= static_cast<UInt>(s[i]) * static_cast<Torus>(ct.a()[i]);
+    pt -= static_cast<UInt>(secret[i]) * static_cast<Torus>(ct.a()[i]);
   }
   return pt;
 }
