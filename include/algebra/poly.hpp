@@ -22,9 +22,9 @@ struct expr_tag {};
 template <typename Expr>
 struct accumulate_impl;
 
-template <typename T, uint32_t N>
-class Poly : public Container<Poly<T, N>, T, N, true> {
-  using Base = Container<Poly<T, N>, T, N, true>;
+template <typename T, uint32_t Size>
+class Poly : private Container<Poly<T, Size>, T, Size, true> {
+  using Base = Container<Poly<T, Size>, T, Size, true>;
 
  public:
   using Base::Base;
@@ -33,8 +33,10 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   using typename Base::value_type;
 
   using Base::begin;
+  using Base::data;
   using Base::end;
   using Base::operator[];
+  using Base::size;
 
   Poly& operator+=(const Poly& other) {
     assert(other.size() == this->size());
@@ -148,30 +150,30 @@ class Poly : public Container<Poly<T, N>, T, N, true> {
   }
 };
 
-template <typename T, uint32_t N>
-inline Poly<T, N> operator+(Poly<T, N> lhs, const Poly<T, N>& rhs) {
+template <typename T, uint32_t Size>
+inline Poly<T, Size> operator+(Poly<T, Size> lhs, const Poly<T, Size>& rhs) {
   assert(lhs.size() == rhs.size());
   return lhs += rhs;
 }
 
-template <typename T, uint32_t N, typename Expr>
-inline Poly<T, N> operator+(Poly<T, N> lhs, const Expr& rhs) {
+template <typename T, uint32_t Size, typename Expr>
+inline Poly<T, Size> operator+(Poly<T, Size> lhs, const Expr& rhs) {
   return lhs += rhs;
 }
 
-template <typename T, uint32_t N>
-inline Poly<T, N> operator-(Poly<T, N> lhs, const Poly<T, N>& rhs) {
+template <typename T, uint32_t Size>
+inline Poly<T, Size> operator-(Poly<T, Size> lhs, const Poly<T, Size>& rhs) {
   assert(lhs.size() == rhs.size());
   return lhs -= rhs;
 }
 
-template <typename T, uint32_t N, typename Expr>
-inline Poly<T, N> operator-(Poly<T, N> lhs, const Expr& rhs) {
+template <typename T, uint32_t Size, typename Expr>
+inline Poly<T, Size> operator-(Poly<T, Size> lhs, const Expr& rhs) {
   return lhs -= rhs;
 }
 
-// Proxy<Poly<T, N>> + Proxy<Poly<T, N>> and the corresponding subtraction are
-// handled by the generic operator+/operator- for Proxy<Container> in
+// Proxy<Poly<T, Size>> + Proxy<Poly<T, Size>> and the corresponding subtraction
+// are handled by the generic operator+/operator- for Proxy<Container> in
 // detail/proxy.hpp.
 
 #endif  // ALGEBRA_POLY_HPP

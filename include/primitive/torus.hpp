@@ -64,9 +64,7 @@ class Torus : public TorusBase<Torus> {
   template <uint32_t QBit>
   constexpr explicit operator ModTorus<QBit>() const noexcept;
 
-  constexpr explicit operator raw_value_type() const noexcept {
-    return value_;
-  }
+  constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
 
   bool operator==(const Torus& other) const noexcept;
@@ -110,15 +108,36 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
       : value_(static_cast<raw_value_type>(raw) & mask()) {}
 
   // Constructs from a value `raw` given as a numerator over `resolution`
-  // (i.e. representing raw/resolution), where `resolution` must be a power
-  // of two.
+  // (i.e. representing raw/resolution mod 1). `resolution` may be any
+  // positive integer, not just a power of two -- a power-of-two
+  // resolution divides evenly into 2^qbit and so is represented exactly;
+  // any other resolution is rounded down to the nearest representable
+  // qbit-bit value, same as any other torus quantization.
+  //
+  // Computes floor(raw * 2^qbit / resolution) mod 2^qbit via binary long
+  // division (one quotient bit per iteration) rather than forming
+  // raw * 2^qbit directly, since that product generally doesn't fit in
+  // raw_value_type once qbit is large -- this way every intermediate
+  // stays within raw_value_type's own width.
   template <std::integral Raw>
   constexpr ModTorus(Raw raw, Raw resolution) noexcept {
-    assert(((resolution - 1) & (resolution)) == 0);
-    uint32_t resolution_bits =
-        static_cast<uint32_t>(std::bit_width(resolution - 1));
-    assert(resolution_bits <= qbit);
-    value_ = raw << (qbit - resolution_bits);
+    assert(resolution > 0);
+    raw_value_type divisor = static_cast<raw_value_type>(resolution);
+    raw_value_type remainder = static_cast<raw_value_type>(raw) % divisor;
+    raw_value_type quotient = 0;
+    for (uint32_t i = 0; i < qbit; ++i) {
+      // remainder is always < divisor going in, so doubling it can only
+      // ever overflow raw_value_type by the one bit captured here.
+      bool overflowed =
+          (remainder >> (std::numeric_limits<raw_value_type>::digits - 1)) != 0;
+      remainder = static_cast<raw_value_type>(remainder << 1);
+      quotient = static_cast<raw_value_type>(quotient << 1);
+      if (overflowed || remainder >= divisor) {
+        remainder = static_cast<raw_value_type>(remainder - divisor);
+        quotient |= 1;
+      }
+    }
+    value_ = quotient & mask();
   }
 
   static constexpr raw_value_type raw_min() { return 0; }
@@ -131,9 +150,7 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
     return static_cast<double>(value_) / std::pow(2., qbit);
   }
 
-  constexpr explicit operator raw_value_type() const noexcept {
-    return value_;
-  }
+  constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
 
   bool operator==(const ModTorus<QBit>& other) const noexcept {

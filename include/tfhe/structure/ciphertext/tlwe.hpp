@@ -23,14 +23,6 @@ class TLWE {
   TLWE(TLWE&&) = default;
   TLWE& operator=(TLWE&&) = default;
 
-  // TLWE& operator=(const TLWE& other) {
-  // if (this == &other) return *this;
-
-  // std::copy(other.a().begin(), other.a().end(), a_.begin());
-  // b_ = other.b_;
-  // return *this;
-  // }
-
   template <typename F>
     requires requires(F& f, std::size_t i) {
       { std::invoke(f, i) } -> explicitly_convertible_to_concept<Torus>;

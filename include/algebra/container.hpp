@@ -26,7 +26,7 @@ struct storage_traits<T, std::void_t<typename T::raw_value_type>> {
   static constexpr bool use_proxy = !std::same_as<T, raw_value_type>;
 };
 
-template <class Derived, typename T, uint32_t N,
+template <class Derived, typename T, uint32_t Size,
           bool UseProxy = storage_traits<T>::use_proxy>
 class Container {
  public:
@@ -36,6 +36,12 @@ class Container {
   using iterator = raw_value_type*;
   using const_iterator = const raw_value_type*;
 
+  // Guaranteed to value-initialize every element to raw_value_type{} (see
+  // storage_'s own initializer below and the comment there) -- for every
+  // raw_value_type this project actually uses (uint32_t, double, ...,
+  // and composite types like TLWE built only from those) that means
+  // all-zero. Callers may rely on a default-constructed Container/Vector
+  // being an all-zero identity element, e.g. for homomorphic Add.
   Container() = default;
 
   Container(const Container& other) : Container(other.begin(), other.end()) {}
@@ -59,7 +65,7 @@ class Container {
   template <std::forward_iterator It>
     requires std::convertible_to<std::iter_value_t<It>, raw_value_type>
   Container(It first, It last) {
-    assert(std::distance(first, last) == N);
+    assert(std::distance(first, last) == Size);
     std::copy(first, last, begin());
   }
 
@@ -108,20 +114,36 @@ class Container {
   }
 
   iterator begin() noexcept { return storage_.get(); }
-  iterator end() noexcept { return storage_.get() + N; }
+  iterator end() noexcept { return storage_.get() + Size; }
 
   const_iterator begin() const noexcept { return storage_.get(); }
-  const_iterator end() const noexcept { return storage_.get() + N; }
+  const_iterator end() const noexcept { return storage_.get() + Size; }
 
   raw_value_type* data() noexcept { return storage_.get(); }
   const raw_value_type* data() const noexcept { return storage_.get(); }
 
-  static constexpr size_t size() { return N; }
+  static constexpr size_t size() { return Size; }
 
  protected:
   raw_value_type* release_buffer() { return storage_.release(); }
+
+  // std::make_unique<T[]>(Size) value-initializes every element (new
+  // T[Size]()), which zeroes them as long as raw_value_type's default
+  // constructor is *not user-provided* -- i.e. every constructor in its "=
+  // default" chain, all the way down to scalars, actually runs the
+  // zero-then-do-nothing path rather than a hand-written body. There's no
+  // single standard type trait that checks this precisely for composite
+  // types (std::is_trivially_default_constructible is too strict -- it
+  // also rejects "= default" constructors that merely have a member
+  // initializer, like TLWE's, even though those still zero correctly), so
+  // this is enforced by convention rather than a static_assert: every
+  // type this project stores in a Container must declare its default
+  // constructor as "= default" (never write one by hand) for the
+  // "default construction means zero" contract on Container() above to
+  // hold. Covered by vector_test.cpp's SizeConstructor_InitializesBuffer
+  // and tlwe_test.cpp's TlweBasicTest.Constructor.
   std::unique_ptr<raw_value_type[]> storage_ =
-      std::make_unique<raw_value_type[]>(N);
+      std::make_unique<raw_value_type[]>(Size);
 };
 
 #endif
