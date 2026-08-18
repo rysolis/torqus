@@ -5,5 +5,6 @@
 #define TFHE_KEY_HPP
 
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 
 #endif  // TFHE_KEY_HPP

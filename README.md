@@ -116,7 +116,7 @@ cmake --build --preset clang-release -j
 
 ***
 
-## WebAssembly Build (WIP)
+## WebAssembly Build
 
 Inside the WASM container:
 

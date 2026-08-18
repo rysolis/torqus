@@ -9,11 +9,12 @@
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
 
-#include "tfhe/cryptor/cryptor.hpp"
+#include "tfhe/cryptor.hpp"
 #include "tfhe/cryptor/traits.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
+#include "tfhe/structure/key/public_key.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
 #include "tfhe/utility/secret_holder.hpp"
 
@@ -106,6 +107,21 @@ class Runtime {
       tracker->update(ksk, 0.);
     }
     return ksk;
+  }
+
+  // Generates a public key of PkSamples TLWE(0) samples under this
+  // Runtime's own secret -- see public_key.hpp for how it lets a caller
+  // who never sees that secret encrypt under it anyway.
+  template <uint32_t PkSamples>
+    requires tlwe_concept<Params>
+  PublicKey<typename Params::torus_type, secret_length, PkSamples>
+  generate_public_key() {
+    using Torus = typename Params::torus_type;
+    PublicKey<Torus, secret_length, PkSamples> pk;
+    for (uint32_t i = 0; i < PkSamples; ++i) {
+      pk[i] = encrypt(Torus(0u));
+    }
+    return pk;
   }
 
   const SecretHolder<secret_length>& holder() const noexcept {

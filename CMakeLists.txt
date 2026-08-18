@@ -28,21 +28,15 @@ target_include_directories(ppv-libs
 # --------------------------------------------
 
 if(EMSCRIPTEN)
-
   message(STATUS "Building with Emscripten")
-
-  target_link_options(ppv-lab PRIVATE
-    -sWASM=1
-    -sALLOW_MEMORY_GROWTH=1
-  )
-
+  add_subdirectory(wasm)
 endif()
 
 
 # --------------------------------------------
 # test
 # --------------------------------------------
-if(NOT EMSCRIPTEN)
+if(BUILD_TESTING)
   enable_testing()
   add_subdirectory(test)
 endif()

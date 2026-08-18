@@ -36,12 +36,8 @@ class Container {
   using iterator = raw_value_type*;
   using const_iterator = const raw_value_type*;
 
-  // Guaranteed to value-initialize every element to raw_value_type{} (see
-  // storage_'s own initializer below and the comment there) -- for every
-  // raw_value_type this project actually uses (uint32_t, double, ...,
-  // and composite types like TLWE built only from those) that means
-  // all-zero. Callers may rely on a default-constructed Container/Vector
-  // being an all-zero identity element, e.g. for homomorphic Add.
+  // Value-initializes every element to zero (see storage_ below) -- a
+  // default-constructed Container/Vector is a valid Add identity.
   Container() = default;
 
   Container(const Container& other) : Container(other.begin(), other.end()) {}
@@ -66,7 +62,14 @@ class Container {
     requires std::convertible_to<std::iter_value_t<It>, raw_value_type>
   Container(It first, It last) {
     assert(std::distance(first, last) == Size);
-    std::copy(first, last, begin());
+    if constexpr (std::is_copy_assignable_v<raw_value_type>) {
+      std::copy(first, last, begin());
+    } else {
+      std::size_t i = 0;
+      for (auto it = first; it != last; ++it, ++i) {
+        begin()[i] = static_cast<raw_value_type>(*it);
+      }
+    }
   }
 
   // This constructor is used by interpret_as to take ownership of the buffer
@@ -127,21 +130,9 @@ class Container {
  protected:
   raw_value_type* release_buffer() { return storage_.release(); }
 
-  // std::make_unique<T[]>(Size) value-initializes every element (new
-  // T[Size]()), which zeroes them as long as raw_value_type's default
-  // constructor is *not user-provided* -- i.e. every constructor in its "=
-  // default" chain, all the way down to scalars, actually runs the
-  // zero-then-do-nothing path rather than a hand-written body. There's no
-  // single standard type trait that checks this precisely for composite
-  // types (std::is_trivially_default_constructible is too strict -- it
-  // also rejects "= default" constructors that merely have a member
-  // initializer, like TLWE's, even though those still zero correctly), so
-  // this is enforced by convention rather than a static_assert: every
-  // type this project stores in a Container must declare its default
-  // constructor as "= default" (never write one by hand) for the
-  // "default construction means zero" contract on Container() above to
-  // hold. Covered by vector_test.cpp's SizeConstructor_InitializesBuffer
-  // and tlwe_test.cpp's TlweBasicTest.Constructor.
+  // make_unique<T[]>(Size) value-initializes every element to zero, as
+  // long as every type stored here declares its default constructor
+  // "= default" (enforced by convention, not a static_assert).
   std::unique_ptr<raw_value_type[]> storage_ =
       std::make_unique<raw_value_type[]>(Size);
 };
