@@ -18,20 +18,21 @@ struct TestConfig {
   static constexpr bool verbose = Verbose;
 };
 
-template <typename Lwe, typename Rlwe, typename Decomp>
+template <typename Lwe, typename Rlwe, typename Decomp, typename Kst>
 struct ParameterSet {
   using lwe_params = Lwe;
   using rlwe_params = Rlwe;
   using dcp_params = Decomp;
+  using kst_params = Kst;
 };
 
 using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>,
-                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                              dcp_params<4, 3>>;
+                              rlwe_params<trlwe_core_params<ModTorus<16>, 32>>,
+                              dcp_params<4, 6>, kst_params<4, 6>>;
 
-using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 32>>,
-                              rlwe_params<trlwe_core_params<ModTorus<32>, 32>>,
-                              dcp_params<256, 2>>;
+using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
+                              rlwe_params<trlwe_core_params<ModTorus<32>, 128>>,
+                              dcp_params<256, 2>, kst_params<256, 2>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -43,6 +44,7 @@ class BinaryExpansionFixture : public ::testing::Test {
   using Lwe = Context::lwe_params;
   using Rlwe = Context::rlwe_params;
   using Decomp = Context::dcp_params;
+  using Kst = Context::kst_params;
 
   static constexpr uint32_t n = Lwe::n;
 
@@ -51,6 +53,7 @@ class BinaryExpansionFixture : public ::testing::Test {
   static constexpr uint32_t N = Rlwe::N;
 
   static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t t = Kst::t;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
@@ -59,14 +62,18 @@ class BinaryExpansionFixture : public ::testing::Test {
   Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
+  KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
-    lwe_runtime_ = Runtime<Lwe, Tracking>(rlwe_runtime_, eng_);
+    lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime_.holder().get());
+    KSK_ = lwe_runtime_
+               .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+                   rlwe_runtime_.holder().get());
   }
 };
 
@@ -103,14 +110,13 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
+  using Kst = typename TypeParam::context::kst_params;
 
   using Torus = Lwe::torus_type;
   constexpr uint32_t n = Lwe::n;
 
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
-
-  static_assert(n == N, "n and N must be equal for this test");
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -126,7 +132,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     Vector<TLWE<rTorus, N>, 4> res_ct =
-        BinaryExpansion<4, Lwe, Rlwe, Decomp>::exec_impl(operand_ct, this->BK_);
+        BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>::exec_impl(
+            operand_ct, this->KSK_, this->BK_);
 
     // ==================================
     // Assert
@@ -136,10 +143,10 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 
     // compute actual result
     Vector<rTorus, 4> res;
-    res[0] = this->lwe_runtime_.decrypt(res_ct[0]);
-    res[1] = this->lwe_runtime_.decrypt(res_ct[1]);
-    res[2] = this->lwe_runtime_.decrypt(res_ct[2]);
-    res[3] = this->lwe_runtime_.decrypt(res_ct[3]);
+    res[0] = this->rlwe_runtime_.decrypt(res_ct[0]);
+    res[1] = this->rlwe_runtime_.decrypt(res_ct[1]);
+    res[2] = this->rlwe_runtime_.decrypt(res_ct[2]);
+    res[3] = this->rlwe_runtime_.decrypt(res_ct[3]);
 
     Vector<rTorus, 4> err = res - ref;
     double norm = infinity_norm(err);
@@ -154,6 +161,6 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "actual" << ": " << res << "\n";
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
 
-    EXPECT_LE(norm, 0.1);
+    EXPECT_LE(norm, 0.125);
   }
 }

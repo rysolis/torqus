@@ -8,11 +8,18 @@
 
 #include "tfhe/operation/add.hpp"
 #include "tfhe/operation/gate_bootstrap.hpp"
+#include "tfhe/operation/sub.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/utility/testvector.hpp"
 
+// Combines c1/c2 (both Lwe-shaped) into their homomorphic AND, returning
+// the result as a fresh Rlwe-domain ciphertext via GateBootstrap -- the
+// same Lwe-in/Rlwe-out shape GateBootstrap itself has. Chaining several of
+// these together (as BinaryExpansion does) therefore needs a KeySwitch
+// back down to Lwe between calls; that's the caller's job (see
+// BinaryExpansion), not this one's.
 template <typename Lwe, typename Rlwe, typename Decomp>
 class HomAnd {
  public:
@@ -37,8 +44,10 @@ class HomAnd {
     TLWE<Torus, n> offset;
     offset.b() = -Torus(1u, 8u);
 
-    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
-        mu, tv, Add<Lwe>::exec_impl(offset, Add<Lwe>::exec_impl(c1, c2)), bk);
+    TLWE<Torus, n> combined =
+        Add<Lwe>::exec_impl(offset, Add<Lwe>::exec_impl(c1, c2));
+
+    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 
@@ -66,8 +75,10 @@ class HomAndNot {
     TLWE<Torus, n> offset;
     offset.b() = Torus(1u, 8u);
 
-    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
-        mu, tv, Add<Lwe>::exec_impl(offset, Sub<Lwe>::exec_impl(c1, c2)), bk);
+    TLWE<Torus, n> combined =
+        Add<Lwe>::exec_impl(offset, Sub<Lwe>::exec_impl(c1, c2));
+
+    return GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 

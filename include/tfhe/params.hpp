@@ -6,6 +6,8 @@
 
 #include <cstdint>
 
+#include "tfhe/concept/tfhe.hpp"
+
 template <typename Torus, uint32_t dim>
 struct tlwe_core_params {
   using torus_type = Torus;
@@ -39,6 +41,17 @@ struct rlwe_params : Core, Features... {};
 
 template <typename... Params>
 struct ParamsPack : Params... {};
+
+// The Lwe-shaped view of an Rlwe's own ciphertext space (torus_type =
+// Rlwe's, n = Rlwe::N). SampleExtraction turns a TRLWE(S) ciphertext into a
+// TLWE ciphertext under secret = coeffs(S), of exactly this shape; naming
+// it here (rather than where a specific caller needs it) keeps it usable
+// by any core operation -- e.g. BinaryExpansion's own internal KeySwitch --
+// without that operation depending on a higher layer to supply it.
+template <typename Rlwe>
+  requires trlwe_concept<Rlwe>
+using ExtractedLwe =
+    lwe_params<tlwe_core_params<typename Rlwe::torus_type, Rlwe::N>>;
 
 template <typename Message, typename Codec>
 struct encoding_params {
