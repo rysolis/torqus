@@ -1,9 +1,14 @@
 #include "tfhe/math/modswitch.hpp"
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <cstdint>
+#include <random>
+#include <vector>
 
 #include "primitive/modint.hpp"
+
+#include "tfhe/utility/random_generator.hpp"
 
 namespace modswitch_test {
 
@@ -23,14 +28,26 @@ using Ctx2 = ParameterSet<1024>;
 
 using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>>;
 
+template <uint32_t Src_, uint32_t Dst_>
+struct RoundingParameterSet {
+  static constexpr uint32_t Src = Src_;
+  static constexpr uint32_t Dst = Dst_;
+};
+
+using RoundingCtx1 = RoundingParameterSet<1u << 16, 2 * 4>;
+using RoundingCtx2 = RoundingParameterSet<0u, 2 * 1024>;
+
+using RoundingTestContexts =
+    ::testing::Types<TestConfig<RoundingCtx1>, TestConfig<RoundingCtx2>>;
+
 }  // namespace modswitch_test
 
 template <typename Ctx>
-class ModswitchTest : public ::testing::Test {};
+class ModswitchTrivialTest : public ::testing::Test {};
 
-TYPED_TEST_SUITE(ModswitchTest, modswitch_test::TestContexts);
+TYPED_TEST_SUITE(ModswitchTrivialTest, modswitch_test::TestContexts);
 
-TYPED_TEST(ModswitchTest, Correctness) {
+TYPED_TEST(ModswitchTrivialTest, Correctness) {
   constexpr uint32_t N = TypeParam::context::N;
   constexpr uint32_t M = 2 * N;
 
@@ -38,4 +55,42 @@ TYPED_TEST(ModswitchTest, Correctness) {
   ModInt<M> m = mod_switch<M>(a);
 
   EXPECT_EQ(0, m.value());
+}
+
+// mod_switch<Dst> is a round-to-nearest, so its error is bounded by
+// eps = 1/(2*Dst). Correctness above only covers Src=N/Dst=2*N, which is
+// lossless (a left shift) -- this covers the real Src >> Dst direction
+// gate_bootstrap.hpp actually uses.
+template <typename Ctx>
+class ModswitchRoundingTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(ModswitchRoundingTest, modswitch_test::RoundingTestContexts);
+
+TYPED_TEST(ModswitchRoundingTest, RoundingErrorBound) {
+  constexpr uint32_t Src = TypeParam::context::Src;
+  constexpr uint32_t Dst = TypeParam::context::Dst;
+
+  constexpr double src_span = Src == 0 ? 4294967296.0 : double(Src);
+  constexpr double eps = 1.0 / (2.0 * double(Dst));
+
+  // NOLINTNEXTLINE(bugprone-random-generator-seed)
+  RandomGenerator<std::mt19937> eng{0};
+  std::uniform_int_distribution<uint32_t> dist(0u, ModInt<Src>::raw_max());
+
+  std::vector<uint32_t> raws = {0u, 1u, ModInt<Src>::raw_max() / 2,
+                                ModInt<Src>::raw_max()};
+  for (int i = 0; i < 8; ++i) raws.push_back(dist(eng));
+
+  for (uint32_t raw : raws) {
+    ModInt<Src> t(raw);
+    ModInt<Dst> switched = mod_switch<Dst>(t);
+
+    double original = double(t.value()) / src_span;
+    double rounded = double(switched.value()) / double(Dst);
+
+    double diff = std::fabs(original - rounded);
+    double torus_dist = std::min(diff, 1.0 - diff);
+
+    EXPECT_LE(torus_dist, eps) << "raw=" << raw;
+  }
 }
