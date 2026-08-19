@@ -26,8 +26,12 @@ UInt decompose(const Torus& v, size_t i) {
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
+  UInt::raw_value_type round = 0;
+  if constexpr (Torus::qbit > Bbit * Params::t) {
+    round = 1u << (Torus::qbit - Bbit * Params::t - 1);
+  }
   UInt::raw_value_type w =
-      UInt::raw_value_type(static_cast<Torus::raw_value_type>(v));
+      UInt::raw_value_type(static_cast<Torus::raw_value_type>(v)) + round;
   UInt::raw_value_type tmp = (w >> shift) & (Params::K - 1);
   return UInt(tmp);
 }

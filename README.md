@@ -86,8 +86,10 @@ docker run --rm \
 
 ### 3. Run tests (GoogleTest)
 
-Tests use GoogleTest (`libgtest-dev`, already installed in the image, see
-[`Dockerfile`](Dockerfile)). Build the debug preset once:
+Tests use GoogleTest (`libgtest-dev`) and the noise-bound tracking in
+`tfhe/utility/analysis/` uses Boost.Rational / Boost.Multiprecision
+(`libboost-dev`, header-only) — both already installed in the image, see
+[`Dockerfile`](Dockerfile). Build the debug preset once:
 
 ```bash
 docker run --rm \

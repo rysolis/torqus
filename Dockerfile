@@ -6,7 +6,8 @@ RUN apt-get update && \
     build-essential \
     clang \
     cmake \
-    libgtest-dev
+    libgtest-dev \
+    libboost-dev
 
 WORKDIR /work
 

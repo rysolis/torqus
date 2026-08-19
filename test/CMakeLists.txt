@@ -1,5 +1,11 @@
 find_package(GTest REQUIRED)
 
+# Boost.Rational + Boost.Multiprecision (header-only) back the exact-rational
+# noise bound computation in tfhe/utility/analysis/exact_bound.hpp, which is
+# only pulled in via tfhe/operation/evaluator.hpp -- included by the runtime
+# tests below, not by any production/wasm code path.
+find_package(Boost REQUIRED)
+
 # --------------------------------------------
 # warnings
 # --------------------------------------------
@@ -60,6 +66,7 @@ add_executable(test-${PROJECT_NAME}
 target_link_libraries(test-${PROJECT_NAME}
   PRIVATE
     ppv-libs
+    Boost::headers
     GTest::gtest
     GTest::gtest_main
 )
