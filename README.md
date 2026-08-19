@@ -1,39 +1,44 @@
 # Build Guide
 
+A C++20 TFHE library (leveled arithmetic, gate bootstrapping, and an
+end-to-end Client/downstream/Coordinator/Aggregator protocol built on top of it),
+compiled either as a native library or as a WebAssembly module.
+
 This project supports both:
 
 - Native C++ builds (Clang or GCC)
 - WebAssembly (WASM) builds using Emscripten
 
-The build system is based on CMake and Docker.
+The build system is based on CMake and Docker. All commands below are run from the repository root (this directory is `libs/tfhe`, a subproject of the monorepo, not a standalone checkout).
 
 ***
 
 ## Project Structure
 
 ```text
-.
+libs/tfhe/
 ├── CMakeLists.txt
 ├── CMakePresets.json
 ├── Dockerfile
 ├── Dockerfile.wasm
 ├── include/
-│   ├── algebra/
-│   │   └── poly.hpp
-│   ├── arithmetic/
-│   ├── primitive/
-│   │   ├── modint.hpp
-│   │   ├── scalar.hpp
-│   │   ├── torus.hpp
-│   │   └── uint.hpp
-│   └── tfhe/
-│   │   ├── cryptor/
-│   │   ├── operation/
-│   │   └── structure/
-│   └── encoding/
+│   ├── algebra/          # polynomials, vectors, ring arithmetic
+│   ├── arithmetic/       # expression traits, negacyclic convolution
+│   ├── primitive/        # modint, torus, uint, and their concepts
+│   ├── tfhe/
+│   │   ├── cryptor/      # TLWE / TRLWE / TRGSW cryptors
+│   │   ├── structure/    # ciphertext & key types
+│   │   ├── operation/    # leveled ops, gate bootstrapping
+│   │   ├── gate/         # homomorphic gates (AND, AND-NOT, ...)
+│   │   ├── circuit/      # gate-level circuits (e.g. binary expansion)
+│   │   └── serialize/    # wire (de)serialization
+│   └── e2e/
+│       ├── encoding/     # message <-> plaintext codec
+│       └── protocol/     # Client / downstream / Coordinator / Aggregator
+├── wasm/                 # Emscripten bindings (Client, downstream, Coordinator, Aggregator)
 ├── test/
-│   ├── compile/
-│   ├── runtime/
+│   ├── compile/          # compile-only interface/contract tests
+│   ├── runtime/          # GoogleTest runtime tests
 │   └── test.cpp
 └── README.md
 ```
@@ -43,86 +48,87 @@ The build system is based on CMake and Docker.
 ## Requirements
 
 - Docker
-- CMake 3.28+
+- CMake 3.22+
 - GNU Make
 
 ***
 
-## Build Docker Images
+## Native Build (GCC / Clang)
 
-From the project root directory:
+### 1. Build the Docker image
 
-### Clang / GCC
+From the repository root:
 
 ```bash
-docker build -f Dockerfile -t ppv-libs .
+docker build -f libs/tfhe/Dockerfile -t ppv-libs .
 ```
 
-### WASM
+### 2. Configure & build
+
+Each command mounts the source tree, builds inside the container, and exits
+— no need to stay in an interactive shell.
 
 ```bash
-docker build -f Dockerfile.wasm -t ppv-libs:wasm .
-```
-
-***
-
-## Run Containers
-
-It is recommended to mount the project directory as a volume.
-
-### Clang / GCC
-
-```bash
-docker run --rm -it \
-  -v $(pwd):/work \
+# GCC
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
   -w /work \
-  -v /etc/passwd:/etc/passwd:ro \
-  -v /etc/group:/etc/group:ro \
-  -u $(id -g) \
-  ppv-libs /bin/bash
-```
+  ppv-libs \
+  bash -lc "cmake --preset gcc-release && cmake --build --preset gcc-release -j\$(nproc)"
 
-### WASM
-
-```bash
-docker run --rm -it \
-  -v $(pwd):/work \
+# Clang
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
   -w /work \
-  -v /etc/passwd:/etc/passwd:ro \
-  -v /etc/group:/etc/group:ro \
-  -u $(id -g) \
-  ppv-libs:wasm /bin/bash
+  ppv-libs \
+  bash -lc "cmake --preset clang-release && cmake --build --preset clang-release -j\$(nproc)"
+```
+
+### 3. Run tests (GoogleTest)
+
+Tests use GoogleTest (`libgtest-dev`, already installed in the image, see
+[`Dockerfile`](Dockerfile)). Build the debug preset once:
+
+```bash
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
+  -w /work \
+  ppv-libs \
+  bash -lc "cmake --preset gcc-debug && cmake --build --preset gcc-debug -j\$(nproc)"
+```
+
+The test binary is now sitting in `build/gcc/debug` on the mounted host
+directory, so running (and re-running) it is just a plain container
+invocation — no rebuild needed:
+
+```bash
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
+  -w /work \
+  ppv-libs \
+  ctest --test-dir build/gcc/debug
 ```
 
 ***
 
-## Native Build
+## WebAssembly Build (Emscripten)
 
-Inside the native container:
+### 1. Build the Docker image
 
-### GCC
+From the repository root:
 
 ```bash
-cmake --preset gcc-release
-cmake --build --preset gcc-release -j
+docker build -f libs/tfhe/Dockerfile.wasm -t ppv-libs:wasm .
 ```
 
-### Clang
+### 2. Configure & build
 
 ```bash
-cmake --preset clang-release
-cmake --build --preset clang-release -j
-```
-
-***
-
-## WebAssembly Build
-
-Inside the WASM container:
-
-```bash
-emcmake cmake --preset wasm-release
-cmake --build --preset wasm-release -j
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
+  -w /work \
+  ppv-libs:wasm \
+  bash -lc "emcmake cmake --preset wasm-release && cmake --build --preset wasm-release -j\$(nproc)"
 ```
 
 `emcmake` automatically configures CMake to use:
@@ -131,30 +137,12 @@ cmake --build --preset wasm-release -j
 CMAKE_CXX_COMPILER=em++
 ```
 
-***
+This builds the `tfhe_wasm` target (see [`wasm/CMakeLists.txt`](wasm/CMakeLists.txt)),
+which embind-wraps the Client/downstream/Coordinator/Aggregator adapters under
+[`wasm/adapter/`](wasm/adapter). The build produces:
 
-## Running the WASM Build
-
-Work in progress.
-
-***
-
-## Running Tests
-
-Configure the project:
-
-```bash
-cmake --preset gcc-debug
-```
-
-Build all targets:
-
-```bash
-cmake --build --preset gcc-debug -j
-```
-
-Run the test suite:
-
-```bash
-ctest --test-dir build/gcc/debug
+```text
+build/wasm/release/wasm/tfhe_wasm.js
+build/wasm/release/wasm/tfhe_wasm.wasm
+build/wasm/release/wasm/tfhe_wasm.d.ts
 ```
