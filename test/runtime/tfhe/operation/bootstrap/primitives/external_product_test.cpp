@@ -1,4 +1,4 @@
-#include "tfhe/operation/external_product.hpp"
+#include "tfhe/operation/bootstrap/primitives/external_product.hpp"
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -113,7 +113,8 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<ExternalProduct<Rlwe, Decomp>, Tracking>::exec(mp_ct, rhs_ct);
+        tfhe::operation::Evaluator<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>,
+                                   Tracking>::exec(mp_ct, rhs_ct);
 
     // ==================================
     // Assert

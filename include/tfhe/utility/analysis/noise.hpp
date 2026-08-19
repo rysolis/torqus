@@ -13,7 +13,7 @@ template <typename Op>
 struct NoisePolicy;
 
 template <trlwe_concept Params>
-struct NoisePolicy<Add<Params>> {
+struct NoisePolicy<tfhe::leveled::Add<Params>> {
   static constexpr uint32_t N = Params::N;
 
   template <typename Tracker, torus_concept Torus>
@@ -24,7 +24,7 @@ struct NoisePolicy<Add<Params>> {
 };
 
 template <trlwe_concept Params>
-struct NoisePolicy<Sub<Params>> {
+struct NoisePolicy<tfhe::leveled::Sub<Params>> {
   static constexpr uint32_t N = Params::N;
 
   template <typename Tracker, torus_concept Torus>
@@ -36,7 +36,7 @@ struct NoisePolicy<Sub<Params>> {
 
 template <typename Rlwe, typename Decomp>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-struct NoisePolicy<ExternalProduct<Rlwe, Decomp>> {
+struct NoisePolicy<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>> {
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t l = Decomp::l;
@@ -53,7 +53,7 @@ struct NoisePolicy<ExternalProduct<Rlwe, Decomp>> {
 
 template <typename Rlwe, typename Decomp>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-struct NoisePolicy<CMux<Rlwe, Decomp>> {
+struct NoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>> {
   static constexpr uint32_t N = Rlwe::N;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t l = Decomp::l;
@@ -73,7 +73,7 @@ struct NoisePolicy<CMux<Rlwe, Decomp>> {
 
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
-struct NoisePolicy<BlindRotate<Lwe, Rlwe, Decomp>> {
+struct NoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
   static constexpr uint32_t n = Lwe::n;
   using Torus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
@@ -96,7 +96,7 @@ struct NoisePolicy<BlindRotate<Lwe, Rlwe, Decomp>> {
 };
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
-struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Decomp>> {
+struct NoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
   using rTorus = typename Rlwe::torus_type;
@@ -121,7 +121,7 @@ struct NoisePolicy<GateBootstrap<Lwe, Rlwe, Decomp>> {
 
 template <typename Src, typename Dst, typename Kst>
   requires tlwe_concept<Src> && tlwe_concept<Dst> && kst_concept<Kst>
-struct NoisePolicy<KeySwitch<Src, Dst, Kst>> {
+struct NoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
   static constexpr uint32_t n = Dst::n;
   using Torus = typename Src::torus_type;
   static constexpr uint32_t N = Src::n;

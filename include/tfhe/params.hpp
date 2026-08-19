@@ -43,7 +43,7 @@ template <typename... Params>
 struct ParamsPack : Params... {};
 
 // The Lwe-shaped view of an Rlwe's own ciphertext space (torus_type =
-// Rlwe's, n = Rlwe::N). SampleExtraction turns a TRLWE(S) ciphertext into a
+// Rlwe's, n = Rlwe::N). SampleExtract turns a TRLWE(S) ciphertext into a
 // TLWE ciphertext under secret = coeffs(S), of exactly this shape; naming
 // it here (rather than where a specific caller needs it) keeps it usable
 // by any core operation -- e.g. BinaryExpansion's own internal KeySwitch --

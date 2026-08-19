@@ -1,4 +1,4 @@
-#include "tfhe/operation/binary_expansion.hpp"
+#include "tfhe/circuit/binary_expansion.hpp"
 #include <gtest/gtest.h>
 
 #include "primitive/torus.hpp"
@@ -132,7 +132,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     Vector<TLWE<rTorus, N>, 4> res_ct =
-        BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>::exec_impl(
+        tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>::exec_impl(
             operand_ct, this->KSK_, this->BK_);
 
     // ==================================
@@ -151,6 +151,11 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     Vector<rTorus, 4> err = res - ref;
     double norm = infinity_norm(err);
 
+    // Output lives at {0, 1/4} mod 1; a wrong decode only happens past
+    // half that gap, so that's the margin "did it decode right" is
+    // judged against here.
+    const double decode_margin = double(rTorus(1u, 4u)) / 2;
+
     std::cout << "\n========================================\n";
     std::cout << "         BinaryExpansion Test\n";
     std::cout << "========================================\n";
@@ -161,6 +166,6 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "actual" << ": " << res << "\n";
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
 
-    EXPECT_LE(norm, 0.125);
+    EXPECT_LE(norm, decode_margin);
   }
 }

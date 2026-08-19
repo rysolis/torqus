@@ -13,10 +13,12 @@
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/math/modswitch.hpp"
-#include "tfhe/operation/cmux.hpp"
+#include "tfhe/operation/bootstrap/primitives/cmux.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+
+namespace tfhe::bootstrap {
 
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
@@ -50,5 +52,7 @@ class BlindRotate {
     return cand0;
   }
 };
+
+}  // namespace tfhe::bootstrap
 
 #endif  // TFHE_BLINDROTATE_HPP

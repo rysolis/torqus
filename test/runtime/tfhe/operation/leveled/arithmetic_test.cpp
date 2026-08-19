@@ -11,9 +11,9 @@
 #include "algebra/utility/utility.hpp"
 
 #include "tfhe/feature.hpp"
-#include "tfhe/operation/add.hpp"
 #include "tfhe/operation/evaluator.hpp"
-#include "tfhe/operation/sub.hpp"
+#include "tfhe/operation/leveled/add.hpp"
+#include "tfhe/operation/leveled/sub.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -93,7 +93,8 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<Add<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
+        tfhe::operation::Evaluator<tfhe::leveled::Add<Rlwe>, Tracking>::exec(
+            lhs_ct, rhs_ct);
     Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
 
     // ==================================
@@ -144,7 +145,8 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<Sub<Rlwe>, Tracking>::exec(lhs_ct, rhs_ct);
+        tfhe::operation::Evaluator<tfhe::leveled::Sub<Rlwe>, Tracking>::exec(
+            lhs_ct, rhs_ct);
 
     // ==================================
     // Assert

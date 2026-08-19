@@ -13,6 +13,8 @@
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/gadget/gadget_repr.hpp"
 
+namespace tfhe::bootstrap {
+
 template <typename Rlwe, typename Decomp>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 class ExternalProduct {
@@ -39,5 +41,7 @@ class ExternalProduct {
     return res;
   }
 };
+
+}  // namespace tfhe::bootstrap
 
 #endif  // TFHE_EXTERNAL_PRODUCT_HPP

@@ -1,6 +1,3 @@
-// Copyright 2026 Ryuhei Morita
-// SPDX-License-Identifier: Apache-2.0
-
 // Byte-buffer (de)serialization for every ciphertext/key structure this
 // library hands between roles that, in a real deployment, may live on
 // separate machines (e.g. the an example application protocol's Coordinator/Client/

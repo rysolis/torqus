@@ -1,17 +1,20 @@
 // Copyright 2026, Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_SUB_HPP
-#define TFHE_SUB_HPP
+#ifndef TFHE_ADD_HPP
+#define TFHE_ADD_HPP
 
 #include "tfhe/concept/tfhe.hpp"
+#include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
+namespace tfhe::leveled {
+
 template <typename Params>
-class Sub;
+class Add;
 
 template <trlwe_concept Params>
-class Sub<Params> {
+class Add<Params> {
  public:
   using Torus = typename Params::torus_type;
   static constexpr uint32_t N = Params::N;
@@ -21,20 +24,27 @@ class Sub<Params> {
   // forwarded again to tracking::update().
   static TRLWE<Torus, N> exec_impl(TRLWE<Torus, N> lhs,
                                    const TRLWE<Torus, N>& rhs) {
-    return lhs -= rhs;
+    return lhs += rhs;
+  }
+
+  static TLWE<Torus, N> exec_impl(TLWE<Torus, N> lhs,
+                                  const TLWE<Torus, N>& rhs) {
+    return lhs += rhs;
   }
 };
 
 template <tlwe_concept Params>
-class Sub<Params> {
+class Add<Params> {
  public:
   using Torus = typename Params::torus_type;
   static constexpr uint32_t n = Params::n;
 
   static TLWE<Torus, n> exec_impl(TLWE<Torus, n> lhs,
                                   const TLWE<Torus, n>& rhs) {
-    return lhs -= rhs;
+    return lhs += rhs;
   }
 };
+
+}  // namespace tfhe::leveled
 
 #endif

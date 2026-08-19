@@ -1,4 +1,4 @@
-#include "tfhe/operation/sample_extraction.hpp"
+#include "tfhe/operation/leveled/sample_extract.hpp"
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -11,7 +11,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
-namespace sample_extraction_test {
+namespace sample_extract_test {
 
 template <typename Context, bool Verbose = true>
 struct TestConfig {
@@ -35,10 +35,10 @@ using Context2 =
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
-}  // namespace sample_extraction_test
+}  // namespace sample_extract_test
 
 template <typename Context>
-class SampleExtractionFixture : public ::testing::Test {
+class SampleExtractFixture : public ::testing::Test {
  protected:
   using Lwe = typename Context::lwe_params;
   using Rlwe = typename Context::rlwe_params;
@@ -62,10 +62,10 @@ class SampleExtractionFixture : public ::testing::Test {
 };
 
 template <typename Config>
-class SampleExtractionCorrectnessTest
-    : public SampleExtractionFixture<typename Config::context> {
+class SampleExtractCorrectnessTest
+    : public SampleExtractFixture<typename Config::context> {
  protected:
-  using Base = SampleExtractionFixture<typename Config::context>;
+  using Base = SampleExtractFixture<typename Config::context>;
 
   using rTorus = typename Base::rTorus;
   static constexpr uint32_t N = Base::N;
@@ -82,10 +82,10 @@ class SampleExtractionCorrectnessTest
   }
 };
 
-TYPED_TEST_SUITE(SampleExtractionCorrectnessTest,
-                 sample_extraction_test::TestContexts);
+TYPED_TEST_SUITE(SampleExtractCorrectnessTest,
+                 sample_extract_test::TestContexts);
 
-TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
+TYPED_TEST(SampleExtractCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
 
@@ -110,7 +110,8 @@ TYPED_TEST(SampleExtractionCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     TLWE<Torus, n> res_ct =
-        Evaluator<SampleExtraction<Lwe, Rlwe>>::exec(pt_ct, idx);
+        tfhe::operation::Evaluator<tfhe::leveled::SampleExtract<Lwe, Rlwe>>::
+            exec(pt_ct, idx);
 
     // ==================================
     // Assert

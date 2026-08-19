@@ -1,4 +1,4 @@
-#include "tfhe/operation/cmux.hpp"
+#include "tfhe/operation/bootstrap/primitives/cmux.hpp"
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -115,8 +115,10 @@ TYPED_TEST(CMuxCorrectnessTest, SelectorZeroCorrectness) {
     // ==================================
     // Act
     // ==================================
-    TRLWE<rTorus, N> res_ct = Evaluator<CMux<Rlwe, Decomp>, Tracking>::exec(
-        selector_ct, lhs_ct, rhs_ct);
+    TRLWE<rTorus, N> res_ct =
+        tfhe::operation::Evaluator<tfhe::bootstrap::CMux<Rlwe, Decomp>,
+                                   Tracking>::exec(selector_ct, lhs_ct,
+                                                    rhs_ct);
 
     // ==================================
     // Assert

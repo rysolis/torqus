@@ -1,21 +1,18 @@
-#include "tfhe/operation/gate_bootstrap.hpp"
 #include <gtest/gtest.h>
 
-#include "algebra/poly.hpp"
-#include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
-#include "algebra/vector.hpp"
 
 #include "tfhe/feature.hpp"
+#include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/operation/evaluator.hpp"
+#include "tfhe/operation/leveled/add.hpp"
+#include "tfhe/operation/leveled/sub.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
-#include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/utility/random_generator.hpp"
-#include "tfhe/utility/testvector.hpp"
 
-namespace gate_bootstrap_test {
-
+namespace hom_and_not_test {
 template <typename Context, bool Verbose = true>
 struct TestConfig {
   using context = Context;
@@ -40,11 +37,10 @@ using Context2 =
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
-
-}  // namespace gate_bootstrap_test
+}  // namespace hom_and_not_test
 
 template <typename Context>
-class GateBootstrapFixture : public ::testing::Test {
+class HomAndNotFixture : public ::testing::Test {
  protected:
   using Lwe = Context::lwe_params;
   using Rlwe = Context::rlwe_params;
@@ -78,28 +74,31 @@ class GateBootstrapFixture : public ::testing::Test {
 };
 
 template <typename Config>
-class GateBootstrapCorrectnessTest
-    : public GateBootstrapFixture<typename Config::context> {
+class HomAndNotCorrectnessTest
+    : public HomAndNotFixture<typename Config::context> {
  protected:
-  using Base = GateBootstrapFixture<typename Config::context>;
+  using Base = HomAndNotFixture<typename Config::context>;
 
-  using Torus = typename Base::Torus;
-  using rTorus = typename Base::rTorus;
+  using Torus = Base::Torus;
+  using rTorus = Base::rTorus;
 
   struct TestCase {
-    rTorus mu = rTorus(1u, 4u);  // Choose 1/4 in Torus as output
-    Torus phase;
+    Torus lhs;
+    Torus rhs;
+    rTorus ref;
   };
 
-  [[nodiscard]] std::vector<TestCase> cases() {
-    return {{.phase = Torus(0u)}, {.phase = Torus(1u, 2u)}};
+  [[nodiscard]] static std::vector<TestCase> cases() {
+    return {{.lhs = Torus(1u, 4u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
+            {.lhs = Torus(0u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
+            {.lhs = Torus(1u, 4u), .rhs = Torus(0u), .ref = rTorus(1u, 4u)},
+            {.lhs = Torus(0u), .rhs = Torus(0u), .ref = rTorus(0)}};
   }
 };
 
-TYPED_TEST_SUITE(GateBootstrapCorrectnessTest,
-                 gate_bootstrap_test::TestContexts);
+TYPED_TEST_SUITE(HomAndNotCorrectnessTest, hom_and_not_test::TestContexts);
 
-TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
+TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
@@ -109,75 +108,54 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
 
   using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
-  constexpr uint32_t M = 2 * N;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
-    rTorus mu = tc.mu;
-    Torus phase = tc.phase;
-
-    // Prepare TLWE (constains phase)
-    TLWE<Torus, n> tlwe_rot = this->lwe_runtime_.encrypt(Torus(0u));
-    tlwe_rot.b() = static_cast<Torus>(tlwe_rot.b()) + phase;
-
-    // Prepare TestVector
-    TRLWE<rTorus, N> tv;
-    tv.b() = testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
+    // Prepare TLWE
+    Torus lhs = tc.lhs;
+    Torus rhs = tc.rhs;
+    TLWE<Torus, n> lhs_ct = this->lwe_runtime_.encrypt(lhs);
+    TLWE<Torus, n> rhs_ct = this->lwe_runtime_.encrypt(rhs);
 
     // ==================================
     // Act
     // ==================================
     TLWE<rTorus, N> res_ct =
-        Evaluator<GateBootstrap<Lwe, Rlwe, Decomp>, Tracking>::exec(
-            mu, tv, tlwe_rot, this->BK_);
+        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(lhs_ct, rhs_ct,
+                                                            this->BK_);
 
     // ==================================
     // Assert
     // ==================================
     // compute reference result
-    constexpr uint32_t Q = [] {
-      if constexpr (Torus::qbit == 32) {
-        return 0;
-      } else {
-        return 1 << Torus::qbit;
-      }
-    }();
-    ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
-    Poly<rTorus, N> rot = rotate(tv.b(), (-p).value());
-    rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() / 2);
+    rTorus ref = tc.ref;
 
-    // compute actual result
+    // comput actual result
     rTorus res = this->rlwe_runtime_.decrypt(res_ct);
 
-    rTorus err = ref - res;
+    rTorus err = res - ref;
     double norm = infinity_norm(err);
 
+    // Output lives at {0, 1/4} mod 1; a wrong decode only happens past
+    // half that gap, so that's the margin "did it decode right" is
+    // judged against here.
+    const double decode_margin = double(rTorus(1u, 4u)) / 2;
+
     std::cout << "\n========================================\n";
-    std::cout << "           Gate Bootstrap Test\n";
+    std::cout << "           HomAndNot Test\n";
     std::cout << "========================================\n";
 
-    if (TypeParam::verbose) {
-      std::cout << std::left;
-      std::cout << std::setw(14) << "tv" << ": " << tv << '\n';
-    }
-
     std::cout << std::left;
-    std::cout << std::setw(14) << "mu" << ": " << mu << " (" << double(mu)
-              << ")\n";
-    std::cout << std::setw(14) << "phase" << ": " << phase << '\n';
-    std::cout << std::setw(14) << "phase(mod)" << ": " << p << '\n';
+    std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+    std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
     std::cout << std::setw(14) << "expected" << ": " << ref << " ("
               << double(ref) << ")\n";
     std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
               << ")\n";
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
-    std::cout << std::setw(14) << "errror_bound " << ": "
-              << get_noise_tracker_if()->get(res_ct) << '\n';
 
-    std::cout << "========================================\n\n";
-
-    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, decode_margin);
   }
 }

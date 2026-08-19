@@ -1,4 +1,4 @@
-#include "tfhe/operation/key_switch.hpp"
+#include "tfhe/operation/leveled/key_switch.hpp"
 #include <gtest/gtest.h>
 
 #include <bit>
@@ -118,8 +118,9 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     // // Act
     // // ==================================
     TLWE<Torus, n> res_ct =
-        Evaluator<KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::exec(tlwe,
-                                                                  this->KSK_);
+        tfhe::operation::Evaluator<
+            tfhe::leveled::KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::
+            exec(tlwe, this->KSK_);
     // ==================================
     // Assert
     // ==================================

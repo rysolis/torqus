@@ -7,12 +7,14 @@
 #include <cstdint>
 
 #include "tfhe/math/modswitch.hpp"
-#include "tfhe/operation/add.hpp"
-#include "tfhe/operation/blindrotate.hpp"
-#include "tfhe/operation/sample_extraction.hpp"
+#include "tfhe/operation/bootstrap/blindrotate.hpp"
+#include "tfhe/operation/leveled/add.hpp"
+#include "tfhe/operation/leveled/sample_extract.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+
+namespace tfhe::bootstrap {
 
 template <typename Lwe, typename Rlwe, typename Decomp>
 class GateBootstrap {
@@ -54,9 +56,11 @@ class GateBootstrap {
     TLWE<rTorus, N> offset;
     offset.b() = rTorus(mu.value() / 2);
 
-    return Add<Rlwe>::exec_impl(offset,
-                                SampleExtraction<Lwe, Rlwe>::exec_impl(rot, 0));
+    return leveled::Add<Rlwe>::exec_impl(
+        offset, leveled::SampleExtract<Lwe, Rlwe>::exec_impl(rot, 0));
   }
 };
+
+}  // namespace tfhe::bootstrap
 
 #endif

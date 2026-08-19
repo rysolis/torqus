@@ -16,6 +16,8 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 
+namespace tfhe::leveled {
+
 namespace {
 
 template <kst_concept Params, torus_concept Torus>
@@ -76,5 +78,7 @@ class KeySwitch {
     return dst;
   }
 };
+
+}  // namespace tfhe::leveled
 
 #endif

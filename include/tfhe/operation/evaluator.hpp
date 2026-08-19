@@ -8,6 +8,8 @@
 #include "tfhe/utility/analysis/noise.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
 
+namespace tfhe::operation {
+
 namespace evaluator {
 
 template <typename Op, typename Result, typename... Args>
@@ -40,5 +42,7 @@ class Evaluator {
     return res;
   }
 };
+
+}  // namespace tfhe::operation
 
 #endif

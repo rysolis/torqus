@@ -1,4 +1,4 @@
-#include "tfhe/operation/blindrotate.hpp"
+#include "tfhe/operation/bootstrap/blindrotate.hpp"
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -156,8 +156,8 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     // Act
     // ==================================
     TRLWE<rTorus, N> res_ct =
-        Evaluator<BlindRotate<Lwe, Rlwe, Decomp>, Tracking>::exec(tv, phase_ct,
-                                                                  this->BK_);
+        tfhe::operation::Evaluator<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>,
+                                   Tracking>::exec(tv, phase_ct, this->BK_);
     // ==================================
     // Assert
     // ==================================
