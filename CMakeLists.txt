@@ -24,6 +24,28 @@ target_include_directories(ppv-libs
 )
 
 # --------------------------------------------
+# Allocator override
+# --------------------------------------------
+# algebra/container.hpp heap-allocates its fixed-size buffer on every
+# construction (see Container::storage_) so that moves stay an O(1) pointer
+# swap and interpret_as() can hand a buffer to another Poly/Vector type
+# without copying it. That trades a malloc/free per Container for a cheap
+# move, which is worth it as long as the allocator itself is fast. mimalloc
+# gives every executable linking ppv-libs that allocator, for free, with no
+# change to Container. Not available under Emscripten, which brings its own.
+option(PPV_USE_MIMALLOC "Override the global allocator with mimalloc" ON)
+
+if(PPV_USE_MIMALLOC AND NOT EMSCRIPTEN)
+  find_package(mimalloc CONFIG QUIET)
+  if(mimalloc_FOUND)
+    message(STATUS "mimalloc found: overriding the global allocator for ppv-libs consumers")
+    target_link_libraries(ppv-libs INTERFACE mimalloc)
+  else()
+    message(STATUS "mimalloc not found: falling back to the system allocator (install libmimalloc-dev, or the mimalloc Homebrew formula, to enable)")
+  endif()
+endif()
+
+# --------------------------------------------
 # Emscripten specific
 # --------------------------------------------
 

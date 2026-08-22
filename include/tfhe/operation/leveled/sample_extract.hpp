@@ -17,9 +17,6 @@ class SampleExtract {
  public:
   static constexpr uint32_t N = Rlwe::N;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   template <torus_concept Torus>
   static TLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& trlwe, size_t p) {
     assert(p < N);

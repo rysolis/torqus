@@ -28,9 +28,6 @@ class GateBootstrap {
 
   static constexpr uint32_t l = Decomp::l;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   static TLWE<rTorus, N> exec_impl(const rTorus mu, const TRLWE<rTorus, N>& tv,
                                    const TLWE<Torus, n>& tlwe,
                                    const BootstrapKey<rTorus, N, l, n>& bk) {

@@ -64,9 +64,6 @@ class KeySwitch {
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   static TLWE<DstTorus, n> exec_impl(
       const TLWE<SrcTorus, SrcLwe::n>& src,
       const KeySwitchKey<DstTorus, n, t, SrcLwe::n>& ksk) {

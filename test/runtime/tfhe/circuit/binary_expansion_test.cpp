@@ -1,6 +1,8 @@
 #include "tfhe/circuit/binary_expansion.hpp"
 #include <gtest/gtest.h>
 
+#include <iomanip>
+
 #include "primitive/torus.hpp"
 
 #include "algebra/utility/utility.hpp"
@@ -30,9 +32,10 @@ using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>,
                               rlwe_params<trlwe_core_params<ModTorus<16>, 32>>,
                               dcp_params<4, 6>, kst_params<4, 6>>;
 
-using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
-                              rlwe_params<trlwe_core_params<ModTorus<32>, 128>>,
-                              dcp_params<256, 2>, kst_params<256, 2>>;
+using Context2 =
+    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 630>>,
+                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
+                 dcp_params<256, 3>, kst_params<256, 2>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;

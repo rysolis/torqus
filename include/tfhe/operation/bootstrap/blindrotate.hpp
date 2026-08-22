@@ -32,9 +32,6 @@ class BlindRotate {
   static constexpr uint32_t l = Decomp::l;
 
  public:
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   static TRLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& tv,
                                    const Vector<ModInt<M>, n + 1>& amount,
                                    const BootstrapKey<Torus, N, l, n>& bk) {

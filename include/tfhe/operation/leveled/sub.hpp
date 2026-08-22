@@ -18,12 +18,10 @@ class Sub<Params> {
   using Torus = typename Params::torus_type;
   static constexpr uint32_t N = Params::N;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
-  static TRLWE<Torus, N> exec_impl(TRLWE<Torus, N> lhs,
+  static TRLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& lhs,
                                    const TRLWE<Torus, N>& rhs) {
-    return lhs -= rhs;
+    TRLWE<Torus, N> result(lhs);
+    return result -= rhs;
   }
 };
 
@@ -33,9 +31,10 @@ class Sub<Params> {
   using Torus = typename Params::torus_type;
   static constexpr uint32_t n = Params::n;
 
-  static TLWE<Torus, n> exec_impl(TLWE<Torus, n> lhs,
+  static TLWE<Torus, n> exec_impl(const TLWE<Torus, n>& lhs,
                                   const TLWE<Torus, n>& rhs) {
-    return lhs -= rhs;
+    TLWE<Torus, n> result(lhs);
+    return result -= rhs;
   }
 };
 

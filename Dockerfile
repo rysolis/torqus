@@ -7,7 +7,8 @@ RUN apt-get update && \
     clang \
     cmake \
     libgtest-dev \
-    libboost-dev
+    libboost-dev \
+    libmimalloc-dev
 
 WORKDIR /work
 

@@ -24,9 +24,6 @@ class ExternalProduct {
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t l = Decomp::l;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   template <torus_concept Torus>
   static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& trgsw,
                                    const TRLWE<Torus, N>& trlwe) {

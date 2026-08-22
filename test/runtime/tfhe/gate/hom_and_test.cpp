@@ -30,9 +30,9 @@ using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
                               dcp_params<4, 3>>;
 
 using Context2 =
-    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 20>>,
+    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 630>>,
                  rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                 dcp_params<256, 2>>;
+                 dcp_params<256, 3>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -119,9 +119,8 @@ TYPED_TEST(HomAndCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    TLWE<rTorus, N> res_ct =
-        tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(lhs_ct, rhs_ct,
-                                                         this->BK_);
+    TLWE<rTorus, N> res_ct = tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
+        lhs_ct, rhs_ct, this->BK_);
 
     // ==================================
     // Assert

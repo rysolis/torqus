@@ -81,3 +81,20 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   )
 
 endif()
+
+# The TFHE runtime tests (bootstrap/keyswitch loops, boost::multiprecision
+# noise tracking) are unusably slow at -O0. Optimize this target even under
+# the Debug preset -- Debug's default flags don't define NDEBUG, so
+# assert(bound < 0.25) in evaluator.hpp and friends stay active; only
+# codegen speed changes. Flip this off when you actually need to single-step
+# through a test in a debugger, where O0 keeps variables inspectable.
+option(TFHE_TEST_FAST_DEBUG "Optimize test-${PROJECT_NAME} under Debug builds for speed, at the cost of debuggability" ON)
+
+if(TFHE_TEST_FAST_DEBUG)
+
+  target_compile_options(test-${PROJECT_NAME}
+    PRIVATE
+      $<$<CONFIG:Debug>:-O2>
+  )
+
+endif()

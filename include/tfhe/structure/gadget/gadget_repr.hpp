@@ -144,7 +144,9 @@ class GadgetRepr {
   }
 
   Poly<UInt, N>& operator[](size_t idx) noexcept { return repr_[idx]; }
-  Poly<UInt, N> operator[](size_t idx) const noexcept { return repr_[idx]; }
+  const Poly<UInt, N>& operator[](size_t idx) const noexcept {
+    return repr_[idx];
+  }
 
   friend std::ostream& operator<<(std::ostream& os, const GadgetRepr& repr) {
     for (size_t i = 0; i < repr.repr_.size(); ++i) {

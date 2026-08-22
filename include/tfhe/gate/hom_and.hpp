@@ -32,9 +32,6 @@ class HomAnd {
 
   static constexpr uint32_t l = Decomp::l;
 
-  // NOTE:
-  // exec_impl must not consume (move from) its arguments, as they are
-  // forwarded again to tracking::update().
   static TLWE<rTorus, N> exec_impl(const TLWE<Torus, n>& c1,
                                    const TLWE<Torus, n>& c2,
                                    const BootstrapKey<rTorus, N, l, n>& bk) {

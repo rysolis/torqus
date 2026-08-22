@@ -26,8 +26,8 @@ class CMux {
 
   template <torus_concept Torus>
   static TRLWE<Torus, N> exec_impl(const TRGSW<Torus, N, l>& bk,
-                                   const TRLWE<Torus, N> cand0,
-                                   const TRLWE<Torus, N> cand1) {
+                                   const TRLWE<Torus, N>& cand0,
+                                   const TRLWE<Torus, N>& cand1) {
     return leveled::Add<Rlwe>::exec_impl(
         ExternalProduct<Rlwe, Decomp>::exec_impl(
             bk, leveled::Sub<Rlwe>::exec_impl(cand1, cand0)),

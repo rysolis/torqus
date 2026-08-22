@@ -46,9 +46,9 @@ using Context1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
                               dcp_params<4, 3>>;
 
 using Context2 =
-    ParameterSet<lwe_params<tlwe_core_params<void, 20>>,
+    ParameterSet<lwe_params<tlwe_core_params<void, 630>>,
                  rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                 dcp_params<256, 2>>;
+                 dcp_params<256, 3>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -155,9 +155,9 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    TRLWE<rTorus, N> res_ct =
-        tfhe::operation::Evaluator<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>,
-                                   Tracking>::exec(tv, phase_ct, this->BK_);
+    TRLWE<rTorus, N> res_ct = tfhe::operation::Evaluator<
+        tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>,
+        Tracking>::exec(tv, phase_ct, this->BK_);
     // ==================================
     // Assert
     // ==================================

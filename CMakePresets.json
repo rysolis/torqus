@@ -6,63 +6,120 @@
   },
   "configurePresets": [
     {
-      "name": "debug",
+      "name": "base",
+      "hidden": true,
       "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "gcc-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "clang-base",
+      "hidden": true,
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-native-base",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-march=native"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "binaryDir": "${sourceDir}/build/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "gcc-debug",
       "displayName": "GCC Debug",
-      "generator": "Unix Makefiles",
+      "inherits": "gcc-base",
       "binaryDir": "${sourceDir}/build/gcc/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++",
-        "BUILD_TESTING": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "gcc-release",
       "displayName": "GCC Release",
-      "generator": "Unix Makefiles",
+      "inherits": "gcc-base",
       "binaryDir": "${sourceDir}/build/gcc/release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_COMPILER": "gcc",
-        "CMAKE_CXX_COMPILER": "g++",
-        "BUILD_TESTING": "ON"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
       "name": "clang-debug",
       "displayName": "Clang Debug",
-      "generator": "Unix Makefiles",
+      "inherits": "clang-base",
       "binaryDir": "${sourceDir}/build/clang/debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "BUILD_TESTING": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "clang-release",
       "displayName": "Clang Release",
-      "generator": "Unix Makefiles",
+      "inherits": "clang-base",
       "binaryDir": "${sourceDir}/build/clang/release",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_C_COMPILER": "clang",
-        "CMAKE_CXX_COMPILER": "clang++",
-        "BUILD_TESTING": "ON"
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "gcc-native-debug",
+      "displayName": "GCC Native Debug (host CPU, Linux)",
+      "inherits": ["gcc-base", "linux-native-base"],
+      "binaryDir": "${sourceDir}/build/gcc-native/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "gcc-native-release",
+      "displayName": "GCC Native Release (host CPU, Linux)",
+      "inherits": ["gcc-base", "linux-native-base"],
+      "binaryDir": "${sourceDir}/build/gcc-native/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "clang-native-debug",
+      "displayName": "Clang Native Debug (host CPU, Linux)",
+      "inherits": ["clang-base", "linux-native-base"],
+      "binaryDir": "${sourceDir}/build/clang-native/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-native-release",
+      "displayName": "Clang Native Release (host CPU, Linux)",
+      "inherits": ["clang-base", "linux-native-base"],
+      "binaryDir": "${sourceDir}/build/clang-native/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
       }
     },
     {
@@ -92,6 +149,22 @@
     {
       "name": "clang-release",
       "configurePreset": "clang-release"
+    },
+    {
+      "name": "gcc-native-debug",
+      "configurePreset": "gcc-native-debug"
+    },
+    {
+      "name": "gcc-native-release",
+      "configurePreset": "gcc-native-release"
+    },
+    {
+      "name": "clang-native-debug",
+      "configurePreset": "clang-native-debug"
+    },
+    {
+      "name": "clang-native-release",
+      "configurePreset": "clang-native-release"
     },
     {
       "name": "wasm-release",

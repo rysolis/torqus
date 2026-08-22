@@ -84,12 +84,27 @@ docker run --rm \
   bash -lc "cmake --preset clang-release && cmake --build --preset clang-release -j\$(nproc)"
 ```
 
+Optionally, on Linux, `gcc-native-debug` / `gcc-native-release` /
+`clang-native-debug` / `clang-native-release` add `-march=native` to
+compile for your machine's exact CPU instead of a generic baseline —
+faster, but the binary is tied to the build machine's CPU features, so
+don't ship it or use it in CI. Unlike the commands above, this runs directly
+on your machine (not inside the container), from `libs/tfhe`:
+
+```bash
+cd libs/tfhe
+cmake --preset clang-native-release && cmake --build --preset clang-native-release -j$(nproc)
+```
+
 ### 3. Run tests (GoogleTest)
 
 Tests use GoogleTest (`libgtest-dev`) and the noise-bound tracking in
 `tfhe/utility/analysis/` uses Boost.Rational / Boost.Multiprecision
 (`libboost-dev`, header-only) — both already installed in the image, see
-[`Dockerfile`](Dockerfile). Build the debug preset once:
+[`Dockerfile`](Dockerfile). The image also has `libmimalloc-dev`; CMake
+links it into every executable automatically when present (`PPV_USE_MIMALLOC`
+in [`CMakeLists.txt`](CMakeLists.txt)), replacing the system allocator.
+Build the debug preset once:
 
 ```bash
 docker run --rm \
@@ -109,6 +124,22 @@ docker run --rm \
   -w /work \
   ppv-libs \
   ctest --test-dir build/gcc/debug
+```
+
+By default `test-ppv-lab` builds with `-O2` even under the `gcc-debug`/
+`clang-debug` presets (`TFHE_TEST_FAST_DEBUG=ON` in
+[`test/CMakeLists.txt`](test/CMakeLists.txt)) — the bootstrap/keyswitch
+runtime tests are unusably slow at `-O0`, and Debug's default flags don't
+define `NDEBUG`, so `assert(bound < 0.25)` and friends stay active either
+way. If you need to single-step through a test in a debugger, where `-O0`
+keeps variables inspectable, reconfigure with the flag off:
+
+```bash
+docker run --rm \
+  -v "$(pwd)/libs/tfhe:/work" \
+  -w /work \
+  ppv-libs \
+  cmake --preset gcc-debug -DTFHE_TEST_FAST_DEBUG=OFF
 ```
 
 ***
