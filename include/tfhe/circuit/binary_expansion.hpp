@@ -41,28 +41,40 @@ class BinaryExpansion {
 
   static constexpr uint32_t k = std::bit_width(H - 1);
 
+  // Computes one slot of the one-hot output. Slots only share read-only
+  // inputs (v, ksk, bk) -- the k-step gate chain is sequential within a
+  // slot (each step KeySwitches the previous gate's output before feeding
+  // it to the next), but slots don't depend on each other, so callers with
+  // many slots can farm this out across threads instead of calling
+  // exec_impl (see Downstream::expand()).
+  static TLWE<rTorus, N> exec_slot_impl(
+      uint32_t h, const Vector<TLWE<Torus, n>, k>& v,
+      const KeySwitchKey<Torus, n, t, N>& ksk,
+      const BootstrapKey<rTorus, N, l, n>& bk) {
+    TLWE<Torus, n> w;
+    w.b() = Torus(1u, 4u);
+
+    TLWE<rTorus, N> gate;
+    gate.b() = rTorus(1u, 4u);
+    for (size_t i = 0; i < k; ++i) {
+      uint32_t bit = (h >> i) & 1u;
+      gate = bit ? gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk)
+                 : gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk);
+      if (i + 1 < k) {
+        w = leveled::KeySwitch<ExtractedLwe<Rlwe>, Lwe, Kst>::exec_impl(gate,
+                                                                         ksk);
+      }
+    }
+    return gate;
+  }
+
   static Vector<TLWE<rTorus, N>, H> exec_impl(
       const Vector<TLWE<Torus, n>, k>& v,
       const KeySwitchKey<Torus, n, t, N>& ksk,
       const BootstrapKey<rTorus, N, l, n>& bk) {
     Vector<TLWE<rTorus, N>, H> res;
-    for (size_t h = 0; h < H; ++h) {
-      TLWE<Torus, n> w;
-      w.b() = Torus(1u, 4u);
-
-      TLWE<rTorus, N> gate;
-      gate.b() = rTorus(1u, 4u);
-      for (size_t i = 0; i < k; ++i) {
-        uint32_t bit = (h >> i) & 1u;
-        gate = bit ? gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk)
-                   : gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(w, v[i],
-                                                                    bk);
-        if (i + 1 < k) {
-          w = leveled::KeySwitch<ExtractedLwe<Rlwe>, Lwe, Kst>::exec_impl(
-              gate, ksk);
-        }
-      }
-      res[h] = std::move(gate);
+    for (uint32_t h = 0; h < H; ++h) {
+      res[h] = exec_slot_impl(h, v, ksk, bk);
     }
     return res;
   }

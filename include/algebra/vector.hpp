@@ -15,6 +15,8 @@
 
 #include "algebra/container.hpp"
 
+#include "detail/bulk_arithmetic.hpp"
+
 template <typename T, uint32_t Size>
 class Vector : private Container<Vector<T, Size>, T, Size,
                                  storage_traits<T>::use_proxy> {
@@ -36,9 +38,7 @@ class Vector : private Container<Vector<T, Size>, T, Size,
   Vector& operator+=(const Vector& other) {
     assert(other.size() == this->size());
 
-    for (size_t i = 0; i < other.size(); ++i) {
-      (*this)[i] = value_type((*this)[i]) + value_type(other[i]);
-    }
+    bulk_add_assign<value_type>(this->data(), other.data(), this->size());
 
     return *this;
   }
@@ -46,9 +46,7 @@ class Vector : private Container<Vector<T, Size>, T, Size,
   Vector& operator-=(const Vector& other) {
     assert(other.size() == this->size());
 
-    for (size_t i = 0; i < other.size(); ++i) {
-      (*this)[i] = value_type((*this)[i]) - value_type(other[i]);
-    }
+    bulk_sub_assign<value_type>(this->data(), other.data(), this->size());
 
     return *this;
   }

@@ -46,6 +46,52 @@ if(PPV_USE_MIMALLOC AND NOT EMSCRIPTEN)
 endif()
 
 # --------------------------------------------
+# SIMD lane
+# --------------------------------------------
+# algebra/detail/simd_ops.hpp picks its NEON vs. scalar Lane strategy at
+# compile time from __ARM_NEON (compiler-predefined on NEON-capable
+# targets) together with PPV_DISABLE_SIMD, which this option controls --
+# OFF forces every ppv-libs consumer (tests, native/example N-API/WASM builds) onto
+# the portable scalar path even when the compiler could do NEON. Useful to
+# A/B the NEON add/sub path, or as an escape hatch if it ever misbehaves on
+# a given toolchain.
+option(PPV_ENABLE_SIMD "Use ARM NEON vector instructions for Poly/Vector add-sub where available (algebra/detail/simd_ops.hpp)" ON)
+
+if(NOT PPV_ENABLE_SIMD)
+  target_compile_definitions(ppv-libs INTERFACE PPV_DISABLE_SIMD)
+endif()
+
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+#if !defined(__ARM_NEON)
+#error no NEON
+#endif
+int main() { return 0; }
+" PPV_HAS_ARM_NEON)
+
+if(PPV_ENABLE_SIMD AND PPV_HAS_ARM_NEON)
+  message(STATUS "SIMD lane for Poly/Vector add-sub (ModInt/ModTorus): NEON (uint32x4, width 4)")
+elseif(PPV_HAS_ARM_NEON)
+  message(STATUS "SIMD lane for Poly/Vector add-sub (ModInt/ModTorus): Scalar (width 1) -- NEON available but disabled via -DPPV_ENABLE_SIMD=OFF")
+else()
+  message(STATUS "SIMD lane for Poly/Vector add-sub (ModInt/ModTorus): Scalar (width 1, __ARM_NEON not defined)")
+endif()
+
+# --------------------------------------------
+# Threading
+# --------------------------------------------
+# tfhe/utility/thread_pool.hpp (ThreadPool) is std::thread-based, used e.g.
+# by example/protocol/downstream.hpp to parallelize seal() across
+# candidates. Not needed under Emscripten: Downstream sizes its pool to
+# 0 there (no -pthread in wasm/CMakeLists.txt), so ThreadPool never spawns
+# a std::thread on that path.
+if(NOT EMSCRIPTEN)
+  set(THREADS_PREFER_PTHREAD_FLAG ON)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ppv-libs INTERFACE Threads::Threads)
+endif()
+
+# --------------------------------------------
 # Emscripten specific
 # --------------------------------------------
 

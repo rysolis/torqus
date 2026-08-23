@@ -15,6 +15,7 @@
 
 #include "algebra/container.hpp"
 
+#include "detail/bulk_arithmetic.hpp"
 #include "detail/proxy.hpp"
 
 struct expr_tag {};
@@ -41,20 +42,14 @@ class Poly : private Container<Poly<T, Size>, T, Size, true> {
   Poly& operator+=(const Poly& other) {
     assert(other.size() == this->size());
 
-    for (size_t i = 0; i < other.size(); ++i) {
-      (*this)[i] = static_cast<value_type>((*this)[i]) +
-                   static_cast<value_type>(other[i]);
-    }
+    bulk_add_assign<value_type>(this->data(), other.data(), this->size());
     return *this;
   }
 
   Poly& operator-=(const Poly& other) {
     assert(other.size() == this->size());
 
-    for (size_t i = 0; i < this->size(); ++i) {
-      (*this)[i] = static_cast<value_type>((*this)[i]) -
-                   static_cast<value_type>(other[i]);
-    }
+    bulk_sub_assign<value_type>(this->data(), other.data(), this->size());
     return *this;
   }
 
