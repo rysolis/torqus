@@ -18,6 +18,7 @@
 #include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 
@@ -32,6 +33,10 @@ TRLWE<Torus, Params::N> encrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
   randomize(ct.a(), eng.get());
   Poly<UInt, N> secret_poly(secret.get(), secret.get() + N);
   ct.b() = pt + negacyclic_convolution(secret_poly, ct.a());
+  for (uint32_t i = 0; i < N; ++i) {
+    ct.b()[i] = static_cast<Torus>(ct.b()[i]) +
+                gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
+  }
   return ct;
 }
 

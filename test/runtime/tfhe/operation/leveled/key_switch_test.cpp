@@ -27,13 +27,20 @@ struct ParameterSet {
   using kst_params = Kst;
 };
 
-using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 8>>,
-                              lwe_params<tlwe_core_params<ModTorus<16>, 5>>,
-                              kst_params<8, 5>>;
+// noise_params on the destination-side Lwe add real key-switch-key noise
+// (NoisePolicy<KeySwitch> reads it off the Runtime that generates the KSK,
+// i.e. dst_lwe_runtime_ below) -- Context2 uses the paper's own 128-bit
+// n=630 value 2^-15 (see gate_bootstrap_test.cpp), even though this Dst
+// dimension isn't exactly 630.
+using Context1 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<16>, 8>>,
+    lwe_params<tlwe_core_params<ModTorus<16>, 5>, noise_params<11>>,
+    kst_params<8, 5>>;
 
-using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
-                              lwe_params<tlwe_core_params<ModTorus<32>, 200>>,
-                              kst_params<4, 12>>;
+using Context2 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<32>, 1024>>,
+    lwe_params<tlwe_core_params<ModTorus<32>, 200>, noise_params<15>>,
+    kst_params<4, 12>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -133,6 +140,13 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     Torus error = ref - res;
     double norm = infinity_norm(error);
 
+    // 99% two-sided normal threshold on VarianceNoisePolicy's predicted
+    // stddev, alongside the worst-case NoisePolicy check below -- res_ct's
+    // error is a single scalar, so confidence_threshold(res_ct, 1); see
+    // gate_bootstrap_test.cpp and tracker_if.hpp for the full rationale.
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, 1);
+
     std::cout << "\n=== Key Switch Test ===\n";
     std::cout << std::setw(14) << "actual" << ": " << res << "\n";
     std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
@@ -140,8 +154,11 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "norm" << ": " << norm << "\n";
     std::cout << std::setw(14) << "error_bound " << ": "
               << get_noise_tracker_if()->get(res_ct) << '\n';
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << '\n';
     std::cout << "=========================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }

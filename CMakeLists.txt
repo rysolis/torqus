@@ -78,6 +78,23 @@ else()
 endif()
 
 # --------------------------------------------
+# Fresh-encryption noise
+# --------------------------------------------
+# tfhe/params.hpp's alpha_of<Params> normally returns a param set's
+# noise_params<AlphaBits>::alpha (0 if none was mixed in), which
+# tlwe_cryptor.hpp/trlwe_cryptor.hpp/trgsw_cryptor.hpp use to sample real
+# Gaussian noise at encryption (see noise.hpp's fresh_noise_bound for the
+# matching analytic tracker side). OFF forces alpha_of<Params>::value to 0
+# for every Params regardless of noise_params, i.e. every ppv-libs consumer
+# reverts to exact/noiseless ciphertexts -- an escape hatch for debugging
+# against the old noiseless behavior without editing every param set.
+option(TFHE_ENABLE_NOISE "Sample real Gaussian noise at TLWE/TRLWE/TRGSW encryption for param sets that opt in via noise_params" ON)
+
+if(NOT TFHE_ENABLE_NOISE)
+  target_compile_definitions(ppv-libs INTERFACE TFHE_DISABLE_NOISE)
+endif()
+
+# --------------------------------------------
 # Threading
 # --------------------------------------------
 # tfhe/utility/thread_pool.hpp (ThreadPool) is std::thread-based, used e.g.

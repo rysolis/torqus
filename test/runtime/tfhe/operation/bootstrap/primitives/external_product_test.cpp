@@ -1,6 +1,7 @@
 #include "tfhe/operation/bootstrap/primitives/external_product.hpp"
 #include <gtest/gtest.h>
 
+#include <cmath>
 #include <memory>
 #include <optional>
 #include <random>
@@ -30,13 +31,18 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
-using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                              dcp_params<4, 3>>;
-using Context2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 8>>,
-                              dcp_params<8, 3>>;
-using Context3 =
-    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                 dcp_params<256, 2>>;
+// noise_params add real alpha to each context -- Context3 uses the same
+// 2^-25 as the paper's own 128-bit N=1024 parameter (see
+// gate_bootstrap_test.cpp) for consistency.
+using Context1 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
+    dcp_params<4, 3>>;
+using Context2 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<16>, 8>, noise_params<11>>,
+    dcp_params<8, 3>>;
+using Context3 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
+    dcp_params<256, 2>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2>,
@@ -128,6 +134,14 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
+    // 99% two-sided normal threshold on VarianceNoisePolicy's predicted
+    // stddev, alongside the worst-case NoisePolicy check below --
+    // res_ct's error is an N-coefficient polynomial, so
+    // confidence_threshold(res_ct, N); see gate_bootstrap_test.cpp and
+    // tracker_if.hpp for the full rationale.
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, N);
+
     std::cout << "\n=== External Product Test ===\n";
     if (TypeParam::verbose) {
       std::cout << std::left;
@@ -140,8 +154,11 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
     std::cout << std::setw(14) << "error_bound" << ": "
               << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << "\n";
     std::cout << "===============================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }

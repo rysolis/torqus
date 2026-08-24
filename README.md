@@ -151,6 +151,10 @@ docker run --rm \
   cmake --preset gcc-debug -DTFHE_TEST_FAST_DEBUG=OFF
 ```
 
+`encrypt()` samples real Gaussian noise into every ciphertext (param sets
+opt in via `noise_params<AlphaBits>`, see `tfhe/params.hpp`); reconfigure
+with `-DTFHE_ENABLE_NOISE=OFF` to force it back to exact/noiseless.
+
 ***
 
 ## WebAssembly Build (Emscripten)

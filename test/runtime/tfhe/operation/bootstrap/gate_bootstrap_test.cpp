@@ -1,6 +1,8 @@
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "algebra/poly.hpp"
 #include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
@@ -29,14 +31,25 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
-using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
-                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                              dcp_params<4, 3>>;
+// noise_params<11> (alpha=2^-11) is real, non-negligible noise, but small
+// enough that assert(bound < 0.25) below still clears comfortably at these
+// dimensions -- see VerifyCorrectness's variance check further down.
+using Context1 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
+    rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
+    dcp_params<4, 3>>;
 
-using Context2 =
-    ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 630>>,
-                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                 dcp_params<256, 3>>;
+// n/N match adapter/params.hpp's Params13_128, with the paper's own
+// lattice-estimator-verified 128-bit alpha for these exact dimensions
+// (2^-15 for n=630, 2^-25 for N=1024 -- see the TFHE library's published
+// parameters). NoisePolicy's own bound blows past 0.25 at this alpha (no
+// longer asserted on, see evaluator.hpp), which is exactly why the real
+// check here is VerifyCorrectness's variance-model threshold below, not
+// the worst-case one.
+using Context2 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
+    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
+    dcp_params<256, 3>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -111,6 +124,14 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
   constexpr uint32_t N = Rlwe::N;
   constexpr uint32_t M = 2 * N;
 
+  // Alongside the worst-case NoisePolicy check below, also check norm
+  // against VarianceNoisePolicy's predicted stddev (get_variance_tracker_if(),
+  // populated automatically by Runtime/Evaluator under Tracking) at a
+  // single-shot 99% two-sided confidence threshold -- cheaper than a
+  // many-trial statistical suite, at the cost of less power. res_ct's error
+  // is a single scalar (sample-extracted LWE, not a polynomial), so
+  // confidence_threshold(res_ct, 1) here (see tracker_if.hpp).
+
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
@@ -154,6 +175,10 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     rTorus err = ref - res;
     double norm = infinity_norm(err);
 
+    double predicted_stddev = std::sqrt(get_variance_tracker_if()->get(res_ct));
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, 1);
+
     std::cout << "\n========================================\n";
     std::cout << "           Gate Bootstrap Test\n";
     std::cout << "========================================\n";
@@ -175,9 +200,15 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
     std::cout << std::setw(14) << "errror_bound " << ": "
               << get_noise_tracker_if()->get(res_ct) << '\n';
+    std::cout << std::setw(14) << "predicted stddev" << ": " << predicted_stddev
+              << '\n';
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << '\n';
 
     std::cout << "========================================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }
+

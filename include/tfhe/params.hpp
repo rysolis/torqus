@@ -33,6 +33,55 @@ struct kst_params {
   static constexpr uint32_t t = Digit;
 };
 
+// Fresh-encryption noise standard deviation, alpha = 2^-AlphaBits (a power
+// of two, matching this file's other params' preference for exact
+// power-of-two magnitudes). Mix into lwe_params/rlwe_params's Features
+// alongside dcp_params/kst_params to opt a param set into real Gaussian
+// noise sampling at encryption; see alpha_of below for what happens when
+// it's omitted.
+template <uint32_t AlphaBits>
+struct noise_params {
+  static constexpr double alpha = 1.0 / static_cast<double>(uint64_t{1} << AlphaBits);
+};
+
+// alpha_of<Params>::value is Params::alpha when noise_params was mixed in,
+// or 0.0 otherwise -- so encryption code can unconditionally ask for
+// alpha_of<Params>::value without every Params (including every test
+// fixture's own toy params) needing to opt into noise_params explicitly.
+//
+// Defining TFHE_DISABLE_NOISE (see CMakeLists.txt's TFHE_ENABLE_NOISE
+// option) drops the specialization below entirely, so alpha_of<Params> is
+// always 0 for every Params regardless of noise_params -- a single
+// compile-time switch back to exact/noiseless ciphertexts everywhere.
+template <typename Params>
+struct alpha_of {
+  static constexpr double value = 0.0;
+};
+#ifndef TFHE_DISABLE_NOISE
+template <typename Params>
+  requires requires { Params::alpha; }
+struct alpha_of<Params> {
+  static constexpr double value = Params::alpha;
+};
+#endif  // TFHE_DISABLE_NOISE
+
+// Deterministic worst-case bound assigned to a freshly-sampled Gaussian(0,
+// alpha^2) error, for tfhe/utility/analysis/tracker_if.hpp's NoiseTracker:
+// Pr[|e| > 6*alpha] =~ 3e-8, the same order of magnitude as
+// utility/analysis/noise.hpp's own decomposition eps() terms (2^-25 ..
+// 2^-33), so cutting the tail off here doesn't introduce a new dominant
+// source of (negligible) failure probability. Lives here rather than in
+// noise.hpp since it depends only on alpha_of<Params> above, not on
+// NoisePolicy/ExactBound -- keeps runtime.hpp's dependency on this file
+// (already needed for Params itself) from having to pull in the whole
+// Op-noise-analysis machinery just to report a fresh ciphertext's bound.
+inline constexpr double kNoiseTailSigma = 6.0;
+
+template <typename Params>
+double fresh_noise_bound() {
+  return kNoiseTailSigma * alpha_of<Params>::value;
+}
+
 template <typename Core, typename... Features>
 struct lwe_params : Core, Features... {};
 

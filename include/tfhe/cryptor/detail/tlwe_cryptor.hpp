@@ -14,6 +14,7 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
 namespace tlwe {
@@ -29,6 +30,7 @@ TLWE<Torus, Params::n> encrypt(
     ct.b() += static_cast<UInt>(secret[i]) * static_cast<Torus>(ct.a()[i]);
   }
   ct.b() += message;
+  ct.b() += gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
   return ct;
 }
 

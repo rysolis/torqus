@@ -21,10 +21,11 @@ struct ParameterSet {
 };
 
 using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>>;
-using Context2 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<32>, 600>>>;
+using Context2 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>>;
 
 using TestContexts =
-    ::testing::Types<TestConfig<Context1>, TestConfig<Context2>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
 
 }  // namespace tlwe_encrypt_test
 
@@ -100,9 +101,8 @@ TYPED_TEST(TlweEncryptionTest, VerifyCorrectness) {
       std::cout << "decrypted:  " << res << "\n";
     }
     std::cout << "infinity_norm: " << norm << "\n";
-    // std::cout << "error_bound  : " << sut.error_bound() << "\n";
     std::cout << "===============================\n\n";
 
-    EXPECT_EQ(norm, 0);
+    EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
   }
 }

@@ -41,14 +41,18 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
-using Context1 = ParameterSet<lwe_params<tlwe_core_params<void, 1>>,
-                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                              dcp_params<4, 3>>;
+// noise_params on Rlwe add real bootstrap-key noise -- Context2 uses the
+// same 2^-25 as the paper's own 128-bit N=1024 parameter (see
+// gate_bootstrap_test.cpp).
+using Context1 = ParameterSet<
+    lwe_params<tlwe_core_params<void, 1>>,
+    rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
+    dcp_params<4, 3>>;
 
-using Context2 =
-    ParameterSet<lwe_params<tlwe_core_params<void, 630>>,
-                 rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
-                 dcp_params<256, 3>>;
+using Context2 = ParameterSet<
+    lwe_params<tlwe_core_params<void, 630>>,
+    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
+    dcp_params<256, 3>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -73,21 +77,18 @@ class BlindRotateFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{10};
 
-  Runtime<Rlwe> rlwe_runtime_;
+  Runtime<Rlwe, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
   Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
     Runtime<Lwe> lwe_runtime = Runtime<Lwe>(eng_);
-    rlwe_runtime_ = Runtime<Rlwe>(eng_);
+    rlwe_runtime_ = Runtime<Rlwe, Tracking>(eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime.holder().get());
-
-    double bound = 0.0;  // TODO: use parameters to compute
-    get_key_noise_tracker_if()->update(BK_, bound);
 
     // Prepare Vector<ModInt<M>, n + 1> phase_ct;
     randomize(phase_ct_, this->eng_);
@@ -170,6 +171,14 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
+    // 99% two-sided normal threshold on VarianceNoisePolicy's predicted
+    // stddev, alongside the worst-case NoisePolicy check below --
+    // res_ct's error is an N-coefficient polynomial, so
+    // confidence_threshold(res_ct, N); see gate_bootstrap_test.cpp and
+    // tracker_if.hpp for the full rationale.
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, N);
+
     std::cout << "\n========================================\n";
     std::cout << "           BlindRotate Test\n";
     std::cout << "========================================\n";
@@ -188,9 +197,12 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
     std::cout << std::setw(14) << "errror_bound " << ": "
               << get_noise_tracker_if()->get(res_ct) << '\n';
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << '\n';
 
     std::cout << "========================================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }

@@ -10,14 +10,16 @@
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/rational.hpp>
 
-// All quantities NoisePolicy<Op> combines (eps terms, key-noise bounds, ...)
-// are exact dyadic rationals today (no Gaussian noise is sampled yet), so
-// summing them as `double` risks silently losing small terms once many of
-// them (large n, N, l, t, ...) get added together with wildly different
-// magnitudes. ExactBound performs that accumulation with unbounded-precision
-// exact rational arithmetic instead, so the only place any rounding can
-// happen is the single, explicit, round-up conversion back to `double` at
-// the end (see `to_round_up`).
+// All quantities NoisePolicy<Op> combines (eps terms, key-noise bounds,
+// fresh-noise bounds, ...) are exact dyadic rationals -- real Gaussian
+// samples are cut off at a fixed tail (see fresh_noise_bound/kNoiseTailSigma
+// in noise.hpp) and folded in as that deterministic multiple of alpha, never
+// as the sample itself -- so summing them as `double` risks silently losing
+// small terms once many of them (large n, N, l, t, ...) get added together
+// with wildly different magnitudes. ExactBound performs that accumulation
+// with unbounded-precision exact rational arithmetic instead, so the only
+// place any rounding can happen is the single, explicit, round-up
+// conversion back to `double` at the end (see `to_round_up`).
 using ExactBound = boost::rational<boost::multiprecision::cpp_int>;
 
 // Every finite double is itself an exact dyadic rational (mantissa *

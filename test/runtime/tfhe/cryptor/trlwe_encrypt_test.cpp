@@ -25,7 +25,8 @@ struct ParameterSet {
 };
 
 using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
-using Context2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<8>, 32>>>;
+using Context2 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;

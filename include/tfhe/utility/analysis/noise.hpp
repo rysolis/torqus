@@ -13,6 +13,9 @@
 template <typename Op>
 struct NoisePolicy;
 
+// Fact 3.5 (linear combination of valid TLWE/TRLWE samples), coefficients
+// e1=e2=1: ||Err(c1+c2)||_inf <= ||e1||_1*||Err(c1)||_inf +
+// ||e2||_1*||Err(c2)||_inf = ||Err(c1)||_inf + ||Err(c2)||_inf.
 template <trlwe_concept Params>
 struct NoisePolicy<tfhe::leveled::Add<Params>> {
   static constexpr uint32_t N = Params::N;
@@ -25,6 +28,8 @@ struct NoisePolicy<tfhe::leveled::Add<Params>> {
   }
 };
 
+// Same as NoisePolicy<Add> above (Fact 3.5): |e1-e2| <= |e1|+|e2|, so
+// subtraction's worst-case bound is the same sum, not a difference.
 template <trlwe_concept Params>
 struct NoisePolicy<tfhe::leveled::Sub<Params>> {
   static constexpr uint32_t N = Params::N;
@@ -37,6 +42,13 @@ struct NoisePolicy<tfhe::leveled::Sub<Params>> {
   }
 };
 
+// Theorem 3.13 (Worst-case External Product, Chillotti et al., "TFHE: Fast
+// Fully Homomorphic Encryption over the Torus", eprint.iacr.org/2018/421),
+// specialized to this codebase's k=1 (single-mask TRLWE/TRGSW):
+//   ||Err(A box b)||_inf <= (k+1)*l*N*beta*||Err(A)||_inf
+//                           + ||muA||_1*(1+kN)*eps + ||muA||_1*||Err(b)||_inf
+// with beta=B/2 (Lemma 3.7's gadget quality) and ||muA||_1 <= 1 for a
+// bit-message TRGSW A (here `lhs`).
 template <typename Rlwe, typename Decomp>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 struct NoisePolicy<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>> {
@@ -60,6 +72,9 @@ struct NoisePolicy<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>> {
   }
 };
 
+// Lemma 3.16 (CMux gate), k=1:
+//   ||Err(CMux(C,d1,d0))||_inf <= max(||Err(d0)||_inf,||Err(d1)||_inf) + eta(C)
+//   eta(C) = (k+1)*l*N*beta*||Err(C)||_inf + (kN+1)*eps
 template <typename Rlwe, typename Decomp>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 struct NoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>> {
@@ -87,6 +102,13 @@ struct NoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>> {
   }
 };
 
+// Theorem 4.3 (BlindRotate), k=1, p=n CMux rounds:
+//   ||Err(ACC)||_inf <= ||Err(c)||_inf + p*(k+1)*l*N*beta*A_C + p*(1+kN)*eps
+// The ||Err(c)||_inf term is dropped here (see "assume ||Err(tv)||=0"
+// below) -- not a shortcut, but exactly how the paper itself uses this
+// theorem for gate bootstrapping (Theorem 6.2/Algorithm 9): the
+// accumulator's starting test vector v is a noiseless trivial plaintext
+// polynomial, never an encrypted ciphertext.
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
 struct NoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
@@ -114,6 +136,15 @@ struct NoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
     return to_round_up(bound);
   }
 };
+// Same formula as NoisePolicy<BlindRotate> above (Theorem 4.3): this op's
+// own noise contribution IS BlindRotate's, since the trailing
+// SampleExtract/Add(offset) steps are noise-free. Corresponds to the
+// paper's Theorem 6.2 "Bootstrapping TLWE-to-TLWE" (Algorithm 9) -- note
+// the paper's own "Gate Bootstrapping" (Theorem 6.3/Algorithm 10) instead
+// bundles a KeySwitch right after this, whereas here that composition
+// happens at the call site instead (e.g. adapter/params.hpp's
+// E(seal) = E(GateBootstrap) + E(KeySwitch)), so this Op's own analysis
+// stays Theorem 6.2's, without Theorem 6.3's extra key-switch terms.
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
 struct NoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {

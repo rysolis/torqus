@@ -6,7 +6,9 @@
 
 #include <concepts>
 #include <cstdint>
+#include <random>
 
+#include "primitive/concept/torus.hpp"
 #include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
@@ -47,6 +49,18 @@ inline Container randomize(Engine& eng) {
   Container container;
   randomize(container, eng);
   return container;
+}
+
+// Samples a single Gaussian(0, alpha^2) error and rounds it onto the torus.
+// Goes through dbl::Torus (canonical representative in [0, 1), already
+// reduced mod 1 by its constructor) so it works uniformly for any
+// torus_concept Torus -- ModTorus<QBit> included, via its existing
+// dbl::Torus -> ModTorus<QBit> conversion -- without a separate rounding
+// path per representation.
+template <torus_concept Torus, typename Engine>
+inline Torus gaussian_noise(Engine& eng, double alpha) {
+  std::normal_distribution<double> dist(0.0, alpha);
+  return static_cast<Torus>(dbl::Torus(dist(eng)));
 }
 
 #endif  // ALGEBRA_UTILITY_RANDOMIZE_HPP

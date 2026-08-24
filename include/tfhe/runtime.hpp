@@ -12,6 +12,7 @@
 #include "tfhe/cryptor.hpp"
 #include "tfhe/cryptor/traits.hpp"
 #include "tfhe/feature.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/structure/key/public_key.hpp"
@@ -74,8 +75,13 @@ class Runtime {
   ciphertext_t<cryptor_type, Plaintext> encrypt(const Plaintext& pt) {
     ciphertext_t<cryptor_type, Plaintext> res = cryptor_->encrypt(pt);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
-      auto* tracker = get_noise_tracker_if();
-      tracker->update(res, 0.);
+      get_noise_tracker_if()->update(res, fresh_noise_bound<Params>());
+      // The real variance behind that same worst-case bound (alpha^2, not
+      // the 6-sigma-tail-cutoff bound above it) -- see
+      // tfhe/utility/analysis/variance_noise.hpp's VarianceNoisePolicy, the
+      // one intended reader.
+      get_variance_tracker_if()->update(
+          res, alpha_of<Params>::value * alpha_of<Params>::value);
     }
     return res;
   }
@@ -91,8 +97,9 @@ class Runtime {
   generate_bootstrap_key(const UInt::raw_value_type* secret) {
     auto bk = bootstrap_key::generate<Lwe, Rlwe, Decomp>(*cryptor_, secret);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
-      auto* tracker = get_key_noise_tracker_if();
-      tracker->update(bk, 0.);
+      get_key_noise_tracker_if()->update(bk, fresh_noise_bound<Params>());
+      get_key_variance_tracker_if()->update(
+          bk, alpha_of<Params>::value * alpha_of<Params>::value);
     }
     return bk;
   }
@@ -103,8 +110,11 @@ class Runtime {
   generate_key_switch_key(const UInt::raw_value_type* secret) {
     auto ksk = key_switch_key::generate<SrcLwe, DstLwe, Kst>(*cryptor_, secret);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
-      auto* tracker = get_key_noise_tracker_if();
-      tracker->update(ksk, 0.);
+      // See the matching comment in generate_bootstrap_key above -- same
+      // reasoning, using this Runtime's own (destination-side) Params.
+      get_key_noise_tracker_if()->update(ksk, fresh_noise_bound<Params>());
+      get_key_variance_tracker_if()->update(
+          ksk, alpha_of<Params>::value * alpha_of<Params>::value);
     }
     return ksk;
   }

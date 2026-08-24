@@ -32,9 +32,16 @@ struct ParameterSet {
   using rlwe_params = Rlwe;
 };
 
-using Context1 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>>;
-using Context2 =
-    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>>;
+// noise_params here are real alpha, not just for show: Add/Sub's own
+// NoisePolicy/VarianceNoisePolicy have no key-noise amplification term (no
+// coefficient multiplying a tracked bound/variance by n*N*B-scale factors,
+// unlike ExternalProduct/CMux/BlindRotate/KeySwitch), so any alpha is safe
+// here regardless of N -- Context2 uses the same 2^-25 as the paper's own
+// 128-bit N=1024 parameter (see gate_bootstrap_test.cpp) for consistency.
+using Context1 =
+    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>>;
+using Context2 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
@@ -106,6 +113,14 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
     Poly<rTorus, N> err = res - ref;
     double norm = infinity_norm(err);
 
+    // Union-bound-corrected 99% threshold (see tracker_if.hpp's
+    // confidence_threshold) on VarianceNoisePolicy's predicted stddev,
+    // alongside the worst-case NoisePolicy check below -- necessary because
+    // norm is a max over N independent coefficients, not a single sample;
+    // see gate_bootstrap_test.cpp for the full rationale.
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, N);
+
     std::cout << "\n=== Add Executor Test ===\n";
     if (TypeParam::verbose) {
       std::cout << std::left;
@@ -118,9 +133,12 @@ TYPED_TEST(ArithmeticFixture, AdditionCorrectness) {
     std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
     std::cout << std::setw(14) << "error_bound" << ": "
               << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << "\n";
     std::cout << "===============================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }
 
@@ -160,6 +178,9 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
     Poly<rTorus, N> err = ref - res;
     double norm = infinity_norm(err);
 
+    double variance_threshold =
+        get_variance_tracker_if()->confidence_threshold(res_ct, N);
+
     std::cout << "\n=== Sub Executor Test ===\n";
     if (TypeParam::verbose) {
       std::cout << std::left;
@@ -172,8 +193,11 @@ TYPED_TEST(ArithmeticFixture, SubtractionCorrectness) {
     std::cout << std::setw(14) << "infinity_norm" << ": " << norm << "\n";
     std::cout << std::setw(14) << "error_bound" << ": "
               << get_noise_tracker_if()->get(res_ct) << "\n";
+    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
+              << "\n";
     std::cout << "===============================\n\n";
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
+    EXPECT_LE(norm, variance_threshold);
   }
 }
