@@ -38,7 +38,7 @@ add_library(compile-test OBJECT
 
 target_link_libraries(compile-test
   PRIVATE
-    ppv-libs
+    torqus-libs
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -65,20 +65,10 @@ add_executable(test-${PROJECT_NAME}
 
 target_link_libraries(test-${PROJECT_NAME}
   PRIVATE
-    ppv-libs
+    torqus-libs
     Boost::headers
     GTest::gtest
     GTest::gtest_main
-)
-
-# Lets test code #include "adapter/..." the same clean way production code
-# under example-napi/ and wasm/ reaches those entities -- adapter/ isn't part of
-# ppv-libs's own public include dir (include/), since it's the
-# binding-agnostic entity layer example-napi/wasm sit on top of, not the core
-# library itself.
-target_include_directories(test-${PROJECT_NAME}
-  PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
 gtest_discover_tests(test-${PROJECT_NAME})

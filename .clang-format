@@ -176,10 +176,8 @@ IncludeCategories:
     Priority: 4
   - Regex: '^"tfhe/'
     Priority: 5
-  - Regex: '^"e2e/'
-    Priority: 6
   - Regex: '^".*"'
-    Priority: 7
+    Priority: 6
 IncludeIsMainRegex: '([-_](test|unittest))?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false

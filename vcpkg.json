@@ -1,0 +1,23 @@
+{
+  "name": "torqus",
+  "version": "0.1.0",
+  "description": "A C++20 TFHE library (leveled arithmetic, gate bootstrapping)",
+  "homepage": "https://github.com/open-ppv/torqus",
+  "license": "Apache-2.0",
+  "supports": "!emscripten",
+  "dependencies": [
+    "vcpkg-cmake",
+    "vcpkg-cmake-config"
+  ],
+  "default-features": [
+    "mimalloc"
+  ],
+  "features": {
+    "mimalloc": {
+      "description": "Override the global allocator with mimalloc (see CMakeLists.txt's TORQUS_USE_MIMALLOC)",
+      "dependencies": [
+        "mimalloc"
+      ]
+    }
+  }
+}

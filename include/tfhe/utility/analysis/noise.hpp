@@ -142,7 +142,7 @@ struct NoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
 // paper's Theorem 6.2 "Bootstrapping TLWE-to-TLWE" (Algorithm 9) -- note
 // the paper's own "Gate Bootstrapping" (Theorem 6.3/Algorithm 10) instead
 // bundles a KeySwitch right after this, whereas here that composition
-// happens at the call site instead (e.g. adapter/params.hpp's
+// happens at the call site instead (e.g. a downstream consumer composing
 // E(seal) = E(GateBootstrap) + E(KeySwitch)), so this Op's own analysis
 // stays Theorem 6.2's, without Theorem 6.3's extra key-switch terms.
 template <typename Lwe, typename Rlwe, typename Decomp>

@@ -5,15 +5,15 @@
 #include <cstdint>
 #include <string>
 
-// PPV_DISABLE_SIMD (set via the PPV_ENABLE_SIMD=OFF CMake option, see
+// TORQUS_DISABLE_SIMD (set via the TORQUS_ENABLE_SIMD=OFF CMake option, see
 // CMakeLists.txt) forces the scalar Lane path even when the compiler
 // could do NEON -- an escape hatch/A-B switch, not something this header
 // decides on its own.
-#if defined(__ARM_NEON) && !defined(PPV_DISABLE_SIMD)
-#define PPV_SIMD_NEON_ENABLED 1
+#if defined(__ARM_NEON) && !defined(TORQUS_DISABLE_SIMD)
+#define TORQUS_SIMD_NEON_ENABLED 1
 #include <arm_neon.h>
 #else
-#define PPV_SIMD_NEON_ENABLED 0
+#define TORQUS_SIMD_NEON_ENABLED 0
 #endif
 
 namespace simd_lane {
@@ -56,7 +56,7 @@ struct ScalarLane {
   static vec bit_and(vec a, vec b) noexcept { return a & b; }
 };
 
-#if PPV_SIMD_NEON_ENABLED
+#if TORQUS_SIMD_NEON_ENABLED
 struct NeonLane {
   static constexpr std::size_t width = 4;
   using vec = uint32x4_t;
@@ -74,19 +74,19 @@ struct NeonLane {
 };
 #endif
 
-// A new ISA backend (e.g. AVX2/AVX512) adds its own PPV_SIMD_xxx_ENABLED
+// A new ISA backend (e.g. AVX2/AVX512) adds its own TORQUS_SIMD_xxx_ENABLED
 // block above (a Lane struct guarded by its own `#if defined(__AVXxxx__)`,
 // same shape as NeonLane) and joins the priority chain below. Nothing
 // outside this file needs to change: simd_ops.hpp only ever asks for
 // "the best available hardware Lane" via WideLane, gated by
-// PPV_SIMD_HAS_HARDWARE_LANE -- it doesn't know NEON exists, and won't
+// TORQUS_SIMD_HAS_HARDWARE_LANE -- it doesn't know NEON exists, and won't
 // need to know AVX2/AVX512 exist either.
-#if PPV_SIMD_NEON_ENABLED
+#if TORQUS_SIMD_NEON_ENABLED
 using WideLane = NeonLane;
-#define PPV_SIMD_HAS_HARDWARE_LANE 1
+#define TORQUS_SIMD_HAS_HARDWARE_LANE 1
 #else
 using WideLane = ScalarLane;
-#define PPV_SIMD_HAS_HARDWARE_LANE 0
+#define TORQUS_SIMD_HAS_HARDWARE_LANE 0
 #endif
 
 // e.g. "NEON (width=4)" or "Scalar (width=1)" -- the same compile-time

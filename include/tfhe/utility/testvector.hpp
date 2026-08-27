@@ -10,9 +10,6 @@
 
 #include "algebra/poly.hpp"
 
-#include "e2e/encoding/codec.hpp"
-#include "e2e/encoding/message.hpp"
-
 namespace testvector {
 
 // -c + -cx + -cx^2 + ... + cx^{N/2} + cx^{N/2+1} + ...

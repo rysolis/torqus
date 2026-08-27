@@ -1,7 +1,8 @@
 // Byte-buffer (de)serialization for every ciphertext/key structure this
 // library hands between roles that, in a real deployment, may live on
-// separate machines (e.g. the an example application protocol's Coordinator/Client/
-// Downstream/Aggregator -- see example/protocol/*.hpp and tfhe/transport.hpp).
+// separate machines -- e.g. a multi-party protocol built downstream on top
+// of this library, where each party runs on its own host (see
+// tfhe/transport.hpp).
 //
 // Usage: serialize::to_bytes(value) -> std::vector<std::byte>,
 // serialize::from_bytes<T>(bytes) -> T. write/read against an existing

@@ -39,10 +39,10 @@ using Context1 = ParameterSet<
     rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
     dcp_params<4, 3>>;
 
-// n/N match adapter/params.hpp's Params13_128, with the paper's own
-// lattice-estimator-verified 128-bit alpha for these exact dimensions
-// (2^-15 for n=630, 2^-25 for N=1024 -- see the TFHE library's published
-// parameters). NoisePolicy's own bound blows past 0.25 at this alpha (no
+// n=630/N=1024 match the TFHE paper's own published 128-bit-security
+// parameter set, with its own lattice-estimator-verified alpha for these
+// exact dimensions (2^-15 for n=630, 2^-25 for N=1024). NoisePolicy's own
+// bound blows past 0.25 at this alpha (no
 // longer asserted on, see evaluator.hpp), which is exactly why the real
 // check here is VerifyCorrectness's variance-model threshold below, not
 // the worst-case one.

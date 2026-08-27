@@ -9,16 +9,16 @@
 #include "tfhe/serialize.hpp"
 
 // A Transport decides what shape a value takes crossing a hand-off
-// boundary between roles in example/protocol/*.hpp, and how to cross it. Every
-// hand-off point is written once, generic over Transport, switched by
-// template parameter alone:
+// boundary between roles in a protocol built on top of this library, and
+// how to cross it. Every hand-off point is written once, generic over
+// Transport, switched by template parameter alone:
 //
 //   - DirectTransport: the value itself, passed through untouched -- same
 //     cost as passing the live C++ object directly, no encode/decode.
 //   - SerializedTransport (the default): serialize::to_bytes'd/from_bytes'd
 //     (tfhe/serialize.hpp) -- the shape the same hand-off would need to
-//     take crossing a real network, since Protocol's roles are meant to be
-//     splittable across machines (see example/protocol.hpp).
+//     take crossing a real network, for a protocol whose roles are meant
+//     to be splittable across machines.
 struct DirectTransport {
   template <typename T>
   using wire_type = T;

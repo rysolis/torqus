@@ -42,7 +42,7 @@ struct simd_ops {
 // `mod` (include/primitive/modint.hpp:38-62). add_lanes/sub_lanes below
 // are the *vectorized* half of that, generic over a Lane strategy
 // (algebra/detail/simd_lane.hpp) -- only ever instantiated with
-// simd_lane::WideLane, and only when PPV_SIMD_HAS_HARDWARE_LANE says
+// simd_lane::WideLane, and only when TORQUS_SIMD_HAS_HARDWARE_LANE says
 // WideLane is a real hardware Lane (never ScalarLane). This file doesn't
 // know or care which ISA that is -- adding AVX2/AVX512 support is a
 // simd_lane.hpp-only change. Whatever a Lane pass doesn't cover (every
@@ -95,7 +95,7 @@ struct simd_ops<ModInt<P>> {
   static void add_assign(raw_value_type* dst, const raw_value_type* src,
                          std::size_t n) {
     std::size_t i = 0;
-#if PPV_SIMD_HAS_HARDWARE_LANE
+#if TORQUS_SIMD_HAS_HARDWARE_LANE
     add_lanes<simd_lane::WideLane>(dst, src, i, n);
 #endif
     for (; i < n; ++i) {
@@ -108,7 +108,7 @@ struct simd_ops<ModInt<P>> {
   static void sub_assign(raw_value_type* dst, const raw_value_type* src,
                          std::size_t n) {
     std::size_t i = 0;
-#if PPV_SIMD_HAS_HARDWARE_LANE
+#if TORQUS_SIMD_HAS_HARDWARE_LANE
     sub_lanes<simd_lane::WideLane>(dst, src, i, n);
 #endif
     for (; i < n; ++i) {
@@ -122,7 +122,7 @@ struct simd_ops<ModInt<P>> {
 // ModTorus<QBit>::operator+=/-= is add/sub followed by masking off the
 // high bits (include/primitive/torus.hpp:160-171). Same split as
 // ModInt<P> above: add_lanes/sub_lanes are the vectorized half (WideLane
-// only, gated on PPV_SIMD_HAS_HARDWARE_LANE), and whatever's left is
+// only, gated on TORQUS_SIMD_HAS_HARDWARE_LANE), and whatever's left is
 // finished by calling ModTorus<QBit>::operator+=/-= directly.
 template <uint32_t QBit>
 struct simd_ops<ModTorus<QBit>> {
@@ -151,7 +151,7 @@ struct simd_ops<ModTorus<QBit>> {
   static void add_assign(raw_value_type* dst, const raw_value_type* src,
                          std::size_t n) {
     std::size_t i = 0;
-#if PPV_SIMD_HAS_HARDWARE_LANE
+#if TORQUS_SIMD_HAS_HARDWARE_LANE
     add_lanes<simd_lane::WideLane>(dst, src, i, n);
 #endif
     for (; i < n; ++i) {
@@ -164,7 +164,7 @@ struct simd_ops<ModTorus<QBit>> {
   static void sub_assign(raw_value_type* dst, const raw_value_type* src,
                          std::size_t n) {
     std::size_t i = 0;
-#if PPV_SIMD_HAS_HARDWARE_LANE
+#if TORQUS_SIMD_HAS_HARDWARE_LANE
     sub_lanes<simd_lane::WideLane>(dst, src, i, n);
 #endif
     for (; i < n; ++i) {

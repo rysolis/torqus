@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    name: ${{ matrix.preset }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - preset: gcc-debug
+            build_dir: build/gcc/debug
+
+          - preset: clang-debug
+            build_dir: build/clang/debug
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile -t torqus-ci .
+
+      - name: Configure
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            torqus-ci \
+            cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            torqus-ci \
+            cmake --build --preset ${{ matrix.preset }} -j$(nproc)
+
+      - name: Test
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            torqus-ci \
+            ctest --test-dir ${{ matrix.build_dir }} --verbose

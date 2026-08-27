@@ -121,16 +121,6 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
-    },
-    {
-      "name": "wasm-release",
-      "displayName": "WASM Release",
-      "generator": "Unix Makefiles",
-      "binaryDir": "${sourceDir}/build/wasm/release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "BUILD_TESTING": "OFF"
-      }
     }
   ],
   "buildPresets": [
@@ -165,10 +155,6 @@
     {
       "name": "clang-native-release",
       "configurePreset": "clang-native-release"
-    },
-    {
-      "name": "wasm-release",
-      "configurePreset": "wasm-release"
     }
   ]
 }

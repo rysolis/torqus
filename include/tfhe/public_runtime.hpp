@@ -17,9 +17,9 @@
 // touches the secret its PublicKey was generated from (see public_key.hpp),
 // so whoever holds one can encrypt without being trusted with that secret.
 // Both the key and the engine are owned by value, so a PublicRuntime can be
-// built wherever it's used (e.g. by a Client that received its PublicKey
-// over the wire from Coordinator) with its own local randomness, rather than
-// sharing state with whoever generated the key.
+// built wherever it's used (e.g. by a party that received its PublicKey
+// over the wire from whoever generated it) with its own local randomness,
+// rather than sharing state with the key's originator.
 template <typename Params, uint32_t PkSamples>
   requires tlwe_concept<Params>
 class PublicRuntime {

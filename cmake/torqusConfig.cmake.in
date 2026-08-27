@@ -1,0 +1,20 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# Mirrors CMakeLists.txt's own Threading/Allocator-override sections --
+# torqusTargets.cmake below references Threads::Threads and (optionally)
+# mimalloc as usage requirements on torqus::torqus, so both must already be
+# findable in the consumer's own find_package() scope before it's included.
+if(NOT EMSCRIPTEN)
+  set(THREADS_PREFER_PTHREAD_FLAG ON)
+  find_dependency(Threads)
+endif()
+
+if(@TORQUS_USE_MIMALLOC@ AND NOT EMSCRIPTEN)
+  find_dependency(mimalloc CONFIG)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/torqusTargets.cmake")
+
+check_required_components(torqus)
