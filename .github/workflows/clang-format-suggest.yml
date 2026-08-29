@@ -1,0 +1,44 @@
+name: clang-format-suggester
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          tags: torqus-ci:latest
+          load: true
+          cache-from: type=gha,scope=torqus-ci
+          cache-to: type=gha,mode=max,scope=torqus-ci
+
+      - name: Run clang-format
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            torqus-ci \
+            bash -lc "find include test \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 clang-format -i"
+
+      - name: Suggest changes
+        uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: clang-format
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          filter_mode: diff_context
+          fail_level: none
