@@ -11,15 +11,18 @@
 
 </div>
 
-A C++20, header-only TFHE library for mathematicians, exposing the
-low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts, leveled
-arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with static
-noise tracking on top of them.
+A C++20, header-only TFHE library for mathematicians and developers,
+exposing the low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts,
+leveled arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with
+static noise tracking on top of them.
 
-**Concept:** a cryptography library a mathematician can actually read --
-types and primitives named close to the TFHE paper's own notation rather
-than hidden behind opaque byte buffers -- engineered to the correctness
-and rigor a production deployment needs, not just a research prototype.
+**Concept:** a cryptography library a mathematician can actually read
+and a developer can actually ship -- types and primitives named close
+to the TFHE paper's own notation (`TLWE`/`TRLWE`/`TRGSW`, `n`/`N`,
+`alpha`, ...) rather than hidden behind opaque byte buffers, so each
+piece of code traces directly back to the paper construct it
+implements -- engineered to the correctness and rigor a production
+deployment needs, not just a research prototype.
 
 Gate bootstrapping is designed against the TFHE paper's own published
 128-bit-security parameter set (n=630, N=1024), exercised in
@@ -43,6 +46,22 @@ downstream forks -- this repository optimizes for
 the correctness and readability of the reference implementation, not for
 raw throughput.
 
+## Table of Contents
+
+- [Security Status](#security-status)
+- [Supported Operations](#supported-operations)
+- [Usage](#usage)
+  - [Quick Start](#quick-start)
+  - [Conan](#conan)
+  - [vcpkg](#vcpkg)
+  - [CMake `find_package(torqus)`](#cmake-find_packagetorqus)
+  - [Example: a homomorphic AND gate](#example-a-homomorphic-and-gate)
+- [Developing torqus](#developing-torqus)
+  - [Project Structure](#project-structure)
+  - [Requirements](#requirements)
+  - [Build & Run the Test Suite (Docker)](#build--run-the-test-suite-docker)
+  - [Building Natively, Without Docker](#building-natively-without-docker)
+
 ***
 
 ## Security Status
@@ -56,14 +75,48 @@ accordingly before relying on it for anything security-critical.
 
 ***
 
+## Supported Operations
+
+Everything below is reachable through the umbrella headers at `tfhe/`'s
+root (see [Project Structure](#project-structure)); each row links to
+the umbrella header that pulls in its subdirectory.
+
+| Category | Types / Operations | Header |
+| --- | --- | --- |
+| Ciphertexts | `TLWE`, `TRLWE`, `TRGSW` | [`tfhe/ciphertext.hpp`](include/tfhe/ciphertext.hpp) |
+| Leveled arithmetic | `Add`, `Sub`, `KeySwitch`, `SampleExtract` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
+| Bootstrap primitives | `BlindRotate`, `ExternalProduct`, `CMux`, `GateBootstrap` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
+| Gates | `HomAnd`, `HomAndNot`, `HomOr` | [`tfhe/gate.hpp`](include/tfhe/gate.hpp) |
+| Circuits | `BinaryExpansion` (gate-level binary expansion) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
+| Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
+
+Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
+ciphertext out (see the `HomAnd` example below); chaining several
+together, as `BinaryExpansion` does, needs a `KeySwitch` back down to
+Lwe between calls.
+
+***
+
 ## Usage
 
-torqus is header-only: consuming it doesn't require building this
-repository at all, just getting `include/` onto your compiler's include
-path. Core usage (TLWE/TRLWE/TRGSW, leveled ops, gate bootstrapping) needs
+### Quick Start
+
+torqus is header-only, so trying it needs no package manager and no
+build step for the library itself -- just get `include/` onto your
+compiler's include path and start including headers:
+
+```bash
+git clone https://github.com/rysolis/torqus.git
+c++ -std=c++20 -Itorqus/include your_program.cpp -o your_program
+```
+
+Core usage (TLWE/TRLWE/TRGSW, leveled ops, gate bootstrapping) needs
 nothing beyond a C++20 compiler; Boost (`libboost-dev`) is only pulled in
 if you use the noise-tracking `Tracking` feature
-(`tfhe/utility/analysis/`).
+(`tfhe/utility/analysis/`). See [Example: a homomorphic AND
+gate](#example-a-homomorphic-and-gate) below for a full working program,
+and [Supported Operations](#supported-operations) for what's available
+to build with.
 
 torqus imposes no optimization or debug flags of its own -- the CMake
 target it installs (`torqus::torqus`) is a plain `INTERFACE` library that
@@ -81,9 +134,9 @@ define `TFHE_DISABLE_NOISE` before including any torqus header (in this
 repository's own CMake build, the equivalent is `-DTFHE_ENABLE_NOISE=OFF`,
 see [Developing torqus](#developing-torqus) below).
 
-The simplest path is vendoring `include/` directly (e.g. as a git
-submodule) and adding it to your include path. For dependency-managed
-integration, the C++ core is also packaged for two package managers under
+Beyond the plain-clone Quick Start above, vendoring `include/` as a git
+submodule works the same way. For dependency-managed integration
+instead, the C++ core is also packaged for two package managers under
 the name `torqus`:
 
 ### Conan
