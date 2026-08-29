@@ -13,7 +13,7 @@
 namespace testvector {
 
 // -c + -cx + -cx^2 + ... + cx^{N/2} + cx^{N/2+1} + ...
-// TODO: use MessageCodec!!!
+// TODO: use MessageCodec once it exists, instead of hardcoding this encoding.
 template <torus_concept Torus, uint32_t N>
 Poly<Torus, N> generate(Torus c) {
   return Poly<Torus, N>([c](uint32_t i) {

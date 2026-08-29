@@ -279,6 +279,7 @@ torqus/
 │       ├── serialize.hpp       # -> serialize/: wire (de)serialization
 │       ├── transport.hpp       # direct vs. serialized hand-off between protocol roles
 │       ├── cryptor.hpp         # Cryptor<Params, Feature...>, used internally by Runtime
+│       ├── concept/            # tlwe_concept/trlwe_concept/... constraints on Params types
 │       └── utility/            # noise tracking, secret holder, random generator, ...
 ├── test/
 │   ├── compile/          # compile-only interface/contract tests
