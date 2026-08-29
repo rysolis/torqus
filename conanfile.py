@@ -6,7 +6,7 @@ class TorqusConan(ConanFile):
     name = "torqus"
     version = "0.1.0"
     license = "Apache-2.0"
-    url = "https://github.com/open-ppv/torqus"
+    url = "https://github.com/rysolis/torqus"
     description = "A C++20 TFHE library (leveled arithmetic, gate bootstrapping)"
     topics = ("tfhe", "fhe", "homomorphic-encryption", "cryptography")
 

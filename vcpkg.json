@@ -2,7 +2,7 @@
   "name": "torqus",
   "version": "0.1.0",
   "description": "A C++20 TFHE library (leveled arithmetic, gate bootstrapping)",
-  "homepage": "https://github.com/open-ppv/torqus",
+  "homepage": "https://github.com/rysolis/torqus",
   "license": "Apache-2.0",
   "supports": "!emscripten",
   "dependencies": [
