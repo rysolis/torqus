@@ -31,15 +31,11 @@
       }
     },
     {
-      "name": "linux-native-base",
+      "name": "native-base",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "-march=native"
-      },
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
+        "CMAKE_CXX_FLAGS": "-march=native",
+        "TORQUS_NATIVE_BUILD": "ON"
       }
     },
     {
@@ -69,6 +65,17 @@
       }
     },
     {
+      "name": "gcc-coverage",
+      "displayName": "GCC Coverage (gcov/lcov)",
+      "inherits": "gcc-base",
+      "binaryDir": "${sourceDir}/build/gcc/coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "--coverage -Wno-error=aggressive-loop-optimizations",
+        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
+      }
+    },
+    {
       "name": "clang-debug",
       "displayName": "Clang Debug",
       "inherits": "clang-base",
@@ -88,8 +95,8 @@
     },
     {
       "name": "gcc-native-debug",
-      "displayName": "GCC Native Debug (host CPU, Linux)",
-      "inherits": ["gcc-base", "linux-native-base"],
+      "displayName": "GCC Native Debug (host CPU)",
+      "inherits": ["gcc-base", "native-base"],
       "binaryDir": "${sourceDir}/build/gcc-native/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -97,8 +104,8 @@
     },
     {
       "name": "gcc-native-release",
-      "displayName": "GCC Native Release (host CPU, Linux)",
-      "inherits": ["gcc-base", "linux-native-base"],
+      "displayName": "GCC Native Release (host CPU)",
+      "inherits": ["gcc-base", "native-base"],
       "binaryDir": "${sourceDir}/build/gcc-native/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
@@ -106,8 +113,8 @@
     },
     {
       "name": "clang-native-debug",
-      "displayName": "Clang Native Debug (host CPU, Linux)",
-      "inherits": ["clang-base", "linux-native-base"],
+      "displayName": "Clang Native Debug (host CPU)",
+      "inherits": ["clang-base", "native-base"],
       "binaryDir": "${sourceDir}/build/clang-native/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -115,8 +122,8 @@
     },
     {
       "name": "clang-native-release",
-      "displayName": "Clang Native Release (host CPU, Linux)",
-      "inherits": ["clang-base", "linux-native-base"],
+      "displayName": "Clang Native Release (host CPU)",
+      "inherits": ["clang-base", "native-base"],
       "binaryDir": "${sourceDir}/build/clang-native/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
@@ -131,6 +138,10 @@
     {
       "name": "gcc-release",
       "configurePreset": "gcc-release"
+    },
+    {
+      "name": "gcc-coverage",
+      "configurePreset": "gcc-coverage"
     },
     {
       "name": "clang-debug",

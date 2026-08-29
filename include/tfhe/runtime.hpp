@@ -73,7 +73,7 @@ class Runtime {
   // through to Cryptor to find out what auto resolves to.
   template <typename Plaintext>
   ciphertext_t<cryptor_type, Plaintext> encrypt(const Plaintext& pt) {
-    ciphertext_t<cryptor_type, Plaintext> res = cryptor_->encrypt(pt);
+    ciphertext_t<cryptor_type, Plaintext> res = cryptor().encrypt(pt);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
       get_noise_tracker_if()->update(res, fresh_noise_bound<Params>());
       // The real variance behind that same worst-case bound (alpha^2, not
@@ -88,14 +88,14 @@ class Runtime {
 
   template <typename Ciphertext>
   plaintext_t<cryptor_type, Ciphertext> decrypt(const Ciphertext& ct) {
-    return cryptor_->decrypt(ct);
+    return cryptor().decrypt(ct);
   }
 
   template <typename Lwe, typename Rlwe, typename Decomp>
     requires tlwe_concept<Lwe> && decompose_concept<Decomp>
   BootstrapKey<typename Rlwe::torus_type, Rlwe::N, Decomp::l, Lwe::n>
   generate_bootstrap_key(const UInt::raw_value_type* secret) {
-    auto bk = bootstrap_key::generate<Lwe, Rlwe, Decomp>(*cryptor_, secret);
+    auto bk = bootstrap_key::generate<Lwe, Rlwe, Decomp>(cryptor(), secret);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
       get_key_noise_tracker_if()->update(bk, fresh_noise_bound<Params>());
       get_key_variance_tracker_if()->update(
@@ -108,7 +108,7 @@ class Runtime {
     requires tlwe_concept<SrcLwe> && tlwe_concept<DstLwe> && kst_concept<Kst>
   KeySwitchKey<typename DstLwe::torus_type, DstLwe::n, Kst::t, SrcLwe::n>
   generate_key_switch_key(const UInt::raw_value_type* secret) {
-    auto ksk = key_switch_key::generate<SrcLwe, DstLwe, Kst>(*cryptor_, secret);
+    auto ksk = key_switch_key::generate<SrcLwe, DstLwe, Kst>(cryptor(), secret);
     if constexpr ((std::same_as<Tracking, Feature> || ...)) {
       // See the matching comment in generate_bootstrap_key above -- same
       // reasoning, using this Runtime's own (destination-side) Params.
@@ -134,11 +134,24 @@ class Runtime {
     return pk;
   }
 
+  // holder_ is only ever left unset by Runtime() = default, used solely as
+  // a placeholder member (see the test fixtures under test/runtime/) that
+  // gets overwritten by assignment from a properly constructed Runtime
+  // before this is ever called.
+  // NOLINTNEXTLINE(bugprone-exception-escape)
   const SecretHolder<secret_length>& holder() const noexcept {
-    return *holder_;
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    return holder_.value();
   }
 
  private:
+  // cryptor_ carries the same never-unset-when-called invariant as holder_
+  // above.
+  cryptor_type& cryptor() {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
+    return cryptor_.value();
+  }
+
   std::optional<SecretHolder<secret_length>> holder_;
   std::optional<cryptor_type> cryptor_;
 };

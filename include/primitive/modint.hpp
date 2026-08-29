@@ -30,9 +30,7 @@ class ModInt {
   static constexpr raw_value_type raw_min() { return 0; }
   static constexpr raw_value_type raw_max() { return P - 1; }
 
-  constexpr explicit operator raw_value_type() const noexcept {
-    return value_;
-  }
+  constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
 
   constexpr ModInt& operator+=(const ModInt& rhs) noexcept {

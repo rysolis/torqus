@@ -9,9 +9,8 @@
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
 
+#include "algebra/detail/negacyclic_convolution.hpp"
 #include "algebra/utility/randomize.hpp"
-
-#include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/params.hpp"
@@ -22,7 +21,7 @@ namespace trgsw {
 template <typename Params, typename Engine>
   requires trlwe_concept<Params> && decompose_concept<Params>
 TRGSW<typename Params::torus_type, Params::N, Params::l> encrypt(
-    std::shared_ptr<UInt::raw_value_type[]> secret, Engine& eng,
+    const std::shared_ptr<UInt::raw_value_type[]>& secret, Engine& eng,
     const Poly<UInt, Params::N>& pt) {
   using Torus = typename Params::torus_type;
   constexpr uint32_t N = Params::N;
@@ -41,7 +40,7 @@ TRGSW<typename Params::torus_type, Params::N, Params::l> encrypt(
     ct[l + j].b() = negacyclic_convolution(secret_poly, ct[l + j].a());
     for (uint32_t i = 0; i < N; ++i) {
       ct[j].b()[i] = static_cast<Torus>(ct[j].b()[i]) +
-                    gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
+                     gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
       ct[l + j].b()[i] =
           static_cast<Torus>(ct[l + j].b()[i]) +
           gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);

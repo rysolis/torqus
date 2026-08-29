@@ -13,7 +13,6 @@
 #include "tfhe/cryptor/detail/tlwe_cryptor.hpp"
 #include "tfhe/cryptor/detail/trgsw_cryptor.hpp"
 #include "tfhe/cryptor/detail/trlwe_cryptor.hpp"
-#include "tfhe/utility/always_false.hpp"
 
 template <typename Params, typename... Feature>
 class Cryptor {

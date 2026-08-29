@@ -97,9 +97,10 @@ TYPED_TEST(SerializeRoundtripTest, BootstrapKeyAndKeySwitchKey) {
   auto bk_back = serialize::from_bytes<decltype(bk)>(bk_bytes);
   EXPECT_EQ(bk_bytes, serialize::to_bytes(bk_back));
 
-  auto ksk = lwe_runtime.template generate_key_switch_key<ExtractedLwe<Rlwe>,
-                                                          Lwe, Kst>(
-      rlwe_runtime.holder().get());
+  auto ksk =
+      lwe_runtime
+          .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+              rlwe_runtime.holder().get());
   auto ksk_bytes = serialize::to_bytes(ksk);
   auto ksk_back = serialize::from_bytes<decltype(ksk)>(ksk_bytes);
   EXPECT_EQ(ksk_bytes, serialize::to_bytes(ksk_back));

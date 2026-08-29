@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef ALGEBRA_DETAIL_SIMD_OPS_HPP
 #define ALGEBRA_DETAIL_SIMD_OPS_HPP
 

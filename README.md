@@ -1,23 +1,202 @@
-# torqus
+<div align="center">
 
-The name is a portmanteau of *torque* (the rotational force behind TFHE's
-blind rotation) and *torus* (the ring group 𝕋 that TFHE computes over).
+<h1>torqus</h1>
 
-A C++20, header-only TFHE library (leveled arithmetic, gate bootstrapping).
-Application-level protocols built on top of it -- along with their
-WASM/example N-API bindings and npm packaging -- live downstream (e.g. in
-`ppv-lab`), not in this repository.
+[![CI](https://github.com/rysolis/torqus/actions/workflows/ci.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/ci.yml)
+[![Lint](https://github.com/rysolis/torqus/actions/workflows/lint.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/lint.yml)
+[![codecov](https://codecov.io/gh/rysolis/torqus/branch/main/graph/badge.svg)](https://codecov.io/gh/rysolis/torqus)
+[![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](CMakeLists.txt)
 
-This project supports:
+</div>
 
-- Native C++ builds (Clang or GCC)
+A C++20, header-only TFHE library for mathematicians, exposing the
+low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts, leveled
+arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with static
+noise tracking on top of them.
 
-The build system is based on CMake and Docker. All commands below are run
-from the repository root.
+**Concept:** a cryptography library a mathematician can actually read --
+types and primitives named close to the TFHE paper's own notation rather
+than hidden behind opaque byte buffers -- engineered to the correctness
+and rigor a production deployment needs, not just a research prototype.
+
+Gate bootstrapping is designed against the TFHE paper's own published
+128-bit-security parameter set (n=630, N=1024), exercised in
+[`gate_bootstrap_test.cpp`](test/runtime/tfhe/operation/bootstrap/gate_bootstrap_test.cpp)
+and required to clear a 99% two-sided decryption-success threshold --
+*assuming* the accumulated ciphertext error is normally distributed, the
+field's standard modeling assumption, not a proven hard bound.
+Poly/Vector add-sub -- and so every ciphertext type built on them
+(TLWE/TRLWE/TRGSW's own `+`/`-`) -- use ARM NEON when available
+(`algebra/detail/simd_ops.hpp`), falling back to scalar elsewhere; on by
+default, this can be switched off by defining `TORQUS_DISABLE_SIMD`
+before including any torqus header (in this repository's own CMake
+build, `-DTORQUS_ENABLE_SIMD=OFF` does the same).
+
+Separately, a fixed-size `ThreadPool` (`tfhe/utility/thread_pool.hpp`) is
+available but not yet wired into any operation in this repository --
+usable as-is by a downstream implementation wanting to batch independent
+gate/ciphertext work across threads. Beyond SIMD add-sub, further
+computational acceleration (GPU, ...) is intentionally left to
+downstream forks -- this repository optimizes for
+the correctness and readability of the reference implementation, not for
+raw throughput.
 
 ***
 
-## Project Structure
+## Security Status
+
+This is a from-scratch TFHE implementation and has **not** undergone an
+independent third-party security audit. The noise tracker
+(`tfhe/utility/analysis/`) enforces the noise bounds it's told to expect,
+which catches parameter-mismatch bugs, but that is not a substitute for
+a cryptographic review of the scheme's implementation itself. Treat it
+accordingly before relying on it for anything security-critical.
+
+***
+
+## Usage
+
+torqus is header-only: consuming it doesn't require building this
+repository at all, just getting `include/` onto your compiler's include
+path. Core usage (TLWE/TRLWE/TRGSW, leveled ops, gate bootstrapping) needs
+nothing beyond a C++20 compiler; Boost (`libboost-dev`) is only pulled in
+if you use the noise-tracking `Tracking` feature
+(`tfhe/utility/analysis/`).
+
+torqus imposes no optimization or debug flags of its own -- the CMake
+target it installs (`torqus::torqus`) is a plain `INTERFACE` library that
+only requires `cxx_std_20` and, optionally, the two feature macros above;
+it carries no `-O*`/`-g` of any kind. Set `-O2`/`-O3`, `-march=native`,
+`CMAKE_BUILD_TYPE`, etc. the same way you would for any other dependency
+in your own project (e.g. `target_compile_options(your_target PRIVATE
+-O3)`, or just your build type) -- torqus never overrides them.
+
+By default, `encrypt()` samples real Gaussian noise for any param set
+that opts into it via `noise_params<AlphaBits>` (`tfhe/params.hpp`). To
+force every ciphertext back to exact/noiseless regardless of
+`noise_params` -- e.g. for debugging against the old noiseless behavior --
+define `TFHE_DISABLE_NOISE` before including any torqus header (in this
+repository's own CMake build, the equivalent is `-DTFHE_ENABLE_NOISE=OFF`,
+see [Developing torqus](#developing-torqus) below).
+
+The simplest path is vendoring `include/` directly (e.g. as a git
+submodule) and adding it to your include path. For dependency-managed
+integration, the C++ core is also packaged for two package managers under
+the name `torqus`:
+
+### Conan
+
+[`conanfile.py`](conanfile.py) packages `include/` behind `find_package(torqus)`
+(`torqus::torqus`), matching the `CMakeLists.txt` install/export section below.
+`mimalloc`/SIMD/noise are exposed as Conan options (`use_mimalloc`,
+`enable_simd`, `enable_noise`), mirroring the `TORQUS_USE_MIMALLOC` /
+`TORQUS_ENABLE_SIMD` / `TFHE_ENABLE_NOISE` CMake options below:
+
+```bash
+conan create . --build=missing
+```
+
+### vcpkg
+
+[`vcpkg.json`](vcpkg.json) is the package manifest (name `torqus`, a
+`mimalloc` feature on by default). Building it as a vcpkg **port** needs a
+`portfile.cmake` as well, which lives in a vcpkg registry rather than in
+this repository -- see the project's vcpkg registry setup for that piece.
+
+### CMake `find_package(torqus)`
+
+Either path above ultimately relies on this repository's own `install()`
+rules (`CMakeLists.txt`) plus [`cmake/torqusConfig.cmake.in`](cmake/torqusConfig.cmake.in),
+which a consumer can also drive directly:
+
+```bash
+cmake --preset clang-native-release
+cmake --build --preset clang-native-release
+cmake --install build/clang-native/release --prefix /some/prefix
+```
+
+```cmake
+find_package(torqus CONFIG REQUIRED)
+target_link_libraries(your_target PRIVATE torqus::torqus)
+```
+
+### Example: a homomorphic AND gate
+
+Encrypt two bits under a `Runtime`, combine them, and call
+[`GateBootstrap`](include/tfhe/operation/bootstrap/gate_bootstrap.hpp)
+directly to get the AND back out as a fresh ciphertext -- this is the same
+recipe [`tfhe::gate::HomAnd`](include/tfhe/gate/hom_and.hpp) itself uses,
+spelled out so the bootstrapping step isn't hidden behind it. Everything
+below comes in through the umbrella headers at `tfhe/`'s root (see
+[Project Structure](#project-structure)) rather than reaching into the
+subdirectories those headers pull in for you:
+
+```cpp
+#include <random>
+
+#include "primitive.hpp"
+
+#include "tfhe/ciphertext.hpp"
+#include "tfhe/operation.hpp"
+#include "tfhe/params.hpp"
+#include "tfhe/runtime.hpp"
+#include "tfhe/utility/testvector.hpp"
+
+// The TFHE paper's own published 128-bit-security dimensions, with their
+// matching lattice-estimator-verified noise (alpha = 2^-15 for n=630,
+// 2^-25 for N=1024) -- see gate_bootstrap_test.cpp.
+using Torus = ModTorus<32>;
+using Lwe = lwe_params<tlwe_core_params<Torus, 630>, noise_params<15>>;
+using Rlwe = rlwe_params<trlwe_core_params<Torus, 1024>, noise_params<25>>;
+using Decomp = dcp_params<256, 3>;
+
+int main() {
+  std::mt19937 eng{std::random_device{}()};
+
+  Runtime<Lwe> lwe_runtime(eng);
+  Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime(eng);
+
+  // Bootstrap key: lets the Rlwe-side runtime bootstrap ciphertexts
+  // encrypted under the Lwe-side secret.
+  auto bk = rlwe_runtime.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+      lwe_runtime.holder().get());
+
+  // Message space here is {0, 1/4}: 0 = false, 1/4 = true.
+  TLWE<Torus, Lwe::n> a = lwe_runtime.encrypt(Torus(1u, 4u));  // true
+  TLWE<Torus, Lwe::n> b = lwe_runtime.encrypt(Torus(0u));      // false
+
+  // AND(a, b) = GateBootstrap(a + b - 1/8): shifting the sum by -1/8
+  // makes the phase's sign match "a AND b"; GateBootstrap re-encrypts
+  // that sign as a fresh {0, 1/4} ciphertext.
+  TLWE<Torus, Lwe::n> offset;
+  offset.b() = -Torus(1u, 8u);
+  TLWE<Torus, Lwe::n> combined = tfhe::leveled::Add<Lwe>::exec_impl(
+      offset, tfhe::leveled::Add<Lwe>::exec_impl(a, b));
+
+  TRLWE<Torus, Rlwe::N> tv;
+  tv.b() = testvector::generate<Torus, Rlwe::N>(Torus(1u, 8u));
+
+  TLWE<Torus, Rlwe::N> result =
+      tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
+          Torus(1u, 4u), tv, combined, bk);
+
+  // Real Gaussian noise is enabled (noise_params above), so this lands
+  // close to Torus(0u) but not exactly on it.
+  Torus plaintext = rlwe_runtime.decrypt(result);
+}
+```
+
+***
+
+## Developing torqus
+
+The sections below are for building and testing this repository itself --
+they're not needed just to *use* torqus as a library; see
+[Usage](#usage) above for that.
+
+### Project Structure
 
 ```text
 torqus/
@@ -29,16 +208,25 @@ torqus/
 │   └── torqusConfig.cmake.in   # find_package(torqus) support
 ├── Dockerfile
 ├── include/
-│   ├── algebra/          # polynomials, vectors, ring arithmetic
-│   ├── arithmetic/       # expression traits, negacyclic convolution
+│   ├── algebra.hpp       # umbrella: Poly / Vector ring arithmetic
+│   ├── primitive.hpp     # umbrella: modint, torus, uint
+│   ├── algebra/          # polynomials, vectors, ring arithmetic (detail/: SIMD, negacyclic convolution)
 │   ├── primitive/        # modint, torus, uint, and their concepts
 │   └── tfhe/
-│       ├── cryptor/      # TLWE / TRLWE / TRGSW cryptors
-│       ├── structure/    # ciphertext & key types
-│       ├── operation/    # leveled ops, gate bootstrapping
-│       ├── gate/         # homomorphic gates (AND, AND-NOT, ...)
-│       ├── circuit/      # gate-level circuits (e.g. binary expansion)
-│       └── serialize/    # wire (de)serialization
+│       ├── params.hpp          # parameter types (tlwe_core_params, dcp_params, noise_params, ...)
+│       ├── feature.hpp         # Tracking feature tag
+│       ├── runtime.hpp         # Runtime<Params, Feature...> facade (encrypt/decrypt, key generation)
+│       ├── public_runtime.hpp  # PublicRuntime: encrypt via a PublicKey, no secret needed
+│       ├── ciphertext.hpp      # -> structure/ciphertext/: TLWE / TRLWE / TRGSW
+│       ├── key.hpp             # -> structure/key/: bootstrap / key-switch / public keys
+│       ├── operation.hpp       # -> operation/: leveled ops, bootstrap primitives
+│       ├── gate.hpp            # -> gate/: homomorphic gates (AND, AND-NOT, ...)
+│       ├── circuit.hpp         # -> circuit/: gate-level circuits (e.g. binary expansion)
+│       ├── math.hpp            # -> math/: modulus switching
+│       ├── serialize.hpp       # -> serialize/: wire (de)serialization
+│       ├── transport.hpp       # direct vs. serialized hand-off between protocol roles
+│       ├── cryptor.hpp         # Cryptor<Params, Feature...>, used internally by Runtime
+│       └── utility/            # noise tracking, secret holder, random generator, ...
 ├── test/
 │   ├── compile/          # compile-only interface/contract tests
 │   ├── runtime/          # GoogleTest runtime tests
@@ -46,19 +234,15 @@ torqus/
 └── README.md
 ```
 
-***
-
-## Requirements
+### Requirements
 
 - Docker
 - CMake 3.22+
 - GNU Make
 
-***
+### Build & Run the Test Suite (Docker)
 
-## Native Build (GCC / Clang)
-
-### 1. Build the Docker image
+#### 1. Build the Docker image
 
 From the repository root:
 
@@ -66,10 +250,13 @@ From the repository root:
 docker build -f Dockerfile -t torqus-libs .
 ```
 
-### 2. Configure & build
+#### 2. Configure & build
 
 Each command mounts the source tree, builds inside the container, and exits
--- no need to stay in an interactive shell.
+-- no need to stay in an interactive shell. `torqus-libs` itself is an
+INTERFACE (header-only) CMake target with nothing to compile, so the one
+concrete thing these commands produce is `test-torqus`, the test suite
+binary used in step 3 below.
 
 ```bash
 # GCC
@@ -87,18 +274,7 @@ docker run --rm \
   bash -lc "cmake --preset clang-release && cmake --build --preset clang-release -j\$(nproc)"
 ```
 
-Optionally, on Linux, `gcc-native-debug` / `gcc-native-release` /
-`clang-native-debug` / `clang-native-release` add `-march=native` to
-compile for your machine's exact CPU instead of a generic baseline --
-faster, but the binary is tied to the build machine's CPU features, so
-don't ship it or use it in CI. Unlike the commands above, this runs directly
-on your machine (not inside the container):
-
-```bash
-cmake --preset clang-native-release && cmake --build --preset clang-native-release -j$(nproc)
-```
-
-### 3. Run tests (GoogleTest)
+#### 3. Run tests (GoogleTest)
 
 Tests use GoogleTest (`libgtest-dev`) and the noise-bound tracking in
 `tfhe/utility/analysis/` uses Boost.Rational / Boost.Multiprecision
@@ -132,8 +308,9 @@ By default `test-torqus` builds with `-O2` even under the `gcc-debug`/
 `clang-debug` presets (`TFHE_TEST_FAST_DEBUG=ON` in
 [`test/CMakeLists.txt`](test/CMakeLists.txt)) -- the bootstrap/keyswitch
 runtime tests are unusably slow at `-O0`, and Debug's default flags don't
-define `NDEBUG`, so `assert(bound < 0.25)` and friends stay active either
-way. If you need to single-step through a test in a debugger, where `-O0`
+define `NDEBUG`, so invariant checks like `assert(other.size() ==
+this->size())` (`algebra/vector.hpp`) stay active either way. If you need
+to single-step through a test in a debugger, where `-O0`
 keeps variables inspectable, reconfigure with the flag off:
 
 ```bash
@@ -148,50 +325,26 @@ docker run --rm \
 opt in via `noise_params<AlphaBits>`, see `tfhe/params.hpp`); reconfigure
 with `-DTFHE_ENABLE_NOISE=OFF` to force it back to exact/noiseless.
 
+### Building Natively, Without Docker
+
+`gcc-native-debug` / `gcc-native-release` / `clang-native-debug` /
+`clang-native-release` skip Docker entirely and run directly on your own
+machine, adding `-march=native` to compile for your machine's exact CPU
+instead of a generic baseline -- faster, but the binary is tied to the
+build machine's CPU features, so don't ship it or use it in CI. They
+still require the same toolchain/dependencies the Docker image installs
+(GoogleTest, Boost, ...) to be present on your host. To keep such a
+binary from being mistaken for the portable `test-torqus` built by the
+presets above, these presets set `TORQUS_NATIVE_BUILD` (`test/CMakeLists.txt`),
+which renames the output to `test-torqus-native-${CMAKE_SYSTEM_PROCESSOR}`
+(e.g. `test-torqus-native-arm64`):
+
+```bash
+cmake --preset clang-native-release && cmake --build --preset clang-native-release -j$(nproc)
+```
+
 ***
 
-## Packaging
-
-The C++ core (`include/`) is header-only and packaged for two C++ package
-managers under the name `torqus`.
-
-### Conan
-
-[`conanfile.py`](conanfile.py) packages `include/` behind `find_package(torqus)`
-(`torqus::torqus`), matching the `CMakeLists.txt` install/export section below.
-`mimalloc`/SIMD/noise are exposed as Conan options (`use_mimalloc`,
-`enable_simd`, `enable_noise`), mirroring the `TORQUS_USE_MIMALLOC` /
-`TORQUS_ENABLE_SIMD` / `TFHE_ENABLE_NOISE` CMake options above:
-
-```bash
-conan create . --build=missing
-```
-
-### vcpkg
-
-[`vcpkg.json`](vcpkg.json) is the package manifest (name `torqus`, a
-`mimalloc` feature on by default). Building it as a vcpkg **port** needs a
-`portfile.cmake` as well, which lives in a vcpkg registry rather than in
-this repository -- see the project's vcpkg registry setup for that piece.
-
-### CMake `find_package(torqus)`
-
-Either path above ultimately relies on this repository's own `install()`
-rules (`CMakeLists.txt`) plus [`cmake/torqusConfig.cmake.in`](cmake/torqusConfig.cmake.in),
-which a consumer can also drive directly:
-
-```bash
-cmake --preset clang-native-release
-cmake --build --preset clang-native-release
-cmake --install build/clang-native/release --prefix /some/prefix
-```
-
-```cmake
-find_package(torqus CONFIG REQUIRED)
-target_link_libraries(your_target PRIVATE torqus::torqus)
-```
-
-A downstream consumer that wants a WebAssembly or native Node (example N-API) build
-of an application built on top of `torqus` (e.g. `ppv-lab`) links against
-this same header-only library from their own Emscripten/`cmake-js` build --
-this repository doesn't produce one itself.
+*The name is a portmanteau of torque (the rotational force behind TFHE's
+blind rotation) and torus (the ring group 𝕋 that TFHE computes over),
+pronounced "torks".*

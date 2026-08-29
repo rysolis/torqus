@@ -47,7 +47,7 @@ KeySwitchKey<typename DstLwe::torus_type, DstLwe::n, Kst::t,
   for (uint32_t i = 0; i < SrcLwe::n; ++i) {
     for (size_t j = 0; j < t; ++j) {
       typename Torus::raw_value_type v = secret[i]
-                                          << (Torus::qbit - Kbit * (j + 1));
+                                         << (Torus::qbit - Kbit * (j + 1));
       ksk[i][j] = cryptor.encrypt(Torus(v));
     }
   }

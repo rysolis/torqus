@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef TFHE_GATE_HPP
 #define TFHE_GATE_HPP
 

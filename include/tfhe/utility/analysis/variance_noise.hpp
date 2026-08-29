@@ -5,9 +5,8 @@
 #define TFHE_VARIANCE_NOISE_HPP
 
 #include <algorithm>
-#include <cmath>
-
 #include <boost/math/distributions/normal.hpp>
+#include <cmath>
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation.hpp"
@@ -91,14 +90,16 @@ struct VarianceNoisePolicy<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>> {
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  static double eps() { return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1)); }
+  static double eps() {
+    return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1));
+  }
 
   template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker, const TRGSW<Torus, N, l>& lhs,
                         const TRLWE<Torus, N>& rhs) {
     double beta = static_cast<double>(B) / 2.0;
     return 2.0 * l * N * (beta * beta) * tracker->get(lhs) +
-          (1 + N) * eps() * eps() + tracker->get(rhs);
+           (1 + N) * eps() * eps() + tracker->get(rhs);
   }
 };
 
@@ -116,7 +117,9 @@ struct VarianceNoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>> {
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  static double eps() { return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1)); }
+  static double eps() {
+    return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1));
+  }
 
   template <typename Tracker, torus_concept Torus>
   static double compute(const Tracker* tracker,
@@ -146,7 +149,9 @@ struct VarianceNoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  static double eps() { return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1)); }
+  static double eps() {
+    return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1));
+  }
 
   template <typename Tracker>
   static double compute(const Tracker*, const TRLWE<Torus, N>&,
@@ -155,14 +160,15 @@ struct VarianceNoisePolicy<tfhe::bootstrap::BlindRotate<Lwe, Rlwe, Decomp>> {
     double beta = static_cast<double>(B) / 2.0;
     double bk_key_variance = get_key_variance_tracker_if()->get(bk);
     return static_cast<double>(n) * 2.0 * l * N * (beta * beta) *
-              bk_key_variance +
-          n * (N + 1.0) * (N + 1.0) * eps() * eps();
+               bk_key_variance +
+           n * (N + 1.0) * (N + 1.0) * eps() * eps();
   }
 };
 
 // GateBootstrap's own noise contribution is exactly BlindRotate's (its
 // Add(offset, SampleExtract(rot)) step is otherwise noise-free), matching
-// NoisePolicy<GateBootstrap>'s identical relationship to NoisePolicy<BlindRotate>.
+// NoisePolicy<GateBootstrap>'s identical relationship to
+// NoisePolicy<BlindRotate>.
 template <typename Lwe, typename Rlwe, typename Decomp>
   requires tlwe_concept<Lwe> && trlwe_concept<Rlwe> && decompose_concept<Decomp>
 struct VarianceNoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {
@@ -176,7 +182,9 @@ struct VarianceNoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {
 
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  static double eps() { return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1)); }
+  static double eps() {
+    return std::ldexp(1.0, -static_cast<int>(Bbit * l + 1));
+  }
 
   template <typename Tracker>
   static double compute(const Tracker*, const rTorus, const TRLWE<rTorus, N>&,
@@ -185,8 +193,8 @@ struct VarianceNoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {
     double beta = static_cast<double>(B) / 2.0;
     double bk_key_variance = get_key_variance_tracker_if()->get(bk);
     return static_cast<double>(n) * 2.0 * l * N * (beta * beta) *
-              bk_key_variance +
-          n * (N + 1.0) * (N + 1.0) * eps() * eps();
+               bk_key_variance +
+           n * (N + 1.0) * (N + 1.0) * eps() * eps();
   }
 };
 
@@ -194,7 +202,8 @@ struct VarianceNoisePolicy<tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>> {
 // decomposition to this codebase's arbitrary base K the same way
 // NoisePolicy<KeySwitch>'s worst-case bound already is (see its NOTE on
 // provenance): the paper's average case is
-//   Var(Err(c)) <= R^2*Var(Err(cin)) + n*t*N_out*vartheta_KS + N_out*n*2^-2(t+1)
+//   Var(Err(c)) <= R^2*Var(Err(cin)) + n*t*N_out*vartheta_KS +
+//   N_out*n*2^-2(t+1)
 // with R=1 (KeySwitch here evaluates the identity function on one input)
 // and N_out=1 (TLWE-to-TLWE, per the paper's own Remark 2). Each of the
 // N*t decomposition-digit x KSK-row terms has digit magnitude <= (K-1) --
@@ -212,7 +221,9 @@ struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
 
   static constexpr uint32_t Kbit = std::bit_width(K - 1);
 
-  static double eps() { return std::ldexp(1.0, -static_cast<int>(Kbit * t + 1)); }
+  static double eps() {
+    return std::ldexp(1.0, -static_cast<int>(Kbit * t + 1));
+  }
 
   template <typename Tracker>
   static double compute(const Tracker* tracker, const TLWE<Torus, N>& src,
@@ -220,7 +231,7 @@ struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
     double digit = static_cast<double>(K) - 1.0;
     double ksk_key_variance = get_key_variance_tracker_if()->get(ksk[0][0]);
     return tracker->get(src) + N * t * (digit * digit) * ksk_key_variance +
-          N * eps() * eps();
+           N * eps() * eps();
   }
 };
 

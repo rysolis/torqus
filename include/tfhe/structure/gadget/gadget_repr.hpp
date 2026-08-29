@@ -38,7 +38,8 @@ UInt decompose(const Torus& v, size_t i) {
 
 template <typename Rlwe, typename Decomp, torus_concept Torus>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr, size_t j) {
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
+                  size_t j) {
   static constexpr uint32_t l = Decomp::l;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
@@ -85,7 +86,8 @@ UInt decompose(const Torus& v, size_t i) {
 
 template <typename Rlwe, typename Decomp, torus_concept Torus>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr, size_t j) {
+Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
+                  size_t j) {
   static constexpr uint32_t l = Decomp::l;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
@@ -127,7 +129,8 @@ class GadgetRepr {
                   "Torus qbit must be greater than or equal to Bbit * l");
     for (size_t j = 0; j < N; ++j) {
       for (size_t i = 0; i < l; ++i) {
-        repr_[i][j] = balanced::decompose<Decomp>(static_cast<Torus>(poly[j]), i);
+        repr_[i][j] =
+            balanced::decompose<Decomp>(static_cast<Torus>(poly[j]), i);
       }
     }
   }

@@ -124,10 +124,9 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     // // ==================================
     // // Act
     // // ==================================
-    TLWE<Torus, n> res_ct =
-        tfhe::operation::Evaluator<
-            tfhe::leveled::KeySwitch<SrcLwe, DstLwe, Kst>, Tracking>::
-            exec(tlwe, this->KSK_);
+    TLWE<Torus, n> res_ct = tfhe::operation::Evaluator<
+        tfhe::leveled::KeySwitch<SrcLwe, DstLwe, Kst>,
+        Tracking>::exec(tlwe, this->KSK_);
     // ==================================
     // Assert
     // ==================================

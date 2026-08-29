@@ -73,6 +73,20 @@ target_link_libraries(test-${PROJECT_NAME}
 
 gtest_discover_tests(test-${PROJECT_NAME})
 
+# Set by the *-native-* CMake presets (CMakePresets.json's native-base),
+# which add -march=native: the resulting binary is tied to the build
+# machine's CPU features, so name it after the host architecture rather
+# than letting it look like an interchangeable, portable test-torqus.
+option(TORQUS_NATIVE_BUILD "Building with -march=native -- names the test binary after the host CPU architecture" OFF)
+
+if(TORQUS_NATIVE_BUILD)
+
+  set_target_properties(test-${PROJECT_NAME} PROPERTIES
+    OUTPUT_NAME "test-${PROJECT_NAME}-native-${CMAKE_SYSTEM_PROCESSOR}"
+  )
+
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 
   target_compile_options(test-${PROJECT_NAME}
@@ -85,9 +99,10 @@ endif()
 # The TFHE runtime tests (bootstrap/keyswitch loops, boost::multiprecision
 # noise tracking) are unusably slow at -O0. Optimize this target even under
 # the Debug preset -- Debug's default flags don't define NDEBUG, so
-# assert(bound < 0.25) in evaluator.hpp and friends stay active; only
-# codegen speed changes. Flip this off when you actually need to single-step
-# through a test in a debugger, where O0 keeps variables inspectable.
+# invariant checks like assert(other.size() == this->size()) (algebra/vector.hpp)
+# and friends stay active; only codegen speed changes. Flip this off when
+# you actually need to single-step through a test in a debugger, where O0
+# keeps variables inspectable.
 option(TFHE_TEST_FAST_DEBUG "Optimize test-${PROJECT_NAME} under Debug builds for speed, at the cost of debuggability" ON)
 
 if(TFHE_TEST_FAST_DEBUG)

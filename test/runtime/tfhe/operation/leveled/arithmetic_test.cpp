@@ -38,8 +38,8 @@ struct ParameterSet {
 // unlike ExternalProduct/CMux/BlindRotate/KeySwitch), so any alpha is safe
 // here regardless of N -- Context2 uses the same 2^-25 as the paper's own
 // 128-bit N=1024 parameter (see gate_bootstrap_test.cpp) for consistency.
-using Context1 =
-    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>>;
+using Context1 = ParameterSet<
+    rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>>;
 using Context2 = ParameterSet<
     rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>>;
 

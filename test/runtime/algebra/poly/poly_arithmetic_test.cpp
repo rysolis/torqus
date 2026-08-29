@@ -71,7 +71,8 @@ TYPED_TEST(PolyArithmeticTest, FreeOperatorMinus_ReducesAcrossChunkAndTail) {
 // ModInt<0> is the "unbounded" case (no modulus reduction at all), kept
 // separate from the typed suite above since it has no raw_max() to anchor
 // the value pattern used there.
-TEST(PolyArithmeticModInt0Test, OperatorPlusEqualsAndMinusEquals_UnboundedNoReduction) {
+TEST(PolyArithmeticModInt0Test,
+     OperatorPlusEqualsAndMinusEquals_UnboundedNoReduction) {
   using T = ModInt<0>;
 
   Poly<T, 6> a{T(1), T(2), T(3), T(4), T(5), T(6)};

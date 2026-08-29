@@ -21,7 +21,7 @@ namespace tlwe {
 
 template <tlwe_concept Params, torus_concept Torus, typename Engine>
 TLWE<Torus, Params::n> encrypt(
-    std::shared_ptr<typename UInt::raw_value_type[]> secret, Engine& eng,
+    const std::shared_ptr<typename UInt::raw_value_type[]>& secret, Engine& eng,
     const Torus& message) {
   TLWE<Torus, Params::n> ct;
   randomize(ct.a(), eng.get());
@@ -35,7 +35,7 @@ TLWE<Torus, Params::n> encrypt(
 }
 
 template <tlwe_concept Params, torus_concept Torus>
-Torus decrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
+Torus decrypt(const std::shared_ptr<UInt::raw_value_type[]>& secret,
               const TLWE<Torus, Params::n>& ct) {
   Torus pt = ct.b();
   for (uint32_t i = 0; i < ct.dimension(); ++i) {

@@ -4,11 +4,10 @@
 #ifndef TFHE_UTILITY_EXACT_BOUND_HPP
 #define TFHE_UTILITY_EXACT_BOUND_HPP
 
-#include <cmath>
-#include <limits>
-
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/rational.hpp>
+#include <cmath>
+#include <limits>
 
 // All quantities NoisePolicy<Op> combines (eps terms, key-noise bounds,
 // fresh-noise bounds, ...) are exact dyadic rationals -- real Gaussian
@@ -30,9 +29,9 @@ inline ExactBound to_exact(double d) {
   }
   int exp = 0;
   const double mantissa = std::frexp(d, &exp);  // d = mantissa * 2^exp
-  constexpr int kMantissaBits = 53;              // double has 53 significand bits
-  const auto numerator = boost::multiprecision::cpp_int(
-      static_cast<long long>(mantissa * static_cast<double>(1LL << kMantissaBits)));
+  constexpr int kMantissaBits = 53;  // double has 53 significand bits
+  const auto numerator = boost::multiprecision::cpp_int(static_cast<long long>(
+      mantissa * static_cast<double>(1LL << kMantissaBits)));
   const int shift = exp - kMantissaBits;
   if (shift >= 0) {
     return ExactBound(numerator << shift, 1);
@@ -51,8 +50,8 @@ inline double to_round_up(const ExactBound& r) {
   if (r == 0) {
     return 0.0;
   }
-  const double approx = r.numerator().convert_to<double>() /
-                        r.denominator().convert_to<double>();
+  const double approx =
+      r.numerator().convert_to<double>() / r.denominator().convert_to<double>();
   return std::nextafter(approx, std::numeric_limits<double>::infinity());
 }
 

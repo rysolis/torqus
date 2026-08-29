@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef ARITHMETIC_EXPR_TRAIT_HPP
-#define ARITHMETIC_EXPR_TRAIT_HPP
+#ifndef ALGEBRA_DETAIL_EXPR_TRAIT_HPP
+#define ALGEBRA_DETAIL_EXPR_TRAIT_HPP
 
 #include <cstdint>
 
@@ -19,4 +19,4 @@ struct evaluated_type<Poly<T, N>> {
   using type = Poly<T, N>;
 };
 
-#endif  // ARITHMETIC_EXPR_TRAIT_HPP
+#endif  // ALGEBRA_DETAIL_EXPR_TRAIT_HPP

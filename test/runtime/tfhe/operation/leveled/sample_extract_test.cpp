@@ -109,9 +109,8 @@ TYPED_TEST(SampleExtractCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    TLWE<Torus, n> res_ct =
-        tfhe::operation::Evaluator<tfhe::leveled::SampleExtract<Lwe, Rlwe>>::
-            exec(pt_ct, idx);
+    TLWE<Torus, n> res_ct = tfhe::operation::Evaluator<
+        tfhe::leveled::SampleExtract<Lwe, Rlwe>>::exec(pt_ct, idx);
 
     // ==================================
     // Assert

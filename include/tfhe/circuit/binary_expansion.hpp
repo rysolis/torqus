@@ -62,7 +62,7 @@ class BinaryExpansion {
                  : gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(w, v[i], bk);
       if (i + 1 < k) {
         w = leveled::KeySwitch<ExtractedLwe<Rlwe>, Lwe, Kst>::exec_impl(gate,
-                                                                         ksk);
+                                                                        ksk);
       }
     }
     return gate;

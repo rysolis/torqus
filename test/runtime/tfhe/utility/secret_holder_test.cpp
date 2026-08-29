@@ -54,6 +54,9 @@ TYPED_TEST(SecretHolderTest, ConvertSecret) {
   using Rlwe = typename TypeParam::context::rlwe_params;
 
   SecretHolder<Rlwe::N> rlwe(this->eng_);
+  // Lwe::n == Rlwe::N in every context here, so this deliberately exercises
+  // SecretHolder's copy constructor rather than avoiding the copy.
+  // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
   SecretHolder<Lwe::n> lwe(rlwe);
 
   std::cout << "\n=== SecretHolder Test ===\n";

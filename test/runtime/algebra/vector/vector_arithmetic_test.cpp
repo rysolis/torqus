@@ -38,7 +38,8 @@ TYPED_TEST(VectorArithmeticTest, OperatorPlusEquals_ReducesAcrossChunkAndTail) {
   EXPECT_EQ(T(4), a[5]);
 }
 
-TYPED_TEST(VectorArithmeticTest, OperatorMinusEquals_ReducesAcrossChunkAndTail) {
+TYPED_TEST(VectorArithmeticTest,
+           OperatorMinusEquals_ReducesAcrossChunkAndTail) {
   using T = TypeParam;
 
   Vector<T, 6> a{T(0), T(1), T(2), T(3), T(4), T(5)};

@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef TFHE_RANDOM_GENERATOR_HPP
 #define TFHE_RANDOM_GENERATOR_HPP
 

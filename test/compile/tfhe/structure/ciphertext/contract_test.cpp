@@ -1,6 +1,6 @@
-#include "tfhe/structure/ciphertext/concepts.hpp"
-
 #include "primitive/torus.hpp"
+
+#include "tfhe/structure/ciphertext/concepts.hpp"
 
 using Torus = ModTorus<16>;
 

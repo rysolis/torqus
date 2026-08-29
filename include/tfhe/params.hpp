@@ -41,7 +41,8 @@ struct kst_params {
 // it's omitted.
 template <uint32_t AlphaBits>
 struct noise_params {
-  static constexpr double alpha = 1.0 / static_cast<double>(uint64_t{1} << AlphaBits);
+  static constexpr double alpha =
+      1.0 / static_cast<double>(uint64_t{1} << AlphaBits);
 };
 
 // alpha_of<Params>::value is Params::alpha when noise_params was mixed in,

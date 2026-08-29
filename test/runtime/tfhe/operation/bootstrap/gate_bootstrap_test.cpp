@@ -211,4 +211,3 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     EXPECT_LE(norm, variance_threshold);
   }
 }
-

@@ -12,10 +12,9 @@
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
+#include "algebra/detail/negacyclic_convolution.hpp"
 #include "algebra/utility/randomize.hpp"
 #include "algebra/vector.hpp"
-
-#include "arithmetic/negacyclic_convolution.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/params.hpp"
@@ -25,8 +24,9 @@
 namespace trlwe {
 
 template <trlwe_concept Params, torus_concept Torus, typename Engine>
-TRLWE<Torus, Params::N> encrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
-                                Engine& eng, const Poly<Torus, Params::N>& pt) {
+TRLWE<Torus, Params::N> encrypt(
+    const std::shared_ptr<UInt::raw_value_type[]>& secret, Engine& eng,
+    const Poly<Torus, Params::N>& pt) {
   constexpr uint32_t N = Params::N;
 
   TRLWE<Torus, N> ct;
@@ -41,8 +41,9 @@ TRLWE<Torus, Params::N> encrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
 }
 
 template <trlwe_concept Params, torus_concept Torus>
-Poly<Torus, Params::N> decrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
-                               const TRLWE<Torus, Params::N>& ct) {
+Poly<Torus, Params::N> decrypt(
+    const std::shared_ptr<UInt::raw_value_type[]>& secret,
+    const TRLWE<Torus, Params::N>& ct) {
   constexpr uint32_t N = Params::N;
 
   Poly<UInt, N> secret_poly(secret.get(), secret.get() + N);
@@ -50,7 +51,7 @@ Poly<Torus, Params::N> decrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
 }
 
 template <trlwe_concept Params, torus_concept Torus>
-Torus decrypt(std::shared_ptr<UInt::raw_value_type[]> secret,
+Torus decrypt(const std::shared_ptr<UInt::raw_value_type[]>& secret,
               const TLWE<Torus, Params::N>& ct) {
   Torus pt = ct.b();
   for (uint32_t i = 0; i < ct.dimension(); ++i) {

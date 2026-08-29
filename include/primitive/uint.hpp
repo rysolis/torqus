@@ -25,9 +25,7 @@ class UInt {
     return std::numeric_limits<raw_value_type>::max();
   }
 
-  constexpr explicit operator raw_value_type() const noexcept {
-    return value_;
-  }
+  constexpr explicit operator raw_value_type() const noexcept { return value_; }
 
   inline constexpr UInt& operator+=(const UInt& rhs) {
     if (value_ > std::numeric_limits<raw_value_type>::max() - rhs.value_) {

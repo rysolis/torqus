@@ -1,12 +1,11 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
-#define ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
+#ifndef ALGEBRA_DETAIL_NEGACYCLIC_CONVOLUTION_HPP
+#define ALGEBRA_DETAIL_NEGACYCLIC_CONVOLUTION_HPP
 
+#include "algebra/detail/expr_trait.hpp"
 #include "algebra/poly.hpp"
-
-#include "arithmetic/expr_trait.hpp"
 
 template <typename Lhs, typename Rhs>
 class NegacyclicConvolutionExpr : public expr_tag {
@@ -58,4 +57,4 @@ struct accumulate_impl<NegacyclicConvolutionExpr<Lhs, Rhs>> {
   }
 };
 
-#endif  // ARITHMETIC_NEGACYCLIC_CONVOLUTION_HPP
+#endif  // ALGEBRA_DETAIL_NEGACYCLIC_CONVOLUTION_HPP

@@ -1,7 +1,17 @@
 Checks: >
   clang-analyzer-*,
   bugprone-*,
-  performance-*
+  performance-*,
+  -bugprone-crtp-constructor-accessibility,
+  -bugprone-easily-swappable-parameters,
+  -clang-analyzer-core.StackAddressEscape
+
+# bugprone-crtp-constructor-accessibility and -easily-swappable-parameters
+# would each only be actionable via an API redesign (private CRTP
+# constructors + friend, or wrapping same-typed constructor arguments in
+# distinct strong types) -- out of scope for a lint pass. StackAddressEscape
+# only fires inside <boost/multiprecision/...>, i.e. in Boost's own
+# implementation, which we can't fix from here.
 
 HeaderFilterRegex: '.*'
 

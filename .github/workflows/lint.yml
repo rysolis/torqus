@@ -1,4 +1,4 @@
-name: CI
+name: Lint
 
 on:
   push:
@@ -7,23 +7,14 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: lint-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-test:
+  lint:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: ${{ matrix.preset }}
+    name: lint
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - preset: gcc-debug
-            build_dir: build/gcc/debug
-
-          - preset: clang-debug
-            build_dir: build/clang/debug
 
     steps:
       - name: Checkout repository
@@ -42,26 +33,26 @@ jobs:
           cache-from: type=gha,scope=torqus-ci
           cache-to: type=gha,mode=max,scope=torqus-ci
 
-      - name: Configure
+      - name: clang-format --dry-run
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            cmake --preset ${{ matrix.preset }}
+            bash -lc "find include test \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 clang-format --dry-run --Werror"
 
-      - name: Build
+      - name: Configure (for compile_commands.json)
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            cmake --build --preset ${{ matrix.preset }} -j$(nproc)
+            cmake --preset clang-debug
 
-      - name: Test
+      - name: clang-tidy
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            ctest --test-dir ${{ matrix.build_dir }} --verbose
+            bash -lc "find test -name '*.cpp' -print0 | xargs -0 -I{} clang-tidy -p build/clang/debug --header-filter='^/work/include/' --warnings-as-errors='*' {}"

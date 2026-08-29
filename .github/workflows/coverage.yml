@@ -1,4 +1,4 @@
-name: CI
+name: Coverage
 
 on:
   push:
@@ -7,23 +7,14 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: coverage-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-test:
+  coverage:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: ${{ matrix.preset }}
+    name: coverage
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - preset: gcc-debug
-            build_dir: build/gcc/debug
-
-          - preset: clang-debug
-            build_dir: build/clang/debug
 
     steps:
       - name: Checkout repository
@@ -48,7 +39,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            cmake --preset ${{ matrix.preset }}
+            cmake --preset gcc-coverage
 
       - name: Build
         run: |
@@ -56,7 +47,7 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            cmake --build --preset ${{ matrix.preset }} -j$(nproc)
+            cmake --build --preset gcc-coverage -j$(nproc)
 
       - name: Test
         run: |
@@ -64,4 +55,22 @@ jobs:
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            ctest --test-dir ${{ matrix.build_dir }} --verbose
+            ctest --test-dir build/gcc/coverage
+
+      - name: Capture coverage (lcov)
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            torqus-ci \
+            bash -lc "
+              lcov --capture --directory build/gcc/coverage --output-file coverage.info --ignore-errors mismatch,negative &&
+              lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage.info --ignore-errors unused
+            "
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.info
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

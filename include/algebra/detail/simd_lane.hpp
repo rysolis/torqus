@@ -1,3 +1,6 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
 #ifndef ALGEBRA_DETAIL_SIMD_LANE_HPP
 #define ALGEBRA_DETAIL_SIMD_LANE_HPP
 
@@ -95,8 +98,8 @@ using WideLane = ScalarLane;
 // reaching into the Lane types themselves.
 inline const std::string& active_lane_description() {
   static const std::string description = [] {
-    return std::string(WideLane::name()) + " (width=" +
-           std::to_string(WideLane::width) + ")";
+    return std::string(WideLane::name()) +
+           " (width=" + std::to_string(WideLane::width) + ")";
   }();
   return description;
 }

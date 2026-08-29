@@ -135,8 +135,8 @@ TEST(NoiseFormulaTest, ExternalProductAppliesDecompositionCoefficients) {
       NoisePolicy<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>>::compute(
           &tracker, gsw, rhs);
 
-  double expected =
-      (2.0 * l * N * (B / 2)) * e_gsw + (1 + N) * Eps(Bbit, l) + e_rhs;
+  double expected = (2.0 * l * N * static_cast<double>(B) / 2.0) * e_gsw +
+                    (1 + N) * Eps(Bbit, l) + e_rhs;
   EXPECT_DOUBLE_EQ(bound, ExpectedBound(expected));
 }
 
@@ -162,7 +162,7 @@ TEST(NoiseFormulaTest, CMuxUsesMaxOfInputsWhenRhsLarger) {
   double bound = NoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>>::compute(
       &tracker, selector, lhs, rhs);
 
-  double expected = (2.0 * l * N * (B / 2)) * e_selector +
+  double expected = (2.0 * l * N * static_cast<double>(B) / 2.0) * e_selector +
                     (1 + N) * Eps(Bbit, l) + std::max(e_lhs, e_rhs);
   EXPECT_DOUBLE_EQ(bound, ExpectedBound(expected));
 }
@@ -191,7 +191,7 @@ TEST(NoiseFormulaTest, CMuxUsesMaxOfInputsWhenLhsLarger) {
   double bound = NoisePolicy<tfhe::bootstrap::CMux<Rlwe, Decomp>>::compute(
       &tracker, selector, lhs, rhs);
 
-  double expected = (2.0 * l * N * (B / 2)) * e_selector +
+  double expected = (2.0 * l * N * static_cast<double>(B) / 2.0) * e_selector +
                     (1 + N) * Eps(Bbit, l) + std::max(e_lhs, e_rhs);
   EXPECT_DOUBLE_EQ(bound, ExpectedBound(expected));
 }
@@ -205,7 +205,8 @@ namespace {
 double ExpectedBlindRotateBound(uint32_t n, uint32_t N, uint32_t B, uint32_t l,
                                 double e_bk) {
   uint32_t Bbit = static_cast<uint32_t>(std::bit_width(B - 1));
-  return (static_cast<double>(n) * 2.0 * l * N * (B / 2)) * e_bk +
+  return (static_cast<double>(n) * 2.0 * l * N * static_cast<double>(B) / 2.0) *
+             e_bk +
          n * (1 + N) * Eps(Bbit, l);
 }
 

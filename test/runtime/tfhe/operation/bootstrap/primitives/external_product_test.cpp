@@ -118,9 +118,9 @@ TYPED_TEST(ExternalProductCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    TRLWE<rTorus, N> res_ct =
-        tfhe::operation::Evaluator<tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>,
-                                   Tracking>::exec(mp_ct, rhs_ct);
+    TRLWE<rTorus, N> res_ct = tfhe::operation::Evaluator<
+        tfhe::bootstrap::ExternalProduct<Rlwe, Decomp>, Tracking>::exec(mp_ct,
+                                                                        rhs_ct);
 
     // ==================================
     // Assert

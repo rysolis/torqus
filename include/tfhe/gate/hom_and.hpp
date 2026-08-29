@@ -46,7 +46,7 @@ class HomAnd {
         offset, leveled::Add<Lwe>::exec_impl(c1, c2));
 
     return bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv,
-                                                                   combined, bk);
+                                                                  combined, bk);
   }
 };
 
