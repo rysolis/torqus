@@ -205,12 +205,17 @@ the name `torqus`:
 conan create . --build=missing
 ```
 
+This builds and exports the package to your local Conan cache; publishing to
+ConanCenter is not set up yet, but is planned.
+
 ### vcpkg
 
 [`vcpkg.json`](vcpkg.json) is the package manifest (name `torqus`, a
 `mimalloc` feature on by default). Building it as a vcpkg **port** needs a
 `portfile.cmake` as well, which lives in a vcpkg registry rather than in
 this repository -- see the project's vcpkg registry setup for that piece.
+Publishing that registry (and thus `vcpkg install torqus` support) isn't
+done yet, but is planned.
 
 ### CMake `add_subdirectory()` / `FetchContent`
 
