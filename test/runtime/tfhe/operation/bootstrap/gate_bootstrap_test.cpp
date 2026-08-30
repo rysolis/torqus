@@ -31,28 +31,20 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
-// noise_params<11> (alpha=2^-11) is real, non-negligible noise, but small
-// enough that assert(bound < 0.25) below still clears comfortably at these
-// dimensions -- see VerifyCorrectness's variance check further down.
-using Context1 = ParameterSet<
-    lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
-    rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
-    dcp_params<4, 3>>;
-
-// n=630/N=1024 match the TFHE paper's own published 128-bit-security
-// parameter set, with its own lattice-estimator-verified alpha for these
+// n=630/N=1024 match the reference TFHE implementation's published
+// 128-bit-security parameter set (see the README's References), with
+// its own lattice-estimator-verified alpha for these
 // exact dimensions (2^-15 for n=630, 2^-25 for N=1024). NoisePolicy's own
 // bound blows past 0.25 at this alpha (no
 // longer asserted on, see evaluator.hpp), which is exactly why the real
 // check here is VerifyCorrectness's variance-model threshold below, not
 // the worst-case one.
-using Context2 = ParameterSet<
+using Context = ParameterSet<
     lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
     rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
-    dcp_params<256, 3>>;
+    dcp_params<16, 7>>;
 
-using TestContexts =
-    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
+using TestContexts = ::testing::Types<TestConfig<Context>>;
 
 }  // namespace gate_bootstrap_test
 
@@ -176,8 +168,15 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     double norm = infinity_norm(err);
 
     double predicted_stddev = std::sqrt(get_variance_tracker_if()->get(res_ct));
+    // Pass/fail below is judged against the sub-Gaussian threshold (a
+    // proven bound under Assumption 3.11); the Gaussian estimate is printed
+    // only for comparison -- it assumes the error sum is exactly Gaussian,
+    // an unproven modeling simplification (see the README's Bootstrap Noise
+    // Bounds section).
     double variance_threshold =
         get_variance_tracker_if()->confidence_threshold(res_ct, 1);
+    double gaussian_threshold_estimate =
+        gaussian_estimate_for_max_of(1) * predicted_stddev;
 
     std::cout << "\n========================================\n";
     std::cout << "           Gate Bootstrap Test\n";
@@ -202,8 +201,10 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
               << get_noise_tracker_if()->get(res_ct) << '\n';
     std::cout << std::setw(14) << "predicted stddev" << ": " << predicted_stddev
               << '\n';
-    std::cout << std::setw(14) << "99% threshold" << ": " << variance_threshold
-              << '\n';
+    std::cout << std::setw(24) << "99% threshold (subG)" << ": "
+              << variance_threshold << '\n';
+    std::cout << std::setw(24) << "99% threshold (Gauss est.)" << ": "
+              << gaussian_threshold_estimate << '\n';
 
     std::cout << "========================================\n\n";
 

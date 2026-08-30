@@ -235,12 +235,10 @@ struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
   }
 };
 
-// 99% two-sided z-value for max_i|X_i| over coefficient_count i.i.d.
-// N(0,sigma^2) samples, via the Bonferroni bound P(max_i|X_i| > z*sigma) <=
-// coefficient_count * P(|X| > z*sigma). Reduces to the ordinary
-// single-sample z (~2.576) at coefficient_count=1. Declared in tracker_if.hpp
-// (see confidence_threshold there); defined here since it needs boost::math.
-inline double z99_for_max_of(uint32_t coefficient_count) {
+// Declared in tracker_if.hpp; defined here since it needs boost::math. The
+// Bonferroni bound reduces to the ordinary single-sample Gaussian z (~2.576)
+// at coefficient_count=1.
+inline double gaussian_estimate_for_max_of(uint32_t coefficient_count) {
   boost::math::normal_distribution<double> standard_normal(0.0, 1.0);
   double tail_probability = 0.005 / static_cast<double>(coefficient_count);
   return boost::math::quantile(

@@ -5,16 +5,16 @@
 [![CI](https://github.com/rysolis/torqus/actions/workflows/ci.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/ci.yml)
 [![Lint](https://github.com/rysolis/torqus/actions/workflows/lint.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/lint.yml)
 [![codecov](https://codecov.io/gh/rysolis/torqus/branch/main/graph/badge.svg)](https://codecov.io/gh/rysolis/torqus)
-[![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](CMakeLists.txt)
 
-</div>
+**torqus** (pronounced "torks" -- torque + Torus) is a C++20,
+header-only TFHE library for mathematicians and developers, exposing
+TLWE/TRLWE/TRGSW ciphertexts, leveled arithmetic, and gate bootstrapping
+(AND, AND-NOT, ...) with opt-in runtime noise tracking.
 
-A C++20, header-only TFHE library for mathematicians and developers,
-exposing the low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts,
-leveled arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with
-static noise tracking on top of them.
+</div>
 
 **Concept:** a cryptography library a mathematician can actually read
 and a developer can actually ship -- types and primitives named close
@@ -24,43 +24,33 @@ piece of code traces directly back to the paper construct it
 implements -- engineered to the correctness and rigor a production
 deployment needs, not just a research prototype.
 
-Gate bootstrapping is designed against the TFHE paper's own published
-128-bit-security parameter set (n=630, N=1024), exercised in
-[`gate_bootstrap_test.cpp`](test/runtime/tfhe/operation/bootstrap/gate_bootstrap_test.cpp)
-and required to clear a 99% two-sided decryption-success threshold --
-*assuming* the accumulated ciphertext error is normally distributed, the
-field's standard modeling assumption, not a proven hard bound.
-Poly/Vector add-sub -- and so every ciphertext type built on them
-(TLWE/TRLWE/TRGSW's own `+`/`-`) -- use ARM NEON when available
-(`algebra/detail/simd_ops.hpp`), falling back to scalar elsewhere; on by
-default, this can be switched off by defining `TORQUS_DISABLE_SIMD`
-before including any torqus header (in this repository's own CMake
-build, `-DTORQUS_ENABLE_SIMD=OFF` does the same).
-
-Separately, a fixed-size `ThreadPool` (`tfhe/utility/thread_pool.hpp`) is
-available but not yet wired into any operation in this repository --
-usable as-is by a downstream implementation wanting to batch independent
-gate/ciphertext work across threads. Beyond SIMD add-sub, further
-computational acceleration (GPU, ...) is intentionally left to
-downstream forks -- this repository optimizes for
-the correctness and readability of the reference implementation, not for
-raw throughput.
+Every noise/dimension parameter (`n`, `N`, `Bg`, `l`, `alpha`, ...) is a
+compile-time template argument you choose yourself -- torqus ships no
+fixed parameter set; pick whatever meets your own security, performance,
+and post-bootstrap noise margin target (see [Bootstrap Noise
+Bounds](#bootstrap-noise-bounds) -- `Bg`/`l` trade directly against how
+much noise a `GateBootstrap` leaves behind, and `KeySwitch`'s own
+decomposition params (`K`/`t`, `kst_params`) trade the same way against
+the noise a `KeySwitch` adds).
 
 ## Table of Contents
 
 - [Security Status](#security-status)
 - [Supported Operations](#supported-operations)
+- [Bootstrap Noise Bounds](#bootstrap-noise-bounds)
 - [Usage](#usage)
   - [Quick Start](#quick-start)
   - [Conan](#conan)
   - [vcpkg](#vcpkg)
-  - [CMake `find_package(torqus)`](#cmake-find_packagetorqus)
+  - [CMake `add_subdirectory()` / `FetchContent`](#cmake-add_subdirectory--fetchcontent)
   - [Example: a homomorphic AND gate](#example-a-homomorphic-and-gate)
 - [Developing torqus](#developing-torqus)
+  - [Performance & Concurrency](#performance--concurrency)
   - [Project Structure](#project-structure)
   - [Requirements](#requirements)
   - [Build & Run the Test Suite (Docker)](#build--run-the-test-suite-docker)
   - [Building Natively, Without Docker](#building-natively-without-docker)
+- [References](#references)
 
 ***
 
@@ -94,6 +84,69 @@ Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
 ciphertext out (see the `HomAnd` example below); chaining several
 together, as `BinaryExpansion` does, needs a `KeySwitch` back down to
 Lwe between calls.
+
+***
+
+## Bootstrap Noise Bounds
+
+[`gate_bootstrap_test.cpp`](test/runtime/tfhe/operation/bootstrap/gate_bootstrap_test.cpp)
+exercises `GateBootstrap` under the 128-bit-security parameter set
+(n=630, N=1024, on a 32-bit `Torus`) published by the reference TFHE
+implementation's
+[security and parameters page](https://tfhe.github.io/tfhe/security_and_params.html),
+and is required to clear a 99% two-sided decryption-success threshold.
+The TFHE paper's own Assumption 3.11 (Independence Heuristic) posits
+that the error coefficients of the TLWE/TGSW samples in every linear
+combination considered are independent and σ-subgaussian, where σ is
+the square root of their variance. Given that heuristic premise, the
+resulting tail bound (`P(|X| > t) <= 2*exp(-t^2/(2*sigma^2))`) is a
+proven consequence -- not an assumption of exact normality, unlike the
+Gaussian estimate below. `confidence_threshold`
+(`tfhe/utility/analysis/tracker_if.hpp`) computes the 99% threshold
+straight from that sub-Gaussian tail bound, and this is what the test
+actually checks `norm` against (`EXPECT_LE`). A Gaussian estimate
+(`gaussian_estimate_for_max_of`,
+`tfhe/utility/analysis/variance_noise.hpp`) is also computed and printed
+alongside it purely for comparison -- treating the error sum as exactly
+Gaussian rather than merely subgaussian is a further modeling
+simplification standard in the field, but it is *not* something the
+central limit theorem rigorously establishes at a finite,
+not-asymptotically-large sample size like this one, so it is never the
+basis for a pass/fail check here.
+
+Bootstrapping discards the input ciphertext's own noise entirely and
+replaces it with fresh noise derived only from the bootstrap key
+(RLWE-side alpha) and the gadget decomposition (`Bg`, `l`), regardless
+of how much noise the ciphertext going in carried:
+
+| Context | n | N | Bg | l | alpha (RLWE) | predicted σ | 99% threshold (sub-Gaussian) | 99% threshold (Gaussian est.) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 128-bit security | 630 | 1024 | 16 | 7 | 2⁻²⁵ | 7.181×10⁻⁴ | 2.338×10⁻³ | 1.850×10⁻³ |
+
+Computed by `VarianceNoisePolicy<GateBootstrap>`
+(`tfhe/utility/analysis/variance_noise.hpp`) and printed by the test
+itself as `predicted stddev` / `99% threshold (subG)` / `99% threshold
+(Gauss est.)` on every run (`gate_bootstrap_test.cpp`'s
+`VerifyCorrectness`); confirmed by building and running
+`GateBootstrapCorrectnessTest` directly. The sub-Gaussian bound is
+looser than the Gaussian estimate (it has to be, since it's a proven
+worst case rather than a convenient approximation); both are well
+under the 0.25 decryption margin, the threshold `GateBootstrap` must
+clear to decode its own output correctly at all -- staying under 0.25
+is a hard requirement, not a target. How far under it you actually
+need to be is a separate question with no universal answer: it's
+whatever precision your own use case demands, so choose your own
+`n`/`N`/`Bg`/`l`/`alpha` accordingly. Every gate here ends in its own
+`GateBootstrap` call (see [Supported Operations](#supported-operations)
+-- `BinaryExpansion` key-switches back to Lwe between gates rather than
+chaining leveled ops across a single bootstrap's output), so this
+requirement applies independently to each per-gate bootstrap.
+
+This single-shot confidence check is cheaper than a many-trial
+statistical suite, at the cost of less power (see the comment above
+`VerifyCorrectness` in `gate_bootstrap_test.cpp`); a proper statistical
+test (many trials, checking the empirical error distribution against
+the predicted one) is planned as a future addition to the test suite.
 
 ***
 
@@ -142,7 +195,8 @@ the name `torqus`:
 ### Conan
 
 [`conanfile.py`](conanfile.py) packages `include/` behind `find_package(torqus)`
-(`torqus::torqus`), matching the `CMakeLists.txt` install/export section below.
+(`torqus::torqus`), backed by this repository's own `install()` rules
+(`CMakeLists.txt`) plus [`cmake/torqusConfig.cmake.in`](cmake/torqusConfig.cmake.in).
 `mimalloc`/SIMD/noise are exposed as Conan options (`use_mimalloc`,
 `enable_simd`, `enable_noise`), mirroring the `TORQUS_USE_MIMALLOC` /
 `TORQUS_ENABLE_SIMD` / `TFHE_ENABLE_NOISE` CMake options below:
@@ -158,22 +212,30 @@ conan create . --build=missing
 `portfile.cmake` as well, which lives in a vcpkg registry rather than in
 this repository -- see the project's vcpkg registry setup for that piece.
 
-### CMake `find_package(torqus)`
+### CMake `add_subdirectory()` / `FetchContent`
 
-Either path above ultimately relies on this repository's own `install()`
-rules (`CMakeLists.txt`) plus [`cmake/torqusConfig.cmake.in`](cmake/torqusConfig.cmake.in),
-which a consumer can also drive directly:
-
-```bash
-cmake --preset clang-native-release
-cmake --build --preset clang-native-release
-cmake --install build/clang-native/release --prefix /some/prefix
-```
+No package manager and no install step needed: `torqus-libs`
+(`torqus::torqus`) is a plain target defined in this repository's own
+`CMakeLists.txt`, so pulling the repository into your own CMake project
+gets you that target directly --
 
 ```cmake
-find_package(torqus CONFIG REQUIRED)
+include(FetchContent)
+FetchContent_Declare(torqus
+  GIT_REPOSITORY https://github.com/rysolis/torqus.git
+  # "main" is a branch, not pinned -- for reproducible builds, use a
+  # release tag or commit hash here instead.
+  GIT_TAG main)
+FetchContent_MakeAvailable(torqus)
+
 target_link_libraries(your_target PRIVATE torqus::torqus)
 ```
+
+-- or, vendoring as a git submodule instead, `add_subdirectory(path/to/torqus)`
+in place of the `FetchContent` block above does the same thing.
+`PROJECT_IS_TOP_LEVEL` in this repository's own `CMakeLists.txt` keeps
+its own test suite (GoogleTest, Boost, mimalloc, ...) from being pulled
+into your build even if your project also has `BUILD_TESTING` on.
 
 ### Example: a homomorphic AND gate
 
@@ -197,13 +259,13 @@ subdirectories those headers pull in for you:
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/testvector.hpp"
 
-// The TFHE paper's own published 128-bit-security dimensions, with their
-// matching lattice-estimator-verified noise (alpha = 2^-15 for n=630,
-// 2^-25 for N=1024) -- see gate_bootstrap_test.cpp.
+// The reference TFHE implementation's published 128-bit-security
+// dimensions, with their matching lattice-estimator-verified noise
+// (alpha = 2^-15 for n=630, 2^-25 for N=1024) -- see gate_bootstrap_test.cpp.
 using Torus = ModTorus<32>;
 using Lwe = lwe_params<tlwe_core_params<Torus, 630>, noise_params<15>>;
 using Rlwe = rlwe_params<trlwe_core_params<Torus, 1024>, noise_params<25>>;
-using Decomp = dcp_params<256, 3>;
+using Decomp = dcp_params<16, 7>;
 
 int main() {
   std::mt19937 eng{std::random_device{}()};
@@ -248,6 +310,24 @@ int main() {
 The sections below are for building and testing this repository itself --
 they're not needed just to *use* torqus as a library; see
 [Usage](#usage) above for that.
+
+### Performance & Concurrency
+
+Poly/Vector add-sub -- and so every ciphertext type built on them
+(TLWE/TRLWE/TRGSW's own `+`/`-`) -- use ARM NEON when available
+(`algebra/detail/simd_ops.hpp`), falling back to scalar elsewhere; on by
+default, this can be switched off by defining `TORQUS_DISABLE_SIMD`
+before including any torqus header (in this repository's own CMake
+build, `-DTORQUS_ENABLE_SIMD=OFF` does the same).
+
+Separately, a fixed-size `ThreadPool` (`tfhe/utility/thread_pool.hpp`) is
+available but not yet wired into any operation in this repository --
+usable as-is by a downstream implementation wanting to batch independent
+gate/ciphertext work across threads. Beyond SIMD add-sub, further
+computational acceleration (GPU, ...) is intentionally left to
+downstream forks -- this repository optimizes for
+the correctness and readability of the reference implementation, not for
+raw throughput.
 
 ### Project Structure
 
@@ -331,8 +411,8 @@ docker run --rm \
 #### 3. Run tests (GoogleTest)
 
 Tests use GoogleTest (`libgtest-dev`) and the noise-bound tracking in
-`tfhe/utility/analysis/` uses Boost.Rational / Boost.Multiprecision
-(`libboost-dev`, header-only) -- both already installed in the image, see
+`tfhe/utility/analysis/` uses Boost.Rational / Boost.Multiprecision /
+Boost.Math (`libboost-dev`, header-only) -- all already installed in the image, see
 [`Dockerfile`](Dockerfile). The image also has `libmimalloc-dev`; CMake
 links it into every executable automatically when present (`TORQUS_USE_MIMALLOC`
 in [`CMakeLists.txt`](CMakeLists.txt)), replacing the system allocator.
@@ -399,6 +479,10 @@ cmake --preset clang-native-release && cmake --build --preset clang-native-relea
 
 ***
 
-*The name is a portmanteau of torque (the rotational force behind TFHE's
-blind rotation) and torus (the ring group 𝕋 that TFHE computes over),
-pronounced "torks".*
+## References
+
+- Ilaria Chillotti, Nicolas Gama, Mariya Georgieva, and Malika Izabachène.
+  [*TFHE: Fast Fully Homomorphic Encryption over the Torus*](https://eprint.iacr.org/2018/421).
+  Cryptology ePrint Archive, Paper 2018/421, 2018.
+- Reference TFHE implementation. [*Security and Parameters*](https://tfhe.github.io/tfhe/security_and_params.html) --
+  source of the 128-bit-security parameter set (n=630, N=1024) this repository's tests target.

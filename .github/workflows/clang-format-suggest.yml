@@ -1,24 +1,16 @@
-name: Lint
+name: clang-format-suggester
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
 
-concurrency:
-  group: lint-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+  pull-requests: write
+  packages: write
 
 jobs:
-  lint:
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
-    name: lint
+  clang-format:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -57,26 +49,18 @@ jobs:
       - name: Tag image for local use
         run: docker tag ${{ steps.image.outputs.ref }} torqus-ci:latest
 
-      - name: clang-format --dry-run
+      - name: Run clang-format
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
             torqus-ci \
-            bash -lc "find include test \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 clang-format --dry-run --Werror"
+            bash -lc "find include test \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 clang-format -i"
 
-      - name: Configure (for compile_commands.json)
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/work" \
-            -w /work \
-            torqus-ci \
-            cmake --preset clang-debug
-
-      - name: clang-tidy
-        run: |
-          docker run --rm \
-            -v "${{ github.workspace }}:/work" \
-            -w /work \
-            torqus-ci \
-            bash -lc "find test -name '*.cpp' -print0 | xargs -0 -I{} clang-tidy -p build/clang/debug --header-filter='^/work/include/' --warnings-as-errors='*' {}"
+      - name: Suggest changes
+        uses: reviewdog/action-suggester@v1
+        with:
+          tool_name: clang-format
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          filter_mode: diff_context
+          fail_level: none
