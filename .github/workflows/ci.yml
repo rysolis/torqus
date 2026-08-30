@@ -37,7 +37,7 @@ jobs:
 
       - name: Compute image tag
         id: image
-        run: echo "ref=ghcr.io/${{ github.repository_owner }}/torqus-ci:${{ hashFiles('Dockerfile') }}" >> "$GITHUB_OUTPUT"
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/torqus-build:${{ hashFiles('Dockerfile') }}" >> "$GITHUB_OUTPUT"
 
       - name: Try pulling cached image
         id: pull
@@ -52,8 +52,8 @@ jobs:
           file: Dockerfile
           tags: ${{ steps.image.outputs.ref }}
           push: true
-          cache-from: type=gha,scope=torqus-ci
-          cache-to: type=gha,mode=max,scope=torqus-ci
+          cache-from: type=gha,scope=torqus-build
+          cache-to: type=gha,mode=max,scope=torqus-build
 
   build-and-test:
     needs: build-image
@@ -86,14 +86,14 @@ jobs:
       - name: Pull Docker image
         run: |
           docker pull ${{ needs.build-image.outputs.ref }}
-          docker tag ${{ needs.build-image.outputs.ref }} torqus-ci:latest
+          docker tag ${{ needs.build-image.outputs.ref }} torqus-build:latest
 
       - name: Configure
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            torqus-ci \
+            torqus-build \
             cmake --preset ${{ matrix.preset }}
 
       - name: Build
@@ -101,7 +101,7 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            torqus-ci \
+            torqus-build \
             cmake --build --preset ${{ matrix.preset }} -j$(nproc)
 
       - name: Test
@@ -109,5 +109,5 @@ jobs:
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            torqus-ci \
+            torqus-build \
             ctest --test-dir ${{ matrix.build_dir }} --verbose

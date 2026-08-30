@@ -27,7 +27,7 @@ jobs:
 
       - name: Compute image tag
         id: image
-        run: echo "ref=ghcr.io/${{ github.repository_owner }}/torqus-ci:${{ hashFiles('Dockerfile') }}" >> "$GITHUB_OUTPUT"
+        run: echo "ref=ghcr.io/${{ github.repository_owner }}/torqus-build:${{ hashFiles('Dockerfile') }}" >> "$GITHUB_OUTPUT"
 
       - name: Try pulling cached image
         id: pull
@@ -43,18 +43,18 @@ jobs:
           tags: ${{ steps.image.outputs.ref }}
           load: true
           push: true
-          cache-from: type=gha,scope=torqus-ci
-          cache-to: type=gha,mode=max,scope=torqus-ci
+          cache-from: type=gha,scope=torqus-build
+          cache-to: type=gha,mode=max,scope=torqus-build
 
       - name: Tag image for local use
-        run: docker tag ${{ steps.image.outputs.ref }} torqus-ci:latest
+        run: docker tag ${{ steps.image.outputs.ref }} torqus-build:latest
 
       - name: Run clang-format
         run: |
           docker run --rm \
             -v "${{ github.workspace }}:/work" \
             -w /work \
-            torqus-ci \
+            torqus-build \
             bash -lc "find include test \( -name '*.hpp' -o -name '*.cpp' \) -print0 | xargs -0 clang-format -i"
 
       - name: Suggest changes
