@@ -33,7 +33,7 @@ class TorqusConan(ConanFile):
         # because Conan needs to resolve/build it up front when the option
         # is on, unlike CMake's own find_package(... QUIET) probe.
         if self.options.use_mimalloc:
-            self.requires("mimalloc/2.1.9")
+            self.requires("mimalloc/3.3.2")
 
     def package_id(self):
         # Header-only, so settings (os/arch/compiler/build_type) don't
