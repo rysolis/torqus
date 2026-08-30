@@ -8,10 +8,25 @@
 #include <cstdint>
 #include <unordered_map>
 
-// Defined in variance_noise.hpp (needs boost::math, which production/wasm
-// code must not pull in) -- declaration only, so confidence_threshold below
-// still compiles here.
-double z99_for_max_of(uint32_t coefficient_count);
+// 99% two-sided threshold multiplier for max_i|X_i| over coefficient_count
+// independent sigma-subgaussian samples, via the sub-Gaussian tail bound
+// P(|X| > t) <= 2*exp(-t^2/(2*sigma^2)) (Assumption 3.11's own tail model --
+// see the README's Bootstrap Noise Bounds section) combined with the
+// Bonferroni bound P(max_i|X_i| > t) <= coefficient_count * P(|X| > t).
+// Solving coefficient_count * 2*exp(-t^2/(2*sigma^2)) = 0.01 for t/sigma
+// gives the multiplier below; reduces to ~3.255 at coefficient_count=1.
+inline double subgaussian_bound_for_max_of(uint32_t coefficient_count) {
+  double tail_probability = 0.005 / static_cast<double>(coefficient_count);
+  return std::sqrt(-2.0 * std::log(tail_probability));
+}
+
+// Same 99% two-sided threshold multiplier, but under the (unproven) further
+// simplification that the error sum is exactly Gaussian rather than merely
+// sigma-subgaussian -- see the README's Bootstrap Noise Bounds section.
+// Informational only, never the basis for a pass/fail check. Defined in
+// variance_noise.hpp (needs boost::math, which production/wasm code must
+// not pull in) -- declaration only, so callers here can still name it.
+double gaussian_estimate_for_max_of(uint32_t coefficient_count);
 
 class NoiseTrackerInterface {
  public:
@@ -31,7 +46,7 @@ class NoiseTrackerInterface {
   template <typename Ciphertext>
   double confidence_threshold(const Ciphertext& ct,
                               uint32_t coefficient_count) const {
-    return z99_for_max_of(coefficient_count) * std::sqrt(get(ct));
+    return subgaussian_bound_for_max_of(coefficient_count) * std::sqrt(get(ct));
   }
 
  private:

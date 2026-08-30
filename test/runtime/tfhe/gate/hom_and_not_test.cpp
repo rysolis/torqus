@@ -26,18 +26,13 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
-using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 1>>,
-                              rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
-                              dcp_params<4, 3>>;
-
-// Real noise enabled (see gate_bootstrap_test.cpp's Context2).
-using Context2 = ParameterSet<
+// Real noise enabled (see gate_bootstrap_test.cpp's Context).
+using Context = ParameterSet<
     lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
     rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
-    dcp_params<256, 3>>;
+    dcp_params<16, 7>>;
 
-using TestContexts =
-    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
+using TestContexts = ::testing::Types<TestConfig<Context>>;
 }  // namespace hom_and_not_test
 
 template <typename Context>

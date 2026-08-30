@@ -38,7 +38,7 @@ using Context1 = ParameterSet<lwe_params<tlwe_core_params<ModTorus<16>, 4>>,
 using Context2 = ParameterSet<
     lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
     rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
-    dcp_params<256, 3>, kst_params<2, 11>>;
+    dcp_params<16, 7>, kst_params<2, 11>>;
 
 using TestContexts =
     ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;

@@ -175,7 +175,11 @@ endif()
 # --------------------------------------------
 # test
 # --------------------------------------------
-if(BUILD_TESTING)
+# PROJECT_IS_TOP_LEVEL keeps this repo's own test suite (GoogleTest, Boost,
+# mimalloc, ...) from being pulled into a consumer's build just because the
+# consumer also has BUILD_TESTING set -- add_subdirectory()/FetchContent()
+# only builds torqus's tests when torqus itself is configured directly.
+if(BUILD_TESTING AND PROJECT_IS_TOP_LEVEL)
   enable_testing()
   add_subdirectory(test)
 endif()

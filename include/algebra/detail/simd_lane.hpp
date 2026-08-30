@@ -94,8 +94,8 @@ using WideLane = ScalarLane;
 
 // e.g. "NEON (width=4)" or "Scalar (width=1)" -- the same compile-time
 // choice simd_ops<ModInt<P>>/<ModTorus<QBit>> dispatch on, exposed as text
-// so callers (Downstream's startup log, etc.) can report it without
-// reaching into the Lane types themselves.
+// so callers (a startup log, etc.) can report it without reaching into
+// the Lane types themselves.
 inline const std::string& active_lane_description() {
   static const std::string description = [] {
     return std::string(WideLane::name()) +

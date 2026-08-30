@@ -46,7 +46,7 @@ class BinaryExpansion {
   // slot (each step KeySwitches the previous gate's output before feeding
   // it to the next), but slots don't depend on each other, so callers with
   // many slots can farm this out across threads instead of calling
-  // exec_impl (see Downstream::expand()).
+  // exec_impl directly.
   static TLWE<rTorus, N> exec_slot_impl(
       uint32_t h, const Vector<TLWE<Torus, n>, k>& v,
       const KeySwitchKey<Torus, n, t, N>& ksk,
