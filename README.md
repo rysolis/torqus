@@ -5,16 +5,16 @@
 [![CI](https://github.com/rysolis/torqus/actions/workflows/ci.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/ci.yml)
 [![Lint](https://github.com/rysolis/torqus/actions/workflows/lint.yml/badge.svg)](https://github.com/rysolis/torqus/actions/workflows/lint.yml)
 [![codecov](https://codecov.io/gh/rysolis/torqus/branch/main/graph/badge.svg)](https://codecov.io/gh/rysolis/torqus)
-[![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](CMakeLists.txt)
-
-</div>
 
 A C++20, header-only TFHE library for mathematicians and developers,
 exposing the low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts,
 leveled arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with
 static noise tracking on top of them.
+
+</div>
 
 **Concept:** a cryptography library a mathematician can actually read
 and a developer can actually ship -- types and primitives named close
