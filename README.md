@@ -24,12 +24,16 @@ piece of code traces directly back to the paper construct it
 implements -- engineered to the correctness and rigor a production
 deployment needs, not just a research prototype.
 
-Gate bootstrapping is designed against the TFHE paper's own published
-128-bit-security parameter set (n=630, N=1024), exercised in
-[`gate_bootstrap_test.cpp`](test/runtime/tfhe/operation/bootstrap/gate_bootstrap_test.cpp)
-and required to clear a 99% two-sided decryption-success threshold --
-*assuming* the accumulated ciphertext error is normally distributed, the
-field's standard modeling assumption, not a proven hard bound.
+Every noise/dimension parameter (`n`, `N`, `Bg`, `l`, `alpha`, ...) is a
+compile-time template argument you choose yourself -- torqus ships no
+fixed parameter set; pick whatever meets your own security/performance
+target. The test suite exercises a 128-bit-security parameter set
+(n=630, N=1024, on a 32-bit `Torus`) published by the reference TFHE
+implementation's
+[security and parameters page](https://tfhe.github.io/tfhe/security_and_params.html)
+-- see [Bootstrap Noise Bounds](#bootstrap-noise-bounds) for the noise
+guarantees it produces.
+
 Poly/Vector add-sub -- and so every ciphertext type built on them
 (TLWE/TRLWE/TRGSW's own `+`/`-`) -- use ARM NEON when available
 (`algebra/detail/simd_ops.hpp`), falling back to scalar elsewhere; on by
@@ -50,6 +54,7 @@ raw throughput.
 
 - [Security Status](#security-status)
 - [Supported Operations](#supported-operations)
+- [Bootstrap Noise Bounds](#bootstrap-noise-bounds)
 - [Usage](#usage)
   - [Quick Start](#quick-start)
   - [Conan](#conan)
@@ -95,6 +100,40 @@ Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
 ciphertext out (see the `HomAnd` example below); chaining several
 together, as `BinaryExpansion` does, needs a `KeySwitch` back down to
 Lwe between calls.
+
+***
+
+## Bootstrap Noise Bounds
+
+[`gate_bootstrap_test.cpp`](test/runtime/tfhe/operation/bootstrap/gate_bootstrap_test.cpp)
+exercises `GateBootstrap` under two parameter sets: a toy one for fast
+iteration, and a 128-bit-security one (n=630, N=1024, on a 32-bit
+`Torus`) published by the reference TFHE implementation's
+[security and parameters page](https://tfhe.github.io/tfhe/security_and_params.html).
+Both are required to clear a 99% two-sided decryption-success threshold
+-- *assuming* the accumulated ciphertext error is normally distributed,
+the field's standard modeling assumption, not a proven hard bound.
+
+Bootstrapping discards the input ciphertext's own noise entirely and
+replaces it with fresh noise derived only from the bootstrap key
+(RLWE-side alpha) and the gadget decomposition (`Bg`, `l`) -- so
+however much noise a chain of gates has accumulated going in, the
+output noise is capped at the bound below regardless:
+
+| Context | n | N | Bg | l | alpha (RLWE) | predicted σ | 99% two-sided threshold |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Toy (`Context1`) | 1 | 4 | 4 | 3 | 2⁻¹¹ | 3.935×10⁻² | 1.014×10⁻¹ |
+| 128-bit security (`Context2`) | 630 | 1024 | 256 | 3 | 2⁻²⁵ | 7.544×10⁻³ | 1.943×10⁻² |
+
+Both are computed by `VarianceNoisePolicy<GateBootstrap>`
+(`tfhe/utility/analysis/variance_noise.hpp`) and printed by the test
+itself as `predicted stddev` / `99% threshold`
+on every run (`gate_bootstrap_test.cpp`'s `VerifyCorrectness`); both
+rows above were confirmed by building and running
+`GateBootstrapCorrectnessTest/0` and `/1` directly. A 99% threshold
+this far below the 0.25 decryption margin means a single bootstrap
+leaves ample room to keep composing gates before the next refresh is
+needed.
 
 ***
 
@@ -198,9 +237,9 @@ subdirectories those headers pull in for you:
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/testvector.hpp"
 
-// The TFHE paper's own published 128-bit-security dimensions, with their
-// matching lattice-estimator-verified noise (alpha = 2^-15 for n=630,
-// 2^-25 for N=1024) -- see gate_bootstrap_test.cpp.
+// The reference TFHE implementation's published 128-bit-security
+// dimensions, with their matching lattice-estimator-verified noise
+// (alpha = 2^-15 for n=630, 2^-25 for N=1024) -- see gate_bootstrap_test.cpp.
 using Torus = ModTorus<32>;
 using Lwe = lwe_params<tlwe_core_params<Torus, 630>, noise_params<15>>;
 using Rlwe = rlwe_params<trlwe_core_params<Torus, 1024>, noise_params<25>>;
@@ -405,3 +444,5 @@ cmake --preset clang-native-release && cmake --build --preset clang-native-relea
 - Ilaria Chillotti, Nicolas Gama, Mariya Georgieva, and Malika Izabachène.
   [*TFHE: Fast Fully Homomorphic Encryption over the Torus*](https://eprint.iacr.org/2018/421).
   Cryptology ePrint Archive, Paper 2018/421, 2018.
+- Reference TFHE implementation. [*Security and Parameters*](https://tfhe.github.io/tfhe/security_and_params.html) --
+  source of the 128-bit-security parameter set (n=630, N=1024) this repository's tests target.

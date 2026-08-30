@@ -39,8 +39,9 @@ using Context1 = ParameterSet<
     rlwe_params<trlwe_core_params<ModTorus<16>, 4>, noise_params<11>>,
     dcp_params<4, 3>>;
 
-// n=630/N=1024 match the TFHE paper's own published 128-bit-security
-// parameter set, with its own lattice-estimator-verified alpha for these
+// n=630/N=1024 match the reference TFHE implementation's published
+// 128-bit-security parameter set (see the README's References), with
+// its own lattice-estimator-verified alpha for these
 // exact dimensions (2^-15 for n=630, 2^-25 for N=1024). NoisePolicy's own
 // bound blows past 0.25 at this alpha (no
 // longer asserted on, see evaluator.hpp), which is exactly why the real
