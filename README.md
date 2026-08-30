@@ -9,10 +9,10 @@
 [![Release](https://img.shields.io/github/v/release/rysolis/torqus)](https://github.com/rysolis/torqus/releases)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](CMakeLists.txt)
 
-A C++20, header-only TFHE library for mathematicians and developers,
-exposing the low-level primitives -- TLWE/TRLWE/TRGSW ciphertexts,
-leveled arithmetic, and gate bootstrapping (AND, AND-NOT, ...) -- with
-static noise tracking on top of them.
+**torqus** (pronounced "torks" -- torque + Torus) is a C++20,
+header-only TFHE library for mathematicians and developers, exposing
+TLWE/TRLWE/TRGSW ciphertexts, leveled arithmetic, and gate bootstrapping
+(AND, AND-NOT, ...) with static noise tracking.
 
 </div>
 
@@ -61,6 +61,7 @@ raw throughput.
   - [Requirements](#requirements)
   - [Build & Run the Test Suite (Docker)](#build--run-the-test-suite-docker)
   - [Building Natively, Without Docker](#building-natively-without-docker)
+- [References](#references)
 
 ***
 
@@ -399,6 +400,8 @@ cmake --preset clang-native-release && cmake --build --preset clang-native-relea
 
 ***
 
-*The name is a portmanteau of torque (the rotational force behind TFHE's
-blind rotation) and torus (the ring group 𝕋 that TFHE computes over),
-pronounced "torks".*
+## References
+
+- Ilaria Chillotti, Nicolas Gama, Mariya Georgieva, and Malika Izabachène.
+  [*TFHE: Fast Fully Homomorphic Encryption over the Torus*](https://eprint.iacr.org/2018/421).
+  Cryptology ePrint Archive, Paper 2018/421, 2018.
