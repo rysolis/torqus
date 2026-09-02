@@ -225,7 +225,7 @@ TEST(NoiseFormulaTest, BlindRotateIgnoresTvAndScalesKeyNoiseByN) {
   const double e_bk = 0.5;
 
   TRLWE<Torus, N> tv;
-  Vector<ModInt<2 * N>, n + 1> amount;
+  Vector<ModInt<2ULL * N>, n + 1> amount;
   BootstrapKey<Torus, N, l, n> bk;
 
   ScopedKeyNoiseTracker key_tracker;
