@@ -1,0 +1,63 @@
+name: Wiki Sync
+
+# Mirrors wiki/*.md in this repository onto the GitHub wiki
+# (https://github.com/rysolis/torqus.wiki.git, a separate git repository
+# from this one) whenever a page under wiki/ changes on main. Files here
+# are meant to already be publish-ready (page title as the H1, links as
+# absolute github.com URLs rather than relative paths, since the wiki
+# repo doesn't share this repo's directory layout) -- this job copies
+# them across as-is, it doesn't rewrite anything.
+#
+# The default GITHUB_TOKEN cannot push to a repository's wiki, so this
+# needs a personal access token with the "repo" scope stored as the
+# WIKI_SYNC_TOKEN repository secret.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: sync
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          path: main
+          sparse-checkout: |
+            wiki
+
+      - name: Checkout wiki
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-repo
+          token: ${{ secrets.WIKI_SYNC_TOKEN }}
+
+      - name: Mirror wiki/ onto the wiki repo
+        run: |
+          rsync -a --delete --exclude '.git' main/wiki/ wiki-repo/
+
+      - name: Commit and push if changed
+        working-directory: wiki-repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git status --porcelain | grep -q .; then
+            git add -A
+            git commit -m "Sync wiki from ${{ github.sha }}"
+            git push
+          else
+            echo "Wiki already up to date."
+          fi
