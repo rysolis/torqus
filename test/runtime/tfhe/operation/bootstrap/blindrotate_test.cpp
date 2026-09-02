@@ -163,7 +163,8 @@ TYPED_TEST(BlindRotateCorrectnessTest, VerifyCorrectness) {
     // Assert
     // ==================================
     // compute reference result
-    Poly<rTorus, N> ref = rotate(tv.b(), (-phase).value());
+    Poly<rTorus, N> ref =
+        rotate(tv.b(), static_cast<uint32_t>((-phase).value()));
 
     // compute actual result
     Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);

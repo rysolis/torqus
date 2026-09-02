@@ -39,6 +39,20 @@
       }
     },
     {
+      "name": "torus32-base",
+      "hidden": true,
+      "cacheVariables": {
+        "TORQUS_TORUS_BITS": "32"
+      }
+    },
+    {
+      "name": "torus64-base",
+      "hidden": true,
+      "cacheVariables": {
+        "TORQUS_TORUS_BITS": "64"
+      }
+    },
+    {
       "name": "debug",
       "inherits": "base",
       "binaryDir": "${sourceDir}/build/debug",
@@ -80,6 +94,42 @@
       "displayName": "Clang Debug",
       "inherits": "clang-base",
       "binaryDir": "${sourceDir}/build/clang/debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "gcc-debug-torus32",
+      "displayName": "GCC Debug (TORQUS_TORUS_BITS=32)",
+      "inherits": ["gcc-base", "torus32-base"],
+      "binaryDir": "${sourceDir}/build/gcc/debug-torus32",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-debug-torus32",
+      "displayName": "Clang Debug (TORQUS_TORUS_BITS=32)",
+      "inherits": ["clang-base", "torus32-base"],
+      "binaryDir": "${sourceDir}/build/clang/debug-torus32",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "gcc-debug-torus64",
+      "displayName": "GCC Debug (TORQUS_TORUS_BITS=64)",
+      "inherits": ["gcc-base", "torus64-base"],
+      "binaryDir": "${sourceDir}/build/gcc/debug-torus64",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "clang-debug-torus64",
+      "displayName": "Clang Debug (TORQUS_TORUS_BITS=64)",
+      "inherits": ["clang-base", "torus64-base"],
+      "binaryDir": "${sourceDir}/build/clang/debug-torus64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
@@ -146,6 +196,22 @@
     {
       "name": "clang-debug",
       "configurePreset": "clang-debug"
+    },
+    {
+      "name": "gcc-debug-torus32",
+      "configurePreset": "gcc-debug-torus32"
+    },
+    {
+      "name": "clang-debug-torus32",
+      "configurePreset": "clang-debug-torus32"
+    },
+    {
+      "name": "gcc-debug-torus64",
+      "configurePreset": "gcc-debug-torus64"
+    },
+    {
+      "name": "clang-debug-torus64",
+      "configurePreset": "clang-debug-torus64"
     },
     {
       "name": "clang-release",

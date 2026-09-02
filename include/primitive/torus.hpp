@@ -8,8 +8,10 @@
 #include <concepts>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 
 #include "primitive/uint.hpp"
+#include "primitive/word.hpp"
 
 /**
  * \brief Base class for torus types.
@@ -35,7 +37,7 @@ class TorusBase {
   TorusBase() = default;
 };
 
-template <uint32_t QBit>
+template <uint32_t QBit, typename Word = torqus_default_word_t>
 class ModTorus;
 
 namespace dbl {
@@ -61,8 +63,8 @@ class Torus : public TorusBase<Torus> {
   static constexpr raw_value_type raw_min() { return 0.0; }
   static constexpr raw_value_type raw_max() { return 1.0; }
 
-  template <uint32_t QBit>
-  constexpr explicit operator ModTorus<QBit>() const noexcept;
+  template <uint32_t QBit, typename Word>
+  constexpr explicit operator ModTorus<QBit, Word>() const noexcept;
 
   constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
@@ -94,12 +96,15 @@ class Torus : public TorusBase<Torus> {
  *
  * $\hat{\mathbb{T}} \ni c \sim q \cdot t \in (1/q)\mathbb{R}/\mathbb{Z}$.
  */
-template <uint32_t QBit>
-class ModTorus : public TorusBase<ModTorus<QBit>> {
+template <uint32_t QBit, typename Word>
+class ModTorus : public TorusBase<ModTorus<QBit, Word>> {
  public:
   using value_type = ModTorus;
-  using raw_value_type = uint32_t;
+  using raw_value_type = Word;
   static constexpr uint32_t qbit = QBit;
+
+  static_assert(QBit <= std::numeric_limits<raw_value_type>::digits,
+                "QBit must fit within Word's bit width");
 
   explicit ModTorus() noexcept = default;
 
@@ -153,17 +158,17 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
 
-  bool operator==(const ModTorus<QBit>& other) const noexcept {
+  bool operator==(const ModTorus& other) const noexcept {
     return this->self().value() == other.value();
   }
 
-  constexpr ModTorus<QBit>& operator+=(const ModTorus<QBit>& other) noexcept {
+  constexpr ModTorus& operator+=(const ModTorus& other) noexcept {
     value_ += other.value_;
     value_ &= mask();
     return *this;
   }
 
-  constexpr ModTorus<QBit>& operator-=(const ModTorus<QBit>& other) noexcept {
+  constexpr ModTorus& operator-=(const ModTorus& other) noexcept {
     value_ -= other.value_;  // Since Q is a power of two, using an unsigned
                              // integer for value_ is safe.
     value_ &= mask();
@@ -179,16 +184,17 @@ class ModTorus : public TorusBase<ModTorus<QBit>> {
   raw_value_type value_;
 };
 
-template <uint32_t QBit>
-inline constexpr dbl::Torus::operator ModTorus<QBit>() const noexcept {
-  return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(
-      std::pow(2., ModTorus<QBit>::qbit) * this->value()));
+template <uint32_t QBit, typename Word>
+inline constexpr dbl::Torus::operator ModTorus<QBit, Word>() const noexcept {
+  return ModTorus<QBit, Word>(
+      static_cast<typename ModTorus<QBit, Word>::raw_value_type>(
+          std::pow(2., ModTorus<QBit, Word>::qbit) * this->value()));
 }
 
-template <uint32_t QBit>
-inline constexpr ModTorus<QBit>::operator dbl::Torus() const noexcept {
+template <uint32_t QBit, typename Word>
+inline constexpr ModTorus<QBit, Word>::operator dbl::Torus() const noexcept {
   return dbl::Torus(static_cast<dbl::Torus::raw_value_type>(this->value()) /
-                    std::pow(2., ModTorus<QBit>::qbit));
+                    std::pow(2., ModTorus<QBit, Word>::qbit));
 }
 
 inline constexpr dbl::Torus operator+(dbl::Torus lhs,
@@ -203,31 +209,35 @@ inline constexpr dbl::Torus operator-(dbl::Torus lhs,
 
 inline constexpr dbl::Torus operator*(UInt lhs,
                                       const dbl::Torus& rhs) noexcept {
-  return dbl::Torus(static_cast<UInt::raw_value_type>(lhs) * rhs.value());
+  return dbl::Torus(
+      static_cast<double>(static_cast<UInt::raw_value_type>(lhs)) *
+      rhs.value());
 }
 
-template <uint32_t QBit>
-inline constexpr ModTorus<QBit> operator*(UInt lhs,
-                                          const ModTorus<QBit>& rhs) noexcept {
-  return ModTorus<QBit>(static_cast<ModTorus<QBit>::raw_value_type>(lhs) *
-                        rhs.value());
+template <uint32_t QBit, typename Word>
+inline constexpr ModTorus<QBit, Word> operator*(
+    UInt lhs, const ModTorus<QBit, Word>& rhs) noexcept {
+  return ModTorus<QBit, Word>(
+      static_cast<typename ModTorus<QBit, Word>::raw_value_type>(lhs) *
+      rhs.value());
 }
 
-template <uint32_t QBit>
-inline constexpr ModTorus<QBit> operator+(ModTorus<QBit> lhs,
-                                          const ModTorus<QBit>& rhs) noexcept {
+template <uint32_t QBit, typename Word>
+inline constexpr ModTorus<QBit, Word> operator+(
+    ModTorus<QBit, Word> lhs, const ModTorus<QBit, Word>& rhs) noexcept {
   return lhs += rhs;
 }
 
-template <uint32_t QBit>
-inline constexpr ModTorus<QBit> operator-(ModTorus<QBit> lhs,
-                                          const ModTorus<QBit>& rhs) noexcept {
+template <uint32_t QBit, typename Word>
+inline constexpr ModTorus<QBit, Word> operator-(
+    ModTorus<QBit, Word> lhs, const ModTorus<QBit, Word>& rhs) noexcept {
   return lhs -= rhs;
 }
 
-template <uint32_t QBit>
-inline constexpr ModTorus<QBit> operator-(const ModTorus<QBit>& x) noexcept {
-  return ModTorus<QBit>{} - x;
+template <uint32_t QBit, typename Word>
+inline constexpr ModTorus<QBit, Word> operator-(
+    const ModTorus<QBit, Word>& x) noexcept {
+  return ModTorus<QBit, Word>{} - x;
 }
 
 inline constexpr double infinity_norm(const dbl::Torus& torus) {
@@ -235,8 +245,8 @@ inline constexpr double infinity_norm(const dbl::Torus& torus) {
   return std::min(tmp, 1 - tmp);
 }
 
-template <uint32_t QBit>
-inline constexpr double infinity_norm(const ModTorus<QBit>& mod_torus) {
+template <uint32_t QBit, typename Word>
+inline constexpr double infinity_norm(const ModTorus<QBit, Word>& mod_torus) {
   typename dbl::Torus::raw_value_type tmp =
       dbl::Torus::raw_value_type(static_cast<dbl::Torus>(mod_torus));
   return std::min(tmp, 1 - tmp);

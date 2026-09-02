@@ -31,9 +31,17 @@ using Ctx2 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<16>, 4>>,
                           dcp_params<4, 3>>;
 using Ctx3 = ParameterSet<rlwe_params<trlwe_core_params<ModTorus<32>, 1024>>,
                           dcp_params<2, 4>>;
+// Word pinned explicitly to uint64_t so this QBit=64 case -- exercising
+// decompose/reconstruct's shift-in-TorusWord path (gadget_repr.hpp) once
+// the shift amount can exceed UInt's own bit width -- runs regardless of
+// which default this build was configured with (see primitive/word.hpp).
+using Ctx4 =
+    ParameterSet<rlwe_params<trlwe_core_params<ModTorus<64, uint64_t>, 4>>,
+                 dcp_params<4, 6>>;
 
-using TestContexts = ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
-                                      TestConfig<Ctx3, false>>;
+using TestContexts =
+    ::testing::Types<TestConfig<Ctx1>, TestConfig<Ctx2>,
+                     TestConfig<Ctx3, false>, TestConfig<Ctx4>>;
 
 }  // namespace gadget_repr_test
 

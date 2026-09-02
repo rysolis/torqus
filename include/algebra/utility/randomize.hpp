@@ -21,7 +21,7 @@ struct default_distribution<ModTorus<QBit>> {
       std::uniform_int_distribution<typename ModTorus<QBit>::raw_value_type>;
 };
 
-template <uint32_t P>
+template <uint64_t P>
 struct default_distribution<ModInt<P>> {
   using type =
       std::uniform_int_distribution<typename ModInt<P>::raw_value_type>;
