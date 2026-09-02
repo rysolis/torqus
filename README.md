@@ -450,6 +450,16 @@ docker run --rm \
 opt in via `noise_params<AlphaBits>`, see `tfhe/params.hpp`); reconfigure
 with `-DTFHE_ENABLE_NOISE=OFF` to force it back to exact/noiseless.
 
+CI also builds/tests `gcc-debug-torus32`/`clang-debug-torus32` and
+`gcc-debug-torus64`/`clang-debug-torus64` the same way, so both
+`TORQUS_TORUS_BITS` widths stay covered. Any other preset can be built at
+either width too, by adding `-DTORQUS_TORUS_BITS=64` at configure time
+(see [Quick Start](#quick-start)):
+
+```bash
+cmake --preset gcc-release -DTORQUS_TORUS_BITS=64
+```
+
 ### Building Natively, Without Docker
 
 `gcc-native-debug` / `gcc-native-release` / `clang-native-debug` /

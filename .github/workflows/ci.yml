@@ -66,11 +66,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - preset: gcc-debug
-            build_dir: build/gcc/debug
+          - preset: gcc-debug-torus32
+            build_dir: build/gcc/debug-torus32
 
-          - preset: clang-debug
-            build_dir: build/clang/debug
+          - preset: clang-debug-torus32
+            build_dir: build/clang/debug-torus32
+
+          - preset: gcc-debug-torus64
+            build_dir: build/gcc/debug-torus64
+
+          - preset: clang-debug-torus64
+            build_dir: build/clang/debug-torus64
 
     steps:
       - name: Checkout repository
