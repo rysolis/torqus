@@ -49,7 +49,7 @@ BootstrapKey<typename Rlwe::torus_type, Rlwe::N, Decomp::l,
       bk[i][l + j] = cryptor.encrypt(Poly<rTorus, N>());
 
       rTorus v(static_cast<UInt::raw_value_type>(secret[i]),
-               1u << (Bbit * (j + 1)));
+               UInt::raw_value_type{1} << (Bbit * (j + 1)));
 
       bk[i][j].a()[0] = static_cast<rTorus>(bk[i][j].a()[0]) + v;
       bk[i][l + j].b()[0] = static_cast<rTorus>(bk[i][l + j].b()[0]) + v;

@@ -6,14 +6,28 @@
 
 #include <cstdint>
 #include <iostream>
+#include <limits>
 
 #include "primitive/uint.hpp"
+#include "primitive/word.hpp"
 
-template <uint32_t P>
+// P is uint64_t (wider than Word can be, e.g. when Word is uint32_t) so
+// that a caller wrapping a full-width Torus value (see
+// tfhe/operation/bootstrap/gate_bootstrap.hpp's ModInt<Q>) can name a
+// modulus up to Word's full range; mod below narrows it back down to
+// Word once, at a point where P is a compile-time constant, so every
+// other member keeps operating in plain Word arithmetic exactly as
+// before.
+template <uint64_t P, typename Word = torqus_default_word_t>
 class ModInt {
  public:
-  static constexpr uint32_t mod = P;
-  using raw_value_type = uint32_t;
+  using raw_value_type = Word;
+
+  static_assert(P == 0 || P <= std::numeric_limits<raw_value_type>::max(),
+                "P must fit within Word, or be 0 (meaning natural "
+                "wraparound at Word's own width)");
+
+  static constexpr raw_value_type mod = static_cast<raw_value_type>(P);
 
   constexpr ModInt() noexcept = default;
 
@@ -28,7 +42,7 @@ class ModInt {
   }
 
   static constexpr raw_value_type raw_min() { return 0; }
-  static constexpr raw_value_type raw_max() { return P - 1; }
+  static constexpr raw_value_type raw_max() { return mod - 1; }
 
   constexpr explicit operator raw_value_type() const noexcept { return value_; }
   constexpr raw_value_type value() const noexcept { return value_; }
@@ -71,26 +85,28 @@ class ModInt {
   raw_value_type value_;
 };
 
-template <uint32_t P>
-inline constexpr ModInt<P> operator+(ModInt<P> lhs,
-                                     const ModInt<P>& rhs) noexcept {
+template <uint64_t P, typename Word>
+inline constexpr ModInt<P, Word> operator+(
+    ModInt<P, Word> lhs, const ModInt<P, Word>& rhs) noexcept {
   return lhs += rhs;
 }
 
-template <uint32_t P>
-inline constexpr ModInt<P> operator-(ModInt<P> lhs,
-                                     const ModInt<P>& rhs) noexcept {
+template <uint64_t P, typename Word>
+inline constexpr ModInt<P, Word> operator-(
+    ModInt<P, Word> lhs, const ModInt<P, Word>& rhs) noexcept {
   return lhs -= rhs;
 }
 
-template <uint32_t P>
-inline constexpr ModInt<P> operator-(const ModInt<P>& x) noexcept {
-  return ModInt<P>(0) - x;
+template <uint64_t P, typename Word>
+inline constexpr ModInt<P, Word> operator-(const ModInt<P, Word>& x) noexcept {
+  return ModInt<P, Word>(0) - x;
 }
 
-template <uint32_t P>
-inline constexpr ModInt<P> operator*(UInt lhs, const ModInt<P>& rhs) noexcept {
-  return ModInt<P>(static_cast<ModInt<P>::raw_value_type>(lhs) * rhs.value());
+template <uint64_t P, typename Word>
+inline constexpr ModInt<P, Word> operator*(
+    UInt lhs, const ModInt<P, Word>& rhs) noexcept {
+  return ModInt<P, Word>(
+      static_cast<typename ModInt<P, Word>::raw_value_type>(lhs) * rhs.value());
 }
 
 #endif  // PRIMITIVE_MODINT_HPP

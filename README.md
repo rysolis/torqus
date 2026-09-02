@@ -187,6 +187,25 @@ define `TFHE_DISABLE_NOISE` before including any torqus header (in this
 repository's own CMake build, the equivalent is `-DTFHE_ENABLE_NOISE=OFF`,
 see [Developing torqus](#developing-torqus) below).
 
+`UInt` and `ModTorus<QBit>` (`primitive/uint.hpp`, `primitive/torus.hpp`)
+store their raw value in a `uint32_t` by default. To make that a
+`uint64_t` instead -- e.g. to run `ModTorus<64>`, or any `QBit` above
+32 -- define `TORQUS_TORUS_BITS=64` before including any torqus header:
+
+```bash
+c++ -std=c++20 -DTORQUS_TORUS_BITS=64 -Itorqus/include your_program.cpp -o your_program
+```
+
+or, in this repository's own CMake build (or a consumer's, via
+`torqus::torqus`), `-DTORQUS_TORUS_BITS=64` at configure time does the
+same. This only changes the *default* word width: an individual
+`ModTorus<QBit, Word>` (or `ModInt<P, Word>`) can always name a specific
+`Word` (e.g. `ModTorus<48, uint64_t>`) regardless of this setting, and
+existing code naming just `ModTorus<QBit>` picks up whatever the setting
+resolves to. NEON acceleration (see [Performance &
+Concurrency](#performance--concurrency)) only covers 32-bit elements
+today, so a 64-bit `Word` always takes the portable scalar add/sub path.
+
 Beyond the plain-clone Quick Start above, vendoring `include/` as a git
 submodule works the same way. For dependency-managed integration
 instead, the C++ core is also packaged for two package managers under

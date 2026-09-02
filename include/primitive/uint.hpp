@@ -9,9 +9,11 @@
 #include <iostream>
 #include <limits>
 
+#include "primitive/word.hpp"
+
 class UInt {
  public:
-  using raw_value_type = uint32_t;
+  using raw_value_type = torqus_default_word_t;
 
   explicit UInt() noexcept = default;
 

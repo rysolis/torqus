@@ -150,15 +150,8 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     // Assert
     // ==================================
     // compute reference result
-    constexpr uint32_t Q = [] {
-      if constexpr (Torus::qbit == 32) {
-        return 0;
-      } else {
-        return 1 << Torus::qbit;
-      }
-    }();
-    ModInt<M> p = mod_switch<M>(ModInt<Q>(phase.value()));
-    Poly<rTorus, N> rot = rotate(tv.b(), (-p).value());
+    ModInt<M> p = mod_switch<M>(phase);
+    Poly<rTorus, N> rot = rotate(tv.b(), static_cast<uint32_t>((-p).value()));
     rTorus ref = static_cast<rTorus>(rot[0]) + rTorus(mu.value() / 2);
 
     // compute actual result

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <random>
 #include <vector>
 
@@ -69,19 +70,28 @@ TYPED_TEST_SUITE(ModswitchRoundingTest, modswitch_test::RoundingTestContexts);
 TYPED_TEST(ModswitchRoundingTest, RoundingErrorBound) {
   constexpr uint32_t Src = TypeParam::context::Src;
   constexpr uint32_t Dst = TypeParam::context::Dst;
+  using Raw = typename ModInt<Src>::raw_value_type;
 
-  constexpr double src_span = Src == 0 ? 4294967296.0 : double(Src);
+  // Src == 0 stands in for a full-width modulus (2^32 or 2^64, depending
+  // on TORQUS_TORUS_BITS -- see ModInt's own "mod == 0 means natural
+  // wraparound" convention), so its span tracks Raw's own width rather
+  // than a hardcoded 32-bit span.
+  constexpr double src_span =
+      Src != 0 ? double(Src)
+      : std::numeric_limits<Raw>::digits >= 64
+          ? 18446744073709551616.0  // 2^64, too wide to shift into a Raw
+          : double(uint64_t{1} << std::numeric_limits<Raw>::digits);
   constexpr double eps = 1.0 / (2.0 * double(Dst));
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng{0};
-  std::uniform_int_distribution<uint32_t> dist(0u, ModInt<Src>::raw_max());
+  std::uniform_int_distribution<Raw> dist(0u, ModInt<Src>::raw_max());
 
-  std::vector<uint32_t> raws = {0u, 1u, ModInt<Src>::raw_max() / 2,
-                                ModInt<Src>::raw_max()};
+  std::vector<Raw> raws = {0u, 1u, ModInt<Src>::raw_max() / 2,
+                           ModInt<Src>::raw_max()};
   for (int i = 0; i < 8; ++i) raws.push_back(dist(eng));
 
-  for (uint32_t raw : raws) {
+  for (Raw raw : raws) {
     ModInt<Src> t(raw);
     ModInt<Dst> switched = mod_switch<Dst>(t);
 

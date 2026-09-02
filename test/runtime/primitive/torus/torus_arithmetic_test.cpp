@@ -15,7 +15,15 @@ struct Ctx2 {
 struct Ctx3 {
   using torus_type = ModTorus<32>;
 };
-using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3>;
+// Word pinned explicitly to uint64_t (rather than relying on
+// TORQUS_TORUS_BITS's default) so this QBit=64 case -- exercising the
+// "qbit spans the full native word width" sentinel path (see
+// tfhe/math/modswitch.hpp) -- runs the same way regardless of which
+// default this build was configured with.
+struct Ctx4 {
+  using torus_type = ModTorus<64, uint64_t>;
+};
+using TestContexts = ::testing::Types<Ctx1, Ctx2, Ctx3, Ctx4>;
 }  // namespace modtorus_arithmetic_test
 
 template <typename Ctx>

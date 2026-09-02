@@ -22,17 +22,25 @@
 
 namespace {
 
+// The functions below all do their shifting in TorusWord (Torus's own
+// raw_value_type), not UInt::raw_value_type: once Torus is wider than
+// UInt (see primitive/word.hpp), a shift amount can exceed UInt's own bit
+// width, so the bits being shifted have to still be there. Only the
+// final result -- always < Params::B, a small decomposition digit --
+// narrows down to UInt.
+
 namespace classical {
 
 template <decompose_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
+  using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
-  UInt::raw_value_type w =
-      UInt::raw_value_type(static_cast<Torus::raw_value_type>(v));
-  UInt::raw_value_type tmp = (w >> shift) & (Params::B - 1);
+  TorusWord w = static_cast<TorusWord>(v);
+  UInt::raw_value_type tmp =
+      static_cast<UInt::raw_value_type>((w >> shift) & (Params::B - 1));
   return UInt(tmp);
 }
 
@@ -40,15 +48,17 @@ template <typename Rlwe, typename Decomp, torus_concept Torus>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
 Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
                   size_t j) {
+  using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t l = Decomp::l;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  typename Torus::raw_value_type m = 0;
+  TorusWord m = 0;
   for (size_t i = 0; i < l; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
-    UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
+    TorusWord v =
+        static_cast<TorusWord>(static_cast<UInt::raw_value_type>(repr[i][j]));
     m |= v << shift;
   }
   return Torus(m);
@@ -64,23 +74,26 @@ namespace balanced {
 // Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
 template <decompose_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
+  using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
   // To mitigate the effect of quantization error, we add a rounding offset
   // before extraction.
-  UInt::raw_value_type round = 0;
+  TorusWord round = 0;
   if constexpr (Torus::qbit - (Bbit * Params::l) > 0) {
-    round = 1u << (Torus::qbit - (Bbit * Params::l) - 1);
+    round = TorusWord{1} << (Torus::qbit - (Bbit * Params::l) - 1);
   }
-  UInt::raw_value_type offset = 0;
-  for (size_t i = 0; i < Params::l; ++i) {
-    offset += (Params::B / 2) << (Torus::qbit - (Bbit * (i + 1)));
+  TorusWord offset = 0;
+  for (size_t j = 0; j < Params::l; ++j) {
+    offset += static_cast<TorusWord>(Params::B / 2)
+              << (Torus::qbit - (Bbit * (j + 1)));
   }
-  UInt::raw_value_type w = UInt::raw_value_type(
-      static_cast<Torus::raw_value_type>(v) + offset + round);
-  UInt::raw_value_type tmp = ((w >> shift) & (Params::B - 1)) - (Params::B / 2);
+  TorusWord w = static_cast<TorusWord>(v) + offset + round;
+  TorusWord digit = (w >> shift) & (Params::B - 1);
+  UInt::raw_value_type tmp =
+      static_cast<UInt::raw_value_type>(digit) - (Params::B / 2);
   return UInt(tmp);
 }
 
@@ -92,17 +105,19 @@ Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
-  UInt::raw_value_type offset = 0;
+  using TorusWord = typename Torus::raw_value_type;
+  TorusWord offset = 0;
   for (size_t i = 0; i < l; ++i) {
-    offset += (B / 2) << (Torus::qbit - (Bbit * (i + 1)));
+    offset += static_cast<TorusWord>(B / 2) << (Torus::qbit - (Bbit * (i + 1)));
   }
-  typename Torus::raw_value_type m = 0;
+  TorusWord m = 0;
   for (size_t i = 0; i < l; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
 
     UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
-    m |= ((v + (B / 2)) & (B - 1)) << shift;
+    TorusWord digit = static_cast<TorusWord>((v + (B / 2)) & (B - 1));
+    m |= digit << shift;
   }
   m -= offset;
   return Torus(m);

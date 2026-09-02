@@ -5,6 +5,12 @@
 #define TFHE_GATE_BOOTSTRAP_HPP
 
 #include <cstdint>
+#include <limits>
+
+#include "primitive/modint.hpp"
+#include "primitive/torus.hpp"
+
+#include "algebra/vector.hpp"
 
 #include "tfhe/math/modswitch.hpp"
 #include "tfhe/operation/bootstrap/blindrotate.hpp"
@@ -13,6 +19,25 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+
+namespace {
+
+// Overloads mod_switch (tfhe/math/modswitch.hpp) for a Torus argument:
+// wraps it as a ModInt over its own modulus 2^QBit (0 standing in when
+// that doesn't fit in Word -- see ModInt's "mod == 0" convention) and
+// hands it to the ModInt-taking mod_switch, which is all that function
+// knows about. Lives here rather than in modswitch.hpp itself so that
+// file stays Torus-agnostic; ADL/argument-type overload resolution picks
+// this one whenever the caller passes a ModTorus.
+template <uint64_t M, uint32_t QBit, typename Word>
+constexpr ModInt<M> mod_switch(const ModTorus<QBit, Word>& t) {
+  constexpr uint64_t N = QBit == std::numeric_limits<Word>::digits
+                             ? uint64_t{0}
+                             : uint64_t{1} << QBit;
+  return mod_switch<M>(ModInt<N, Word>(t.value()));
+}
+
+}  // namespace
 
 namespace tfhe::bootstrap {
 
@@ -33,17 +58,10 @@ class GateBootstrap {
                                    const BootstrapKey<rTorus, N, l, n>& bk) {
     // convert TLWE to Vector<ModInt<M>>
     Vector<ModInt<M>, n + 1> amount;
-    constexpr uint32_t Q = [] {
-      if constexpr (Torus::qbit == 32) {
-        return 0;
-      } else {
-        return 1 << Torus::qbit;
-      }
-    }();
     for (size_t i = 0; i < n; ++i) {
-      amount[i] = mod_switch<M>(ModInt<Q>(tlwe.a()[i].value()));
+      amount[i] = mod_switch<M>(tlwe.a()[i]);
     }
-    amount[n] = mod_switch<M>(ModInt<Q>(tlwe.b().value()));
+    amount[n] = mod_switch<M>(tlwe.b());
 
     // BlindRotate
     TRLWE<rTorus, N> rot =

@@ -46,7 +46,8 @@ TRGSW<typename Params::torus_type, Params::N, Params::l> encrypt(
           gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
     }
 
-    Torus m(static_cast<UInt::raw_value_type>(pt[0]), 1u << (Bbit * (j + 1)));
+    Torus m(static_cast<UInt::raw_value_type>(pt[0]),
+            UInt::raw_value_type{1} << (Bbit * (j + 1)));
 
     ct[j].a()[0] = static_cast<Torus>(ct[j].a()[0]) + m;
     ct[l + j].b()[0] = static_cast<Torus>(ct[l + j].b()[0]) + m;

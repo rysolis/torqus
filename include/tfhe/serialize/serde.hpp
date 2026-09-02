@@ -38,6 +38,7 @@ concept scalar_serializable =
       { t.value() } -> std::same_as<typename T::raw_value_type>;
     } &&
     (std::same_as<typename T::raw_value_type, uint32_t> ||
+     std::same_as<typename T::raw_value_type, uint64_t> ||
      std::same_as<typename T::raw_value_type, double>) &&
     std::constructible_from<T, typename T::raw_value_type>;
 
@@ -48,6 +49,8 @@ struct Serde<T> {
   static void write(Writer& w, const T& value) {
     if constexpr (std::same_as<Raw, double>) {
       w.write_u64(std::bit_cast<uint64_t>(value.value()));
+    } else if constexpr (std::same_as<Raw, uint64_t>) {
+      w.write_u64(value.value());
     } else {
       w.write_u32(value.value());
     }
@@ -56,6 +59,8 @@ struct Serde<T> {
   static T read(Reader& r) {
     if constexpr (std::same_as<Raw, double>) {
       return T(std::bit_cast<double>(r.read_u64()));
+    } else if constexpr (std::same_as<Raw, uint64_t>) {
+      return T(r.read_u64());
     } else {
       return T(r.read_u32());
     }

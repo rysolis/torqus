@@ -20,31 +20,40 @@ namespace tfhe::leveled {
 
 namespace {
 
+// decompose/reconstruct below shift in TorusWord (Torus's own
+// raw_value_type), not UInt::raw_value_type: once Torus is wider than
+// UInt (see primitive/word.hpp), a shift amount can exceed UInt's own bit
+// width. Only the final digit (< Params::K, always small) narrows down
+// to UInt.
+
 template <kst_concept Params, torus_concept Torus>
 UInt decompose(const Torus& v, size_t i) {
+  using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
   assert(shift <= (Torus::qbit - Bbit));
 
-  UInt::raw_value_type round = 0;
+  TorusWord round = 0;
   if constexpr (Torus::qbit > Bbit * Params::t) {
-    round = 1u << (Torus::qbit - Bbit * Params::t - 1);
+    round = TorusWord{1} << (Torus::qbit - Bbit * Params::t - 1);
   }
-  UInt::raw_value_type w =
-      UInt::raw_value_type(static_cast<Torus::raw_value_type>(v)) + round;
-  UInt::raw_value_type tmp = (w >> shift) & (Params::K - 1);
+  TorusWord w = static_cast<TorusWord>(v) + round;
+  UInt::raw_value_type tmp =
+      static_cast<UInt::raw_value_type>((w >> shift) & (Params::K - 1));
   return UInt(tmp);
 }
 
 template <kst_concept Params, torus_concept Torus>
 Torus reconstruct(const Vector<Poly<UInt, Params::N>, Params::t>& repr,
                   size_t j) {
+  using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
-  typename Torus::raw_value_type m = 0;
+  TorusWord m = 0;
   for (size_t i = 0; i < Params::t; ++i) {
     size_t shift = Torus::qbit - (Bbit * (i + 1));
     assert(shift <= (Torus::qbit - Bbit));
-    UInt::raw_value_type v = static_cast<UInt::raw_value_type>(repr[i][j]);
+    TorusWord v =
+        static_cast<TorusWord>(static_cast<UInt::raw_value_type>(repr[i][j]));
     m |= v << shift;
   }
   return Torus(m);

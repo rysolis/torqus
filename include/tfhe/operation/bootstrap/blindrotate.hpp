@@ -35,14 +35,20 @@ class BlindRotate {
   static TRLWE<Torus, N> exec_impl(const TRLWE<Torus, N>& tv,
                                    const Vector<ModInt<M>, n + 1>& amount,
                                    const BootstrapKey<Torus, N, l, n>& bk) {
+    // rotate() takes its amount as uint32_t, which M (always a small
+    // power of two, at most 2 * the ring dimension N) fits comfortably
+    // regardless of ModInt<M>'s own Word -- (-b.value()) mod M is the
+    // same value whether the negation happens in 32 or 64 bits, since M
+    // divides both 2^32 and 2^64 evenly.
     ModInt<M> b = amount[n];
-    TRLWE<Torus, N> cand0(rotate(tv.a(), -b.value()),
-                          rotate(tv.b(), -b.value()));
+    uint32_t neg_b = static_cast<uint32_t>(-b.value());
+    TRLWE<Torus, N> cand0(rotate(tv.a(), neg_b), rotate(tv.b(), neg_b));
 
     for (size_t i = 0; i < n; ++i) {
       ModInt<M> ai = amount[i];
-      TRLWE<Torus, N> cand1(rotate(cand0.a(), ai.value()),
-                            rotate(cand0.b(), ai.value()));
+      uint32_t ai_amount = static_cast<uint32_t>(ai.value());
+      TRLWE<Torus, N> cand1(rotate(cand0.a(), ai_amount),
+                            rotate(cand0.b(), ai_amount));
 
       cand0 = CMux<Rlwe, Decomp>::exec_impl(bk[i], cand0, cand1);
     }

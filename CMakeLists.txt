@@ -34,6 +34,24 @@ target_include_directories(torqus-libs
 )
 
 # --------------------------------------------
+# Torus/UInt storage width
+# --------------------------------------------
+# primitive/word.hpp resolves this into torqus_default_word_t (uint32_t or
+# uint64_t), which UInt and ModTorus<QBit, Word = torqus_default_word_t> use
+# as their default raw storage type. This only changes the *default* -- a
+# consumer can still name e.g. ModTorus<48, uint64_t> explicitly regardless
+# of this setting.
+set(TORQUS_TORUS_BITS 32 CACHE STRING "Default word width (bits) for UInt/ModTorus storage: 32 or 64")
+set_property(CACHE TORQUS_TORUS_BITS PROPERTY STRINGS 32 64)
+
+if(NOT TORQUS_TORUS_BITS STREQUAL "32" AND NOT TORQUS_TORUS_BITS STREQUAL "64")
+  message(FATAL_ERROR "TORQUS_TORUS_BITS must be 32 or 64, got: ${TORQUS_TORUS_BITS}")
+endif()
+
+message(STATUS "Default Torus/UInt word width: ${TORQUS_TORUS_BITS}-bit")
+target_compile_definitions(torqus-libs INTERFACE TORQUS_TORUS_BITS=${TORQUS_TORUS_BITS})
+
+# --------------------------------------------
 # Allocator override
 # --------------------------------------------
 # algebra/container.hpp heap-allocates its fixed-size buffer on every
