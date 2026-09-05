@@ -2,6 +2,7 @@
 
 #include "algebra/utility/utility.hpp"
 
+#include "tfhe/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/operation/evaluator.hpp"
@@ -78,6 +79,9 @@ class HomAndNotCorrectnessTest
   using Torus = Base::Torus;
   using rTorus = Base::rTorus;
 
+  using Bit = Dial<2, Torus>;
+  using rBit = Dial<2, rTorus>;
+
   struct TestCase {
     Torus lhs;
     Torus rhs;
@@ -85,10 +89,11 @@ class HomAndNotCorrectnessTest
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.lhs = Torus(1u, 4u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
-            {.lhs = Torus(0u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
-            {.lhs = Torus(1u, 4u), .rhs = Torus(0u), .ref = rTorus(1u, 4u)},
-            {.lhs = Torus(0u), .rhs = Torus(0u), .ref = rTorus(0)}};
+    return {
+        {.lhs = Bit::at(true), .rhs = Bit::at(true), .ref = rBit::at(false)},
+        {.lhs = Bit::at(false), .rhs = Bit::at(true), .ref = rBit::at(false)},
+        {.lhs = Bit::at(true), .rhs = Bit::at(false), .ref = rBit::at(true)},
+        {.lhs = Bit::at(false), .rhs = Bit::at(false), .ref = rBit::at(false)}};
   }
 };
 
@@ -104,6 +109,8 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
 
   using rTorus = Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
+
+  using rBit = Dial<2, rTorus>;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -134,10 +141,10 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
     rTorus err = res - ref;
     double norm = infinity_norm(err);
 
-    // Output lives at {0, 1/4} mod 1; a wrong decode only happens past
-    // half that gap, so that's the margin "did it decode right" is
-    // judged against here.
-    const double decode_margin = double(rTorus(1u, 4u)) / 2;
+    // Output lives at rBit's {0, 1/4} encoding; a wrong decode only
+    // happens past half that gap, so that's the margin "did it decode
+    // right" is judged against here.
+    const double decode_margin = double(rBit::margin());
 
     std::cout << "\n========================================\n";
     std::cout << "           HomAndNot Test\n";

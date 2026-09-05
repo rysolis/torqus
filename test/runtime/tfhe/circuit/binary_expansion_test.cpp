@@ -8,6 +8,7 @@
 #include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
+#include "tfhe/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -92,20 +93,27 @@ class BinaryExpansionCorrectnessTest
   using Torus = Base::Torus;
   using rTorus = Base::rTorus;
 
+  using Bit = Dial<2, Torus>;
+  using rBit = Dial<2, rTorus>;
+
   struct TestCase {
     Vector<Torus, 2> operand;
     Vector<rTorus, 4> ref;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.operand = {Torus(0u), Torus(0u)},
-             .ref = {rTorus(1u, 4u), rTorus(0u), rTorus(0u), rTorus(0u)}},
-            {.operand = {Torus(1u, 4u), Torus(0u)},
-             .ref = {rTorus(0u), rTorus(1u, 4u), rTorus(0u), rTorus(0u)}},
-            {.operand = {Torus(0u), Torus(1u, 4u)},
-             .ref = {rTorus(0u), rTorus(0u), rTorus(1u, 4u), rTorus(0u)}},
-            {.operand = {Torus(1u, 4u), Torus(1u, 4u)},
-             .ref = {rTorus(0u), rTorus(0u), rTorus(0u), rTorus(1u, 4u)}}};
+    return {{.operand = {Bit::at(false), Bit::at(false)},
+             .ref = {rBit::at(true), rBit::at(false), rBit::at(false),
+                     rBit::at(false)}},
+            {.operand = {Bit::at(true), Bit::at(false)},
+             .ref = {rBit::at(false), rBit::at(true), rBit::at(false),
+                     rBit::at(false)}},
+            {.operand = {Bit::at(false), Bit::at(true)},
+             .ref = {rBit::at(false), rBit::at(false), rBit::at(true),
+                     rBit::at(false)}},
+            {.operand = {Bit::at(true), Bit::at(true)},
+             .ref = {rBit::at(false), rBit::at(false), rBit::at(false),
+                     rBit::at(true)}}};
   }
 };
 
@@ -123,6 +131,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
+
+  using rBit = Dial<2, rTorus>;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -157,10 +167,10 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     Vector<rTorus, 4> err = res - ref;
     double norm = infinity_norm(err);
 
-    // Output lives at {0, 1/4} mod 1; a wrong decode only happens past
-    // half that gap, so that's the margin "did it decode right" is
-    // judged against here.
-    const double decode_margin = double(rTorus(1u, 4u)) / 2;
+    // Output lives at rBit's {0, 1/4} encoding; a wrong decode only
+    // happens past half that gap, so that's the margin "did it decode
+    // right" is judged against here.
+    const double decode_margin = double(rBit::margin());
 
     std::cout << "\n========================================\n";
     std::cout << "         BinaryExpansion Test\n";
