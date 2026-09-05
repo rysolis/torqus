@@ -1,0 +1,126 @@
+// Copyright 2026 Ryuhei Morita
+// SPDX-License-Identifier: Apache-2.0
+
+#ifndef TFHE_DIAL_HPP
+#define TFHE_DIAL_HPP
+
+#include <bit>
+#include <cassert>
+#include <concepts>
+#include <cstdint>
+
+#include "primitive/concept/torus.hpp"
+
+// Torus types shaped like ModTorus<QBit, Word>: a (numerator, denominator)
+// constructor, a raw_value_type, and a qbit -- everything Dial below needs
+// to work in exact integer arithmetic, with no floating point involved.
+template <typename Torus>
+concept modtorus_concept = torus_concept<Torus> && requires(uint32_t i) {
+  typename Torus::raw_value_type;
+  { Torus::qbit } -> std::convertible_to<uint32_t>;
+  Torus(i, i);
+};
+
+// Dial<Resolution, Torus> wraps exactly one Torus value and views it
+// through Resolution evenly spaced slots -- the same way ModTorus wraps
+// exactly one raw integer and views it as a fraction. Build one either
+// from a slot index (the Torus value gets named for you, e.g. before it
+// is ever encrypted) or from an existing Torus (e.g. straight out of
+// decrypt(), to read off which slot it's nearest to via index()).
+//
+// The Resolution slots sit at i/Resolution for i in [0, Resolution),
+// evenly spaced around the whole torus circle -- Dial has no opinion of
+// its own about noise margins, decision boundaries, or how many of those
+// slots a particular scheme actually uses.
+//
+// In particular, tfhe/gate/Hom* (HomAnd/HomOr/HomAndNot/HomXor) compute a
+// 2-input gate by summing two encoded messages and comparing the sum
+// against a single fixed decision boundary -- for that trick to work, the
+// individual messages must stay confined to less than half the circle, or
+// the sum of two of them could cross the boundary from the wrong side.
+// Those gates get that headroom by asking Dial for twice as many slots as
+// they have logical values and only ever using the first half of them
+// (e.g. Dial<4, Torus> for a boolean compatible with them: index 0 is 0,
+// index 1 is 1/4, matching mu = 1/4 in tfhe/gate/hom_and.hpp and friends;
+// indices 2 and 3 are simply never used). That headroom requirement
+// belongs to those gates, not to Dial -- a caller matching some other
+// scheme's own convention picks whatever Resolution (and which of its
+// slots) that scheme needs.
+//
+// Resolution has no default: how many slots a Dial has is a property of
+// the scheme a caller is working with, never something to fall back on
+// silently.
+template <uint32_t Resolution, modtorus_concept Torus>
+class Dial {
+ public:
+  static_assert(Resolution > 0, "Dial needs at least one slot");
+  // Every plaintext modulus this library actually builds is a power of
+  // two (see tfhe/math/modswitch.hpp's own equivalent restriction);
+  // requiring it here up front keeps the constructor/index()/margin()
+  // exact integer arithmetic throughout, with no double anywhere in this
+  // class.
+  static_assert((Resolution & (Resolution - 1)) == 0,
+                "Dial needs Resolution to be a power of two");
+
+  using Word = typename Torus::raw_value_type;
+  static constexpr uint32_t qbit = Torus::qbit;
+  static constexpr uint32_t resolution = Resolution;
+
+  // log2(Resolution) -- how many of qbit's top bits identify a slot.
+  static constexpr uint32_t k =
+      static_cast<uint32_t>(std::bit_width(Resolution - 1));
+  static_assert(qbit > k,
+                "Resolution has more slots than this Torus's qbit can "
+                "distinguish");
+
+  // The Torus value naming slot `index` (index must be < Resolution).
+  // `index` accepts bool implicitly, so a caller building a Dial<2, ...>
+  // can write Dial(true)/Dial(false) directly instead of Dial(1)/Dial(0).
+  constexpr explicit Dial(uint32_t index) : value_(index, Resolution) {
+    assert(index < Resolution);
+  }
+
+  // Views an existing Torus value through this Dial's slots -- e.g. a
+  // value fresh out of decrypt(), about to be read off via index().
+  constexpr explicit Dial(Torus value) : value_(value) {}
+
+  // The raw Torus value this Dial wraps.
+  constexpr const Torus& value() const { return value_; }
+
+  // The slot nearest this Dial's value, tolerating up to half a slot's
+  // worth of noise -- see margin(). Exact integer arithmetic throughout:
+  // the same narrowing "round to nearest via a half-ULP offset, then
+  // shift" trick tfhe/math/modswitch.hpp's own mod_switch already uses to
+  // move a Torus's raw value down to a smaller power-of-two modulus,
+  // applied here to shrink it to Resolution slots instead. Going through
+  // double here instead would silently lose bits once qbit exceeds
+  // double's 52-bit mantissa (e.g. ModTorus<64, uint64_t>), which is
+  // exactly the kind of noisy-decrypt-off-by-one this codec exists to not
+  // introduce.
+  constexpr uint32_t index() const {
+    constexpr uint32_t drop = qbit - k;
+    constexpr Word half = Word{1} << (drop - 1);
+    constexpr Word slot_mask = static_cast<Word>((Word{1} << k) - 1);
+
+    Word raw = static_cast<Word>(value_.value());
+    // raw + half can wrap Word's width when qbit is Word's full width
+    // (ModTorus's own "mod == 0" sentinel) -- harmless, since the extra
+    // bit carried past the top is an exact multiple of 2^k (== Resolution)
+    // that slot_mask discards next, same as mod_switch's own reasoning.
+    Word idx = static_cast<Word>((raw + half) >> drop) & slot_mask;
+    return static_cast<uint32_t>(idx);
+  }
+
+  constexpr bool operator==(const Dial& other) const {
+    return value_ == other.value_;
+  }
+
+  // Half a slot's width: the largest noise magnitude index() still
+  // resolves to the intended slot.
+  static constexpr Torus margin() { return Torus(1u, 2u * Resolution); }
+
+ private:
+  Torus value_;
+};
+
+#endif  // TFHE_DIAL_HPP

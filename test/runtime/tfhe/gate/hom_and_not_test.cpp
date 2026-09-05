@@ -2,6 +2,7 @@
 
 #include "algebra/utility/utility.hpp"
 
+#include "tfhe/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/operation/evaluator.hpp"
@@ -85,10 +86,18 @@ class HomAndNotCorrectnessTest
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.lhs = Torus(1u, 4u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
-            {.lhs = Torus(0u), .rhs = Torus(1u, 4u), .ref = rTorus(0u)},
-            {.lhs = Torus(1u, 4u), .rhs = Torus(0u), .ref = rTorus(1u, 4u)},
-            {.lhs = Torus(0u), .rhs = Torus(0u), .ref = rTorus(0)}};
+    return {{.lhs = Dial<4, Torus>(true).value(),
+             .rhs = Dial<4, Torus>(true).value(),
+             .ref = Dial<4, rTorus>(false).value()},
+            {.lhs = Dial<4, Torus>(false).value(),
+             .rhs = Dial<4, Torus>(true).value(),
+             .ref = Dial<4, rTorus>(false).value()},
+            {.lhs = Dial<4, Torus>(true).value(),
+             .rhs = Dial<4, Torus>(false).value(),
+             .ref = Dial<4, rTorus>(true).value()},
+            {.lhs = Dial<4, Torus>(false).value(),
+             .rhs = Dial<4, Torus>(false).value(),
+             .ref = Dial<4, rTorus>(false).value()}};
   }
 };
 
@@ -134,10 +143,10 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
     rTorus err = res - ref;
     double norm = infinity_norm(err);
 
-    // Output lives at {0, 1/4} mod 1; a wrong decode only happens past
-    // half that gap, so that's the margin "did it decode right" is
-    // judged against here.
-    const double decode_margin = double(rTorus(1u, 4u)) / 2;
+    // Output lives at Dial<4, rTorus>'s {0, 1/4} encoding; a wrong decode only
+    // happens past half that gap, so that's the margin "did it decode
+    // right" is judged against here.
+    const double decode_margin = double(Dial<4, rTorus>::margin());
 
     std::cout << "\n========================================\n";
     std::cout << "           HomAndNot Test\n";
