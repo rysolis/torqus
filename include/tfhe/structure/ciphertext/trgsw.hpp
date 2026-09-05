@@ -5,6 +5,7 @@
 #define TFHE_TRGSW_HPP
 
 #include <iostream>
+#include <vector>
 
 #include "primitive/concept/primitive.hpp"
 #include "primitive/torus.hpp"
@@ -38,7 +39,11 @@ class TRGSW {
   }
 
  private:
-  Vector<TRLWE<Torus, N>, 2 * l> trlwe_rows_;
+  // TRLWE isn't a numeric primitive Vector<T,Size> is built for (no
+  // raw_value_type/proxy storage) -- std::vector holds it out-of-line
+  // instead, keeping TRGSW itself small and this move O(1).
+  std::vector<TRLWE<Torus, N>> trlwe_rows_ =
+      std::vector<TRLWE<Torus, N>>(2 * l);
 };
 
 template <typename To, typename From, uint32_t N, uint32_t l>

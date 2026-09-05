@@ -14,14 +14,18 @@ template <typename Torus, uint32_t n, uint32_t t, uint32_t m>
 struct Serde<KeySwitchKey<Torus, n, t, m>> {
   static void write(Writer& w, const KeySwitchKey<Torus, n, t, m>& key) {
     for (uint32_t i = 0; i < m; ++i) {
-      Serde<Vector<TLWE<Torus, n>, t>>::write(w, key[i]);
+      for (uint32_t j = 0; j < t; ++j) {
+        Serde<TLWE<Torus, n>>::write(w, key[i][j]);
+      }
     }
   }
 
   static KeySwitchKey<Torus, n, t, m> read(Reader& r) {
     KeySwitchKey<Torus, n, t, m> key;
     for (uint32_t i = 0; i < m; ++i) {
-      key[i] = Serde<Vector<TLWE<Torus, n>, t>>::read(r);
+      for (uint32_t j = 0; j < t; ++j) {
+        key[i][j] = Serde<TLWE<Torus, n>>::read(r);
+      }
     }
     return key;
   }

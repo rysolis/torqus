@@ -4,9 +4,9 @@
 #ifndef TFHE_KEY_SWITCH_KEY_HPP
 #define TFHE_KEY_SWITCH_KEY_HPP
 
-#include "primitive/concept/torus.hpp"
+#include <vector>
 
-#include "algebra/vector.hpp"
+#include "primitive/concept/torus.hpp"
 
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
@@ -17,17 +17,21 @@ template <torus_concept Torus, uint32_t n, uint32_t t, uint32_t m>
 class KeySwitchKey {
  public:
   KeySwitchKey() = default;
-  Vector<TLWE<Torus, n>, t>& operator[](size_t idx) noexcept {
+  std::vector<TLWE<Torus, n>>& operator[](size_t idx) noexcept {
     return ks_[idx];
   }
-  const Vector<TLWE<Torus, n>, t>& operator[](size_t idx) const noexcept {
+  const std::vector<TLWE<Torus, n>>& operator[](size_t idx) const noexcept {
     return ks_[idx];
   }
 
   const void* identity() const noexcept { return ks_[0][0].identity(); }
 
  private:
-  Vector<Vector<TLWE<Torus, n>, t>, m> ks_;
+  // TLWE isn't a numeric primitive Vector<T,Size> is built for -- see
+  // trgsw.hpp's own comment.
+  std::vector<std::vector<TLWE<Torus, n>>> ks_ =
+      std::vector<std::vector<TLWE<Torus, n>>>(m,
+                                               std::vector<TLWE<Torus, n>>(t));
 };
 
 namespace key_switch_key {

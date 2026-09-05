@@ -6,10 +6,9 @@
 
 #include <cstdint>
 #include <random>
+#include <vector>
 
 #include "primitive/concept/torus.hpp"
-
-#include "algebra/vector.hpp"
 
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
@@ -34,7 +33,9 @@ class PublicKey {
   }
 
  private:
-  Vector<TLWE<Torus, n>, PkSamples> samples_;
+  // TLWE isn't a numeric primitive Vector<T,Size> is built for -- see
+  // trgsw.hpp's own comment.
+  std::vector<TLWE<Torus, n>> samples_ = std::vector<TLWE<Torus, n>>(PkSamples);
 };
 
 namespace public_key {

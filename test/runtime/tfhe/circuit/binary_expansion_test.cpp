@@ -3,10 +3,9 @@
 
 #include <array>
 #include <iomanip>
+#include <vector>
 
 #include "primitive/torus.hpp"
-
-#include "algebra/vector.hpp"
 
 #include "tfhe/bit.hpp"
 #include "tfhe/boundary.hpp"
@@ -118,9 +117,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Arrange
     // ==================================
-    Vector<TLWE<typename Lwe::torus_type, Lwe::n>, 2> operand_ct;
-    operand_ct[0] = boundary.lift(tc.a).ready();
-    operand_ct[1] = boundary.lift(tc.b).ready();
+    std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
+    operand_ct.push_back(boundary.lift(tc.a).ready());
+    operand_ct.push_back(boundary.lift(tc.b).ready());
 
     // ==================================
     // Act
