@@ -4,6 +4,7 @@
 #include "tfhe/dial.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
+#include "tfhe/scope.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
 namespace bit_test {
@@ -26,11 +27,7 @@ class BitTest : public ::testing::Test {
   using Kst = bit_test::Kst;
 
   using Torus = typename Lwe::torus_type;
-  static constexpr uint32_t n = Lwe::n;
-
   using rTorus = typename Rlwe::torus_type;
-  static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t t = Kst::t;
 
   // Bit's ciphertexts must be encrypted from -- and decoded through -- this
   // plaintext convention: 4 slots, not 2, because tfhe::gate::HomAnd/Or/
@@ -49,18 +46,20 @@ class BitTest : public ::testing::Test {
   Runtime<Lwe> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime_;
 
-  BootstrapKey<rTorus, N, Decomp::l, n> BK_;
-  KeySwitchKey<Torus, n, t, N> KSK_;
+  Circuit<Lwe, Rlwe, Decomp> circuit_;
+  Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
     lwe_runtime_ = Runtime<Lwe>(eng_);
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>>(eng_);
 
-    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime_.holder().get());
-    KSK_ = lwe_runtime_
-               .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                   rlwe_runtime_.holder().get());
+    circuit_ = Circuit<Lwe, Rlwe, Decomp>(
+        rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+            lwe_runtime_.holder().get()));
+    relay_ = Relay<Lwe, Rlwe, Kst>(
+        lwe_runtime_
+            .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+                rlwe_runtime_.holder().get()));
   }
 };
 
@@ -80,31 +79,30 @@ TEST_F(BitTest, GateResultIsNotReady) {
   Torus b = Plain(true).value();
   Bit<Lwe, Rlwe> b_ct = lwe_runtime_.encrypt(b);
 
-  Bit<Lwe, Rlwe> result_ct = tfhe::bit::And<Kst, Decomp>(a_ct, b_ct, BK_, KSK_);
+  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
   rTorus decrypted = rlwe_runtime_.decrypt(result_ct.pending_ciphertext());
   EXPECT_TRUE(RPlain(decrypted).index());
 }
 
-// Calling materialize() explicitly is a valid way to normalize a Bit --
-// the caller's own way to control when that step happens rather than
-// leaving it to the next gate call.
+// Relay::materialize() is how a caller normalizes a Bit back to
+// Lwe-shaped -- Circuit's And/Or/AndNot/Xor never do this on their own.
 TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   Torus a = Plain(true).value();
   Bit<Lwe, Rlwe> a_ct = lwe_runtime_.encrypt(a);
   Torus b = Plain(true).value();
   Bit<Lwe, Rlwe> b_ct = lwe_runtime_.encrypt(b);
 
-  Bit<Lwe, Rlwe> result_ct = tfhe::bit::And<Kst, Decomp>(a_ct, b_ct, BK_, KSK_);
-  result_ct.materialize<Kst>(KSK_);
+  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
+  relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
   Torus decrypted = lwe_runtime_.decrypt(result_ct.ready_ciphertext());
   EXPECT_TRUE(Plain(decrypted).index());
 
   // A second call is a harmless no-op.
-  result_ct.materialize<Kst>(KSK_);
+  relay_.materialize(result_ct);
   EXPECT_TRUE(result_ct.is_ready());
 }
 
@@ -114,12 +112,9 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   Torus f = Plain(false).value();
   Bit<Lwe, Rlwe> f_ct = lwe_runtime_.encrypt(f);
 
-  Bit<Lwe, Rlwe> or_result_ct =
-      tfhe::bit::Or<Kst, Decomp>(t_ct, f_ct, BK_, KSK_);
-  Bit<Lwe, Rlwe> and_not_result_ct =
-      tfhe::bit::AndNot<Kst, Decomp>(t_ct, f_ct, BK_, KSK_);
-  Bit<Lwe, Rlwe> xor_result_ct =
-      tfhe::bit::Xor<Kst, Decomp>(t_ct, f_ct, BK_, KSK_);
+  Bit<Lwe, Rlwe> or_result_ct = circuit_.Or(t_ct, f_ct);
+  Bit<Lwe, Rlwe> and_not_result_ct = circuit_.AndNot(t_ct, f_ct);
+  Bit<Lwe, Rlwe> xor_result_ct = circuit_.Xor(t_ct, f_ct);
 
   rTorus or_decrypted =
       rlwe_runtime_.decrypt(or_result_ct.pending_ciphertext());
@@ -132,10 +127,10 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   EXPECT_TRUE(RPlain(xor_decrypted).index());
 }
 
-// The whole point of Bit: chaining gates needs no explicit KeySwitch call
-// from the caller -- hom_and here materializes its not-yet-ready operand
-// (the output of the first hom_and) automatically.
-TEST_F(BitTest, ChainingTwoGatesRequiresNoExplicitMaterialize) {
+// Circuit's And/Or/AndNot/Xor require both operands already Lwe-shaped --
+// chaining a gate's own (Rlwe-shaped) output into another gate call needs
+// an explicit Relay::materialize() first.
+TEST_F(BitTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   Torus a = Plain(true).value();
   Bit<Lwe, Rlwe> a_ct = lwe_runtime_.encrypt(a);
   Torus b = Plain(true).value();
@@ -144,30 +139,13 @@ TEST_F(BitTest, ChainingTwoGatesRequiresNoExplicitMaterialize) {
   Bit<Lwe, Rlwe> c_ct = lwe_runtime_.encrypt(c);
 
   // (a AND b) AND c == false
-  Bit<Lwe, Rlwe> ab_ct = tfhe::bit::And<Kst, Decomp>(a_ct, b_ct, BK_, KSK_);
+  Bit<Lwe, Rlwe> ab_ct = circuit_.And(a_ct, b_ct);
   ASSERT_FALSE(ab_ct.is_ready());
+  relay_.materialize(ab_ct);
+  ASSERT_TRUE(ab_ct.is_ready());
 
-  Bit<Lwe, Rlwe> abc_ct = tfhe::bit::And<Kst, Decomp>(ab_ct, c_ct, BK_, KSK_);
+  Bit<Lwe, Rlwe> abc_ct = circuit_.And(ab_ct, c_ct);
 
   rTorus decrypted = rlwe_runtime_.decrypt(abc_ct.pending_ciphertext());
   EXPECT_FALSE(RPlain(decrypted).index());
-}
-
-// hom_and takes both operands by const& and never mutates them --
-// materialize()'s effect inside detail::combine() stays local to that
-// call.
-TEST_F(BitTest, GateCallsDoNotMutateTheirOperands) {
-  Torus a0 = Plain(true).value();
-  Bit<Lwe, Rlwe> a0_ct = lwe_runtime_.encrypt(a0);
-  Torus b0 = Plain(true).value();
-  Bit<Lwe, Rlwe> b0_ct = lwe_runtime_.encrypt(b0);
-  Bit<Lwe, Rlwe> a_ct = tfhe::bit::And<Kst, Decomp>(a0_ct, b0_ct, BK_, KSK_);
-  ASSERT_FALSE(a_ct.is_ready());
-
-  Torus b = Plain(true).value();
-  Bit<Lwe, Rlwe> b_ct = lwe_runtime_.encrypt(b);
-  Bit<Lwe, Rlwe> unused_ct = tfhe::bit::And<Kst, Decomp>(a_ct, b_ct, BK_, KSK_);
-  (void)unused_ct;
-
-  EXPECT_FALSE(a_ct.is_ready());
 }
