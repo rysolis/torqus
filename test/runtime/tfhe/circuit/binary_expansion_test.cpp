@@ -1,6 +1,7 @@
 #include "tfhe/circuit/binary_expansion.hpp"
 #include <gtest/gtest.h>
 
+#include <array>
 #include <iomanip>
 
 #include "primitive/torus.hpp"
@@ -8,8 +9,8 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/bit.hpp"
+#include "tfhe/boundary.hpp"
 #include "tfhe/feature.hpp"
-#include "tfhe/lift.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/scope.hpp"
@@ -107,8 +108,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using Decomp = typename TypeParam::context::dcp_params;
   using Kst = typename TypeParam::context::kst_params;
 
-  Lift<4, Lwe, Rlwe, Tracking> lift(this->lwe_runtime_);
-  Drop<4, Lwe, Rlwe, Decomp, Tracking> drop(this->rlwe_runtime_);
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                    this->rlwe_runtime_);
 
   tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
       this->circuit_, this->relay_);
@@ -118,14 +119,13 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // Arrange
     // ==================================
     Vector<TLWE<typename Lwe::torus_type, Lwe::n>, 2> operand_ct;
-    operand_ct[0] = lift.encrypt(tc.a).ready();
-    operand_ct[1] = lift.encrypt(tc.b).ready();
+    operand_ct[0] = boundary.lift(tc.a).ready();
+    operand_ct[1] = boundary.lift(tc.b).ready();
 
     // ==================================
     // Act
     // ==================================
-    Vector<TLWE<typename Rlwe::torus_type, Rlwe::N>, 4> res_ct =
-        expansion.exec_impl(operand_ct);
+    std::array<Bit<Lwe, Rlwe>, 4> res_ct = expansion.exec_impl(operand_ct);
 
     // ==================================
     // Assert
@@ -140,7 +140,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
     for (uint32_t i = 0; i < 4; ++i) {
-      bool res = drop.decrypt(Bit<Lwe, Rlwe>(res_ct[i]));
+      bool res = boundary.drop(res_ct[i]);
       bool expected = (i == tc.hot);
       EXPECT_EQ(res, expected);
     }

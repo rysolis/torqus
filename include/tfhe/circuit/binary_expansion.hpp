@@ -4,6 +4,7 @@
 #ifndef TFHE_BINARY_EXPANSION_HPP
 #define TFHE_BINARY_EXPANSION_HPP
 
+#include <array>
 #include <cstdint>
 #include <utility>
 
@@ -19,7 +20,10 @@
 // HomAnd/HomAndNot through Bit<Lwe, Rlwe>, materializing between steps
 // (via this instance's own Relay/Circuit); only the last step per slot
 // stays Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out
-// shape a single gate does.
+// shape a single gate does. Output is Bit, not raw TLWE, so chaining this
+// circuit's result into another Circuit call needs no manual rewrapping
+// (Vector<T,Size> itself can't hold Bit -- it stores element types as a
+// flat raw_value_type buffer, which Bit's std::variant state doesn't fit).
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -42,8 +46,8 @@ class BinaryExpansion {
   // (each step materializes the previous Bit before the next gate call),
   // but slots are independent -- farm them across threads instead of
   // calling exec_impl directly if needed.
-  TLWE<rTorus, N> exec_slot_impl(uint32_t h,
-                                 const Vector<TLWE<Torus, n>, k>& v) const {
+  Bit<Lwe, Rlwe> exec_slot_impl(uint32_t h,
+                                const Vector<TLWE<Torus, n>, k>& v) const {
     TLWE<Torus, n> w;
     w.b() = Torus(1u, 4u);
     Bit<Lwe, Rlwe> acc = w;
@@ -54,19 +58,21 @@ class BinaryExpansion {
       relay_.materialize(acc);
       acc = bit ? circuit_.And(acc, vi) : circuit_.AndNot(acc, vi);
     }
-    return acc.pending();
+    return acc;
   }
 
-  Vector<TLWE<rTorus, N>, H> exec_impl(
+  std::array<Bit<Lwe, Rlwe>, H> exec_impl(
       const Vector<TLWE<Torus, n>, k>& v) const {
-    Vector<TLWE<rTorus, N>, H> res;
-    for (uint32_t h = 0; h < H; ++h) {
-      res[h] = exec_slot_impl(h, v);
-    }
-    return res;
+    return exec_impl_impl(v, std::make_index_sequence<H>{});
   }
 
  private:
+  template <size_t... Hs>
+  std::array<Bit<Lwe, Rlwe>, H> exec_impl_impl(
+      const Vector<TLWE<Torus, n>, k>& v, std::index_sequence<Hs...>) const {
+    return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
+  }
+
   Circuit<Lwe, Rlwe, Decomp> circuit_;
   Relay<Lwe, Rlwe, Kst> relay_;
 };

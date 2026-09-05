@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "tfhe/bit.hpp"
+#include "tfhe/boundary.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_or.hpp"
-#include "tfhe/lift.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/params.hpp"
@@ -91,15 +91,15 @@ TYPED_TEST(HomOrCorrectnessTest, VerifyCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
 
-  Lift<4, Lwe, Rlwe, Tracking> lift(this->lwe_runtime_);
-  Drop<4, Lwe, Rlwe, Decomp, Tracking> drop(this->rlwe_runtime_);
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                    this->rlwe_runtime_);
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
-    Bit<Lwe, Rlwe> lhs_ct = lift.encrypt(tc.lhs);
-    Bit<Lwe, Rlwe> rhs_ct = lift.encrypt(tc.rhs);
+    Bit<Lwe, Rlwe> lhs_ct = boundary.lift(tc.lhs);
+    Bit<Lwe, Rlwe> rhs_ct = boundary.lift(tc.rhs);
 
     // ==================================
     // Act
@@ -110,7 +110,7 @@ TYPED_TEST(HomOrCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Assert
     // ==================================
-    bool res = drop.decrypt(res_ct);
+    bool res = boundary.drop(res_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "           HomOr Test\n";
