@@ -77,8 +77,8 @@ class HomOrCorrectnessTest : public HomOrFixture<typename Config::context> {
   using Torus = typename Base::Torus;
   using rTorus = typename Base::rTorus;
 
-  using Bit = Dial<2, Torus>;
-  using rBit = Dial<2, rTorus>;
+  using Bit = Dial<4, Torus>;
+  using rBit = Dial<4, rTorus>;
 
   struct TestCase {
     Torus lhs;
@@ -108,7 +108,7 @@ TYPED_TEST(HomOrCorrectnessTest, VerifyCorrectness) {
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
-  using rBit = Dial<2, rTorus>;
+  using rBit = Dial<4, rTorus>;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
