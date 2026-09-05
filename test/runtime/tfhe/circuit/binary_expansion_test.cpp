@@ -5,7 +5,6 @@
 
 #include "primitive/torus.hpp"
 
-#include "algebra/utility/utility.hpp"
 #include "algebra/vector.hpp"
 
 #include "tfhe/dial.hpp"
@@ -91,35 +90,28 @@ class BinaryExpansionCorrectnessTest
   using Base = BinaryExpansionFixture<typename Config::context>;
 
   using Torus = Base::Torus;
-  using rTorus = Base::rTorus;
 
+  // BinaryExpansion<4, ...> turns a 2-bit operand into a one-hot 4-output
+  // vector -- exactly one output (at index `hot`) decodes to Dial's true
+  // slot, the rest to false.
   struct TestCase {
     Vector<Torus, 2> operand;
-    Vector<rTorus, 4> ref;
+    uint32_t hot;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {
-        {.operand = {Dial<4, Torus>(false).value(),
-                     Dial<4, Torus>(false).value()},
-         .ref = {Dial<4, rTorus>(true).value(), Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(false).value()}},
-        {.operand = {Dial<4, Torus>(true).value(),
-                     Dial<4, Torus>(false).value()},
-         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(true).value(),
-                 Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(false).value()}},
-        {.operand = {Dial<4, Torus>(false).value(),
-                     Dial<4, Torus>(true).value()},
-         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(true).value(),
-                 Dial<4, rTorus>(false).value()}},
-        {.operand = {Dial<4, Torus>(true).value(),
-                     Dial<4, Torus>(true).value()},
-         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(false).value(),
-                 Dial<4, rTorus>(true).value()}}};
+    return {{.operand = {Dial<4, Torus>(false).value(),
+                         Dial<4, Torus>(false).value()},
+             .hot = 0},
+            {.operand = {Dial<4, Torus>(true).value(),
+                         Dial<4, Torus>(false).value()},
+             .hot = 1},
+            {.operand = {Dial<4, Torus>(false).value(),
+                         Dial<4, Torus>(true).value()},
+             .hot = 2},
+            {.operand = {Dial<4, Torus>(true).value(),
+                         Dial<4, Torus>(true).value()},
+             .hot = 3}};
   }
 };
 
@@ -158,34 +150,23 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Assert
     // ==================================
-    // compute reference result
-    Vector<rTorus, 4> ref = tc.ref;
-
-    // compute actual result
-    Vector<rTorus, 4> res;
-    res[0] = this->rlwe_runtime_.decrypt(res_ct[0]);
-    res[1] = this->rlwe_runtime_.decrypt(res_ct[1]);
-    res[2] = this->rlwe_runtime_.decrypt(res_ct[2]);
-    res[3] = this->rlwe_runtime_.decrypt(res_ct[3]);
-
-    Vector<rTorus, 4> err = res - ref;
-    double norm = infinity_norm(err);
-
-    // Output lives at Dial<4, rTorus>'s {0, 1/4} encoding; a wrong decode only
-    // happens past half that gap, so that's the margin "did it decode
-    // right" is judged against here.
-    const double decode_margin = double(Dial<4, rTorus>::margin());
-
     std::cout << "\n========================================\n";
     std::cout << "         BinaryExpansion Test\n";
     std::cout << "========================================\n";
 
     std::cout << std::left;
     std::cout << std::setw(14) << "operand" << ": " << operand << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
-    std::cout << std::setw(14) << "actual" << ": " << res << "\n";
-    std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
+    std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
-    EXPECT_LE(norm, decode_margin);
+    // Dial::index() already tolerates noise up to margin() on its own, so
+    // there is no need to separately compute an infinity norm and compare
+    // it against that margin by hand -- decoding each output directly says
+    // whether it landed on the right slot.
+    for (uint32_t i = 0; i < 4; ++i) {
+      rTorus decrypted = this->rlwe_runtime_.decrypt(res_ct[i]);
+      uint32_t index = Dial<4, rTorus>(decrypted).index();
+      uint32_t expected = (i == tc.hot) ? 1u : 0u;
+      EXPECT_EQ(index, expected);
+    }
   }
 }
