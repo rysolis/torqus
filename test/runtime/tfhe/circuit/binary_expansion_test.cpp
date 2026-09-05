@@ -11,6 +11,7 @@
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
+#include "tfhe/scope.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
 namespace binary_expansion_test {
@@ -58,28 +59,26 @@ class BinaryExpansionFixture : public ::testing::Test {
   using rTorus = Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Decomp::l;
-  static constexpr uint32_t t = Kst::t;
-
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Lwe, Tracking> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
-  BootstrapKey<rTorus, N, l, n> BK_;
-  KeySwitchKey<Torus, n, t, N> KSK_;
+  Circuit<Lwe, Rlwe, Decomp> circuit_;
+  Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
     lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
-    // Prepare Bootstrapkey
-    BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime_.holder().get());
-    KSK_ = lwe_runtime_
-               .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                   rlwe_runtime_.holder().get());
+    circuit_ = Circuit<Lwe, Rlwe, Decomp>(
+        rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+            lwe_runtime_.holder().get()));
+    relay_ = Relay<Lwe, Rlwe, Kst>(
+        lwe_runtime_
+            .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+                rlwe_runtime_.holder().get()));
   }
 };
 
@@ -130,6 +129,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
 
+  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
+      this->circuit_, this->relay_);
+
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
@@ -143,9 +145,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    Vector<TLWE<rTorus, N>, 4> res_ct =
-        tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>::exec_impl(
-            operand_ct, this->KSK_, this->BK_);
+    Vector<TLWE<rTorus, N>, 4> res_ct = expansion.exec_impl(operand_ct);
 
     // ==================================
     // Assert
