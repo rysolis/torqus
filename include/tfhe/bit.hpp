@@ -30,23 +30,31 @@ class Bit {
   Bit(TLWE<Torus, n> ciphertext) : state_(std::move(ciphertext)) {}
   Bit(TLWE<rTorus, N> ciphertext) : state_(std::move(ciphertext)) {}
 
-  // True once this is Lwe-shaped -- safe to read via ready_ciphertext()
+  // True once this is Lwe-shaped -- safe to read via ready()
   // without a materialize() first.
   bool is_ready() const {
     return std::holds_alternative<TLWE<Torus, n>>(state_);
   }
 
-  // Valid only when is_ready().
-  const TLWE<Torus, n>& ready_ciphertext() const {
+  // Valid only when is_ready(). The && overload moves out of a temporary
+  // Bit instead of copying (e.g. `lift.encrypt(v).ready()`).
+  const TLWE<Torus, n>& ready() const& {
     return std::get<TLWE<Torus, n>>(state_);
+  }
+  TLWE<Torus, n>&& ready() && {
+    return std::get<TLWE<Torus, n>>(std::move(state_));
   }
 
   // Valid only when !is_ready(). Still decryptable directly under the
   // Rlwe secret's own coefficients (see Cryptor's sample-extracted
   // decrypt overload) -- a circuit's final output can read this straight
-  // off without paying for a materialize() it doesn't need.
-  const TLWE<rTorus, N>& pending_ciphertext() const {
+  // off without paying for a materialize() it doesn't need. The &&
+  // overload moves out of a temporary Bit instead of copying.
+  const TLWE<rTorus, N>& pending() const& {
     return std::get<TLWE<rTorus, N>>(state_);
+  }
+  TLWE<rTorus, N>&& pending() && {
+    return std::get<TLWE<rTorus, N>>(std::move(state_));
   }
 
   // Converts in place to Lwe-shaped -- a no-op if already is_ready().
@@ -56,7 +64,7 @@ class Bit {
   void materialize(const KeySwitchKey<Torus, n, Kst::t, N>& ksk) {
     if (is_ready()) return;
     state_ = tfhe::leveled::KeySwitch<ExtractedLwe<Rlwe>, Lwe, Kst>::exec_impl(
-        pending_ciphertext(), ksk);
+        pending(), ksk);
   }
 
  private:

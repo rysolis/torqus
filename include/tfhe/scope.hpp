@@ -37,26 +37,26 @@ class Circuit {
   Bit<Lwe, Rlwe> And(const Bit<Lwe, Rlwe>& lhs,
                      const Bit<Lwe, Rlwe>& rhs) const {
     return Bit<Lwe, Rlwe>(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready_ciphertext(), rhs.ready_ciphertext(), bk_));
+        lhs.ready(), rhs.ready(), bk_));
   }
 
   Bit<Lwe, Rlwe> Or(const Bit<Lwe, Rlwe>& lhs,
                     const Bit<Lwe, Rlwe>& rhs) const {
     return Bit<Lwe, Rlwe>(tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready_ciphertext(), rhs.ready_ciphertext(), bk_));
+        lhs.ready(), rhs.ready(), bk_));
   }
 
   // lhs AND NOT rhs.
   Bit<Lwe, Rlwe> AndNot(const Bit<Lwe, Rlwe>& lhs,
                         const Bit<Lwe, Rlwe>& rhs) const {
     return Bit<Lwe, Rlwe>(tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready_ciphertext(), rhs.ready_ciphertext(), bk_));
+        lhs.ready(), rhs.ready(), bk_));
   }
 
   Bit<Lwe, Rlwe> Xor(const Bit<Lwe, Rlwe>& lhs,
                      const Bit<Lwe, Rlwe>& rhs) const {
     return Bit<Lwe, Rlwe>(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready_ciphertext(), rhs.ready_ciphertext(), bk_));
+        lhs.ready(), rhs.ready(), bk_));
   }
 
  private:

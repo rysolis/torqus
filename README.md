@@ -74,6 +74,7 @@ the umbrella header that pulls in its subdirectory.
 | Gates | `HomAnd`, `HomAndNot`, `HomOr`, `HomXor` | [`tfhe/gate.hpp`](include/tfhe/gate.hpp) |
 | Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/dial.hpp`](include/tfhe/dial.hpp) |
 | Ciphertext state | `Bit` (hides whether a ciphertext is Lwe- or Rlwe-shaped), `Circuit`/`Relay` (gate calls and materializing as method calls, not raw key arguments) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp), [`tfhe/scope.hpp`](include/tfhe/scope.hpp) |
+| Plaintext/ciphertext boundary | `Lift` (encrypt-only: plaintext -> `Bit`), `Drop` (decrypt-only: `Bit` -> plaintext) -- each holds a `Runtime` privately, exposing only its one direction | [`tfhe/lift.hpp`](include/tfhe/lift.hpp) |
 | Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Bit`/`Circuit`/`Relay`) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
 | Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
 
@@ -240,14 +241,16 @@ into your build even if your project also has `BUILD_TESTING` on.
 ### Example: a homomorphic AND gate
 
 Encrypt two bits under a `Runtime` and combine them with a `Circuit`:
-[`Dial`](include/tfhe/dial.hpp) names plaintext values by slot instead of
-spelling out raw `Torus` fractions, [`Bit`](include/tfhe/bit.hpp) hides
-whether a ciphertext is Lwe- or Rlwe-shaped, and
-[`Circuit`](include/tfhe/scope.hpp) turns a gate call into a method call
-that doesn't need `bk` (or `<Decomp>`) spelled out by hand. Everything
-below comes in through the umbrella headers at `tfhe/`'s root (see
-[Project Structure](DEVELOPING.md#project-structure)) rather than reaching into the
-subdirectories those headers pull in for you:
+[`Bit`](include/tfhe/bit.hpp) hides whether a ciphertext is Lwe- or
+Rlwe-shaped, [`Circuit`](include/tfhe/scope.hpp) turns a gate call into a
+method call that doesn't need `bk` (or `<Decomp>`) spelled out by hand --
+its own signature is the guarantee that combining ciphertexts never
+touches the secret -- and [`Lift`/`Drop`](include/tfhe/lift.hpp) each
+hold a `Runtime` privately so whoever holds one can only encrypt or only
+decrypt, not both. Everything below comes in through the umbrella
+headers at `tfhe/`'s root (see [Project
+Structure](DEVELOPING.md#project-structure)) rather than reaching into
+the subdirectories those headers pull in for you:
 
 ```cpp
 #include <random>
@@ -255,7 +258,7 @@ subdirectories those headers pull in for you:
 #include "primitive.hpp"
 
 #include "tfhe/bit.hpp"
-#include "tfhe/dial.hpp"
+#include "tfhe/lift.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/scope.hpp"
@@ -277,23 +280,17 @@ int main() {
       rlwe_runtime.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
           lwe_runtime.holder().get()));
 
-  // true/false at indices 1/0, matching HomAnd's {0, 1/4} message space.
-  using Plain = Dial<4, Torus>;
+  // 4 slots, true/false at indices 1/0, matching HomAnd's {0, 1/4}
+  // message space.
+  Lift<4, Lwe, Rlwe> lift(lwe_runtime);
+  Drop<4, Lwe, Rlwe, Decomp> drop(rlwe_runtime);
 
-  // plaintext -> ciphertext
-  Torus a = Plain(true).value();
-  Torus b = Plain(false).value();
-  Bit<Lwe, Rlwe> a_ct = lwe_runtime.encrypt(a);
-  Bit<Lwe, Rlwe> b_ct = lwe_runtime.encrypt(b);
+  Bit<Lwe, Rlwe> a_ct = lift.encrypt(true);
+  Bit<Lwe, Rlwe> b_ct = lift.encrypt(false);
 
-  // ciphertext -> ciphertext (Rlwe-shaped: HomAnd's own domain)
   Bit<Lwe, Rlwe> result_ct = circuit.And(a_ct, b_ct);
 
-  // ciphertext -> plaintext
-  using rTorus = typename Rlwe::torus_type;
-  using RPlain = Dial<4, rTorus>;
-  rTorus result = rlwe_runtime.decrypt(result_ct.pending_ciphertext());
-  bool plaintext = RPlain(result).index();
+  bool plaintext = drop.decrypt(result_ct);
 }
 ```
 

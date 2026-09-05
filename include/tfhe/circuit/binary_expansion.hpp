@@ -54,7 +54,7 @@ class BinaryExpansion {
       relay_.materialize(acc);
       acc = bit ? circuit_.And(acc, vi) : circuit_.AndNot(acc, vi);
     }
-    return acc.pending_ciphertext();
+    return acc.pending();
   }
 
   Vector<TLWE<rTorus, N>, H> exec_impl(

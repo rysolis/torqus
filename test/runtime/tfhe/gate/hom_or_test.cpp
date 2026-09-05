@@ -1,10 +1,9 @@
 #include <gtest/gtest.h>
 
-#include "algebra/utility/utility.hpp"
-
-#include "tfhe/dial.hpp"
+#include "tfhe/bit.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_or.hpp"
+#include "tfhe/lift.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/params.hpp"
@@ -47,7 +46,6 @@ class HomOrFixture : public ::testing::Test {
   using Torus = typename Lwe::torus_type;
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
-  static constexpr uint32_t M = 2 * N;
 
   static constexpr uint32_t l = Decomp::l;
 
@@ -72,30 +70,17 @@ class HomOrFixture : public ::testing::Test {
 template <typename Config>
 class HomOrCorrectnessTest : public HomOrFixture<typename Config::context> {
  protected:
-  using Base = HomOrFixture<typename Config::context>;
-
-  using Torus = typename Base::Torus;
-  using rTorus = typename Base::rTorus;
-
   struct TestCase {
-    Torus lhs;
-    Torus rhs;
-    rTorus ref;
+    bool lhs;
+    bool rhs;
+    bool ref;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.lhs = Dial<4, Torus>(true).value(),
-             .rhs = Dial<4, Torus>(true).value(),
-             .ref = Dial<4, rTorus>(true).value()},
-            {.lhs = Dial<4, Torus>(false).value(),
-             .rhs = Dial<4, Torus>(true).value(),
-             .ref = Dial<4, rTorus>(true).value()},
-            {.lhs = Dial<4, Torus>(true).value(),
-             .rhs = Dial<4, Torus>(false).value(),
-             .ref = Dial<4, rTorus>(true).value()},
-            {.lhs = Dial<4, Torus>(false).value(),
-             .rhs = Dial<4, Torus>(false).value(),
-             .ref = Dial<4, rTorus>(false).value()}};
+    return {{.lhs = true, .rhs = true, .ref = true},
+            {.lhs = false, .rhs = true, .ref = true},
+            {.lhs = true, .rhs = false, .ref = true},
+            {.lhs = false, .rhs = false, .ref = false}};
   }
 };
 
@@ -106,58 +91,37 @@ TYPED_TEST(HomOrCorrectnessTest, VerifyCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
 
-  using Torus = typename Lwe::torus_type;
-  constexpr uint32_t n = Lwe::n;
-
-  using rTorus = typename Rlwe::torus_type;
-  constexpr uint32_t N = Rlwe::N;
+  Lift<4, Lwe, Rlwe, Tracking> lift(this->lwe_runtime_);
+  Drop<4, Lwe, Rlwe, Decomp, Tracking> drop(this->rlwe_runtime_);
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
-    // Prepare TLWE
-    Torus lhs = tc.lhs;
-    Torus rhs = tc.rhs;
-    TLWE<Torus, n> lhs_ct = this->lwe_runtime_.encrypt(lhs);
-    TLWE<Torus, n> rhs_ct = this->lwe_runtime_.encrypt(rhs);
+    Bit<Lwe, Rlwe> lhs_ct = lift.encrypt(tc.lhs);
+    Bit<Lwe, Rlwe> rhs_ct = lift.encrypt(tc.rhs);
 
     // ==================================
     // Act
     // ==================================
-    TLWE<rTorus, N> res_ct = tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs_ct, rhs_ct, this->BK_);
+    Bit<Lwe, Rlwe> res_ct(tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
+        lhs_ct.ready(), rhs_ct.ready(), this->BK_));
 
     // ==================================
     // Assert
     // ==================================
-    // compute reference result
-    rTorus ref = tc.ref;
-
-    // comput actual result
-    rTorus res = this->rlwe_runtime_.decrypt(res_ct);
-
-    rTorus err = res - ref;
-    double norm = infinity_norm(err);
-
-    // Output lives at Dial<4, rTorus>'s {0, 1/4} encoding; a wrong decode only
-    // happens past half that gap, so that's the margin "did it decode
-    // right" is judged against here.
-    const double decode_margin = double(Dial<4, rTorus>::margin());
+    bool res = drop.decrypt(res_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "           HomOr Test\n";
     std::cout << "========================================\n";
 
     std::cout << std::left;
-    std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
-    std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
-    std::cout << std::setw(14) << "expected" << ": " << ref << " ("
-              << double(ref) << ")\n";
-    std::cout << std::setw(14) << "actual" << ": " << res << " (" << double(res)
-              << ")\n";
-    std::cout << std::setw(14) << "norm         " << ": " << norm << '\n';
+    std::cout << std::setw(14) << "lhs" << ": " << tc.lhs << "\n";
+    std::cout << std::setw(14) << "rhs" << ": " << tc.rhs << "\n";
+    std::cout << std::setw(14) << "expected" << ": " << tc.ref << "\n";
+    std::cout << std::setw(14) << "actual" << ": " << res << "\n";
 
-    EXPECT_LE(norm, decode_margin);
+    EXPECT_EQ(res, tc.ref);
   }
 }

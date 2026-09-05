@@ -82,7 +82,7 @@ TEST_F(BitTest, GateResultIsNotReady) {
   Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
-  rTorus decrypted = rlwe_runtime_.decrypt(result_ct.pending_ciphertext());
+  rTorus decrypted = rlwe_runtime_.decrypt(result_ct.pending());
   EXPECT_TRUE(RPlain(decrypted).index());
 }
 
@@ -98,7 +98,7 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
-  Torus decrypted = lwe_runtime_.decrypt(result_ct.ready_ciphertext());
+  Torus decrypted = lwe_runtime_.decrypt(result_ct.ready());
   EXPECT_TRUE(Plain(decrypted).index());
 
   // A second call is a harmless no-op.
@@ -116,14 +116,11 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   Bit<Lwe, Rlwe> and_not_result_ct = circuit_.AndNot(t_ct, f_ct);
   Bit<Lwe, Rlwe> xor_result_ct = circuit_.Xor(t_ct, f_ct);
 
-  rTorus or_decrypted =
-      rlwe_runtime_.decrypt(or_result_ct.pending_ciphertext());
+  rTorus or_decrypted = rlwe_runtime_.decrypt(or_result_ct.pending());
   EXPECT_TRUE(RPlain(or_decrypted).index());
-  rTorus and_not_decrypted =
-      rlwe_runtime_.decrypt(and_not_result_ct.pending_ciphertext());
+  rTorus and_not_decrypted = rlwe_runtime_.decrypt(and_not_result_ct.pending());
   EXPECT_TRUE(RPlain(and_not_decrypted).index());
-  rTorus xor_decrypted =
-      rlwe_runtime_.decrypt(xor_result_ct.pending_ciphertext());
+  rTorus xor_decrypted = rlwe_runtime_.decrypt(xor_result_ct.pending());
   EXPECT_TRUE(RPlain(xor_decrypted).index());
 }
 
@@ -146,6 +143,6 @@ TEST_F(BitTest, ChainingTwoGatesNeedsExplicitMaterialize) {
 
   Bit<Lwe, Rlwe> abc_ct = circuit_.And(ab_ct, c_ct);
 
-  rTorus decrypted = rlwe_runtime_.decrypt(abc_ct.pending_ciphertext());
+  rTorus decrypted = rlwe_runtime_.decrypt(abc_ct.pending());
   EXPECT_FALSE(RPlain(decrypted).index());
 }
