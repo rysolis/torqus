@@ -1,13 +1,15 @@
 #include "tfhe/circuit/binary_expansion.hpp"
 #include <gtest/gtest.h>
 
+#include <array>
 #include <iomanip>
 
 #include "primitive/torus.hpp"
 
 #include "algebra/vector.hpp"
 
-#include "tfhe/dial.hpp"
+#include "tfhe/bit.hpp"
+#include "tfhe/boundary.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -53,12 +55,6 @@ class BinaryExpansionFixture : public ::testing::Test {
   using Decomp = Context::dcp_params;
   using Kst = Context::kst_params;
 
-  static constexpr uint32_t n = Lwe::n;
-
-  using Torus = Lwe::torus_type;
-  using rTorus = Rlwe::torus_type;
-  static constexpr uint32_t N = Rlwe::N;
-
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
@@ -86,31 +82,20 @@ template <typename Config>
 class BinaryExpansionCorrectnessTest
     : public BinaryExpansionFixture<typename Config::context> {
  protected:
-  using Base = BinaryExpansionFixture<typename Config::context>;
-
-  using Torus = Base::Torus;
-
   // BinaryExpansion<4, ...> turns a 2-bit operand into a one-hot 4-output
-  // vector -- exactly one output (at index `hot`) decodes to Dial's true
-  // slot, the rest to false.
+  // vector -- exactly one output (at index `hot`) decodes to true, the
+  // rest to false.
   struct TestCase {
-    Vector<Torus, 2> operand;
+    bool a;
+    bool b;
     uint32_t hot;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.operand = {Dial<4, Torus>(false).value(),
-                         Dial<4, Torus>(false).value()},
-             .hot = 0},
-            {.operand = {Dial<4, Torus>(true).value(),
-                         Dial<4, Torus>(false).value()},
-             .hot = 1},
-            {.operand = {Dial<4, Torus>(false).value(),
-                         Dial<4, Torus>(true).value()},
-             .hot = 2},
-            {.operand = {Dial<4, Torus>(true).value(),
-                         Dial<4, Torus>(true).value()},
-             .hot = 3}};
+    return {{.a = false, .b = false, .hot = 0},
+            {.a = true, .b = false, .hot = 1},
+            {.a = false, .b = true, .hot = 2},
+            {.a = true, .b = true, .hot = 3}};
   }
 };
 
@@ -123,11 +108,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using Decomp = typename TypeParam::context::dcp_params;
   using Kst = typename TypeParam::context::kst_params;
 
-  using Torus = Lwe::torus_type;
-  constexpr uint32_t n = Lwe::n;
-
-  using rTorus = typename Rlwe::torus_type;
-  constexpr uint32_t N = Rlwe::N;
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                    this->rlwe_runtime_);
 
   tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
       this->circuit_, this->relay_);
@@ -136,16 +118,14 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Arrange
     // ==================================
-    Vector<Torus, 2> operand = tc.operand;
-
-    Vector<TLWE<Torus, n>, 2> operand_ct;
-    operand_ct[0] = this->lwe_runtime_.encrypt(static_cast<Torus>(operand[0]));
-    operand_ct[1] = this->lwe_runtime_.encrypt(static_cast<Torus>(operand[1]));
+    Vector<TLWE<typename Lwe::torus_type, Lwe::n>, 2> operand_ct;
+    operand_ct[0] = boundary.lift(tc.a).ready();
+    operand_ct[1] = boundary.lift(tc.b).ready();
 
     // ==================================
     // Act
     // ==================================
-    Vector<TLWE<rTorus, N>, 4> res_ct = expansion.exec_impl(operand_ct);
+    std::array<Bit<Lwe, Rlwe>, 4> res_ct = expansion.exec_impl(operand_ct);
 
     // ==================================
     // Assert
@@ -155,18 +135,14 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     std::cout << "========================================\n";
 
     std::cout << std::left;
-    std::cout << std::setw(14) << "operand" << ": " << operand << "\n";
+    std::cout << std::setw(14) << "operand" << ": (" << tc.a << ", " << tc.b
+              << ")\n";
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
-    // Dial::index() already tolerates noise up to margin() on its own, so
-    // there is no need to separately compute an infinity norm and compare
-    // it against that margin by hand -- decoding each output directly says
-    // whether it landed on the right slot.
     for (uint32_t i = 0; i < 4; ++i) {
-      rTorus decrypted = this->rlwe_runtime_.decrypt(res_ct[i]);
-      uint32_t index = Dial<4, rTorus>(decrypted).index();
-      uint32_t expected = (i == tc.hot) ? 1u : 0u;
-      EXPECT_EQ(index, expected);
+      bool res = boundary.drop(res_ct[i]);
+      bool expected = (i == tc.hot);
+      EXPECT_EQ(res, expected);
     }
   }
 }

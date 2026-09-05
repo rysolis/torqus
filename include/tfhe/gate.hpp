@@ -7,5 +7,6 @@
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/gate/hom_or.hpp"
+#include "tfhe/gate/hom_xor.hpp"
 
 #endif  // TFHE_GATE_HPP
