@@ -15,14 +15,11 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
 // H is the size of the one-hot output vector this expansion produces from
-// k = ceil(log2(H)) input bit-ciphertexts, each Lwe-shaped -- the same
-// shape HomAnd/HomAndNot take. Every HomAnd/HomAndNot call returns an
-// Rlwe-domain result (see HomAnd), so this loop chains them through
-// Bit<Lwe, Rlwe>, materializing (via this instance's own Relay) each
-// step's result back down to Lwe before feeding it into the next gate
-// (via this instance's own Circuit); only the last gate of each slot's
-// chain is left at Rlwe's dimension, so this as a whole has the same
-// Lwe-in/Rlwe-out shape a single gate does.
+// k = ceil(log2(H)) Lwe-shaped input bit-ciphertexts. Each slot chains
+// HomAnd/HomAndNot through Bit<Lwe, Rlwe>, materializing between steps
+// (via this instance's own Relay/Circuit); only the last step per slot
+// stays Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out
+// shape a single gate does.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -41,12 +38,10 @@ class BinaryExpansion {
                   Relay<Lwe, Rlwe, Kst> relay)
       : circuit_(std::move(circuit)), relay_(std::move(relay)) {}
 
-  // Computes one slot of the one-hot output. Slots only share read-only
-  // inputs (v, and this instance's own circuit_/relay_) -- the k-step gate
-  // chain is sequential within a slot (each step materializes the
-  // previous gate's Bit before feeding it to the next), but slots don't
-  // depend on each other, so callers with many slots can farm this out
-  // across threads instead of calling exec_impl directly.
+  // One slot of the one-hot output. The k-step gate chain is sequential
+  // (each step materializes the previous Bit before the next gate call),
+  // but slots are independent -- farm them across threads instead of
+  // calling exec_impl directly if needed.
   TLWE<rTorus, N> exec_slot_impl(uint32_t h,
                                  const Vector<TLWE<Torus, n>, k>& v) const {
     TLWE<Torus, n> w;

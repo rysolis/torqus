@@ -15,13 +15,11 @@
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 
-// Circuit<Lwe, Rlwe, Decomp> holds the BootstrapKey a gate call needs and
-// exposes And/Or/AndNot/Xor as methods, so a call site never spells out
-// <Kst, Decomp> or passes bk by hand -- both are already fixed by this
-// scope's own type. Both operands must already be Lwe-shaped
-// (Bit::is_ready()); this scope has no KeySwitchKey of its own to
-// materialize one that isn't, so a caller chaining gate results together
-// does that explicitly via Relay::materialize() first.
+// Circuit<Lwe, Rlwe, Decomp> holds the BootstrapKey a gate call needs,
+// exposing And/Or/AndNot/Xor as methods instead of a call site spelling
+// out <Kst, Decomp> and bk by hand. Both operands must already be
+// Lwe-shaped (Bit::is_ready()) -- materialize a gate's own output via
+// Relay::materialize() before feeding it into another call.
 template <typename Lwe, typename Rlwe, typename Decomp>
 class Circuit {
  public:
