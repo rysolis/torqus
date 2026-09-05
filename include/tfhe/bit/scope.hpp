@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "tfhe/bit.hpp"
+#include "tfhe/bit/bit.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/gate/hom_or.hpp"

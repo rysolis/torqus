@@ -72,9 +72,9 @@ the umbrella header that pulls in its subdirectory.
 | Leveled arithmetic | `Add`, `Sub`, `KeySwitch`, `SampleExtract` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
 | Bootstrap primitives | `BlindRotate`, `ExternalProduct`, `CMux`, `GateBootstrap` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
 | Gates | `HomAnd`, `HomAndNot`, `HomOr`, `HomXor` | [`tfhe/gate.hpp`](include/tfhe/gate.hpp) |
-| Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/dial.hpp`](include/tfhe/dial.hpp) |
-| Ciphertext state | `Bit` (hides whether a ciphertext is Lwe- or Rlwe-shaped), `Circuit`/`Relay` (gate calls and materializing as method calls, not raw key arguments) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp), [`tfhe/scope.hpp`](include/tfhe/scope.hpp) |
-| Plaintext/ciphertext boundary | `Lift` (encrypt-only: plaintext -> `Bit`), `Drop` (decrypt-only: `Bit` -> plaintext) -- each holds a `Runtime` privately, exposing only its one direction | [`tfhe/lift.hpp`](include/tfhe/lift.hpp) |
+| Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
+| Ciphertext state | `Bit` (hides whether a ciphertext is Lwe- or Rlwe-shaped), `Circuit`/`Relay` (gate calls and materializing as method calls, not raw key arguments) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
+| Plaintext/ciphertext boundary | `Boundary` (`lift()`: plaintext -> `Bit`, always available; `drop()`: `Bit` -> plaintext, only once constructed with the secret -- see `has_secret()`) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
 | Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Bit`/`Circuit`/`Relay`) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
 | Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
 
@@ -242,15 +242,15 @@ into your build even if your project also has `BUILD_TESTING` on.
 
 Encrypt two bits under a `Runtime` and combine them with a `Circuit`:
 [`Bit`](include/tfhe/bit.hpp) hides whether a ciphertext is Lwe- or
-Rlwe-shaped, [`Circuit`](include/tfhe/scope.hpp) turns a gate call into a
+Rlwe-shaped, `Circuit` turns a gate call into a
 method call that doesn't need `bk` (or `<Decomp>`) spelled out by hand --
 its own signature is the guarantee that combining ciphertexts never
-touches the secret -- and [`Lift`/`Drop`](include/tfhe/lift.hpp) each
-hold a `Runtime` privately so whoever holds one can only encrypt or only
-decrypt, not both. Everything below comes in through the umbrella
-headers at `tfhe/`'s root (see [Project
+touches the secret -- and `Boundary` crosses the plaintext/ciphertext
+boundary: `lift()` always works, `drop()` only once it was built with the
+actual secret (see `has_secret()`). Everything above comes in through
+the single umbrella header `tfhe/bit.hpp` (see [Project
 Structure](DEVELOPING.md#project-structure)) rather than reaching into
-the subdirectories those headers pull in for you:
+the subdirectory it pulls in for you:
 
 ```cpp
 #include <random>
@@ -258,10 +258,8 @@ the subdirectories those headers pull in for you:
 #include "primitive.hpp"
 
 #include "tfhe/bit.hpp"
-#include "tfhe/lift.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
-#include "tfhe/scope.hpp"
 
 // 128-bit-security dimensions (see gate_bootstrap_test.cpp).
 using Torus = ModTorus<32>;
@@ -282,15 +280,14 @@ int main() {
 
   // 4 slots, true/false at indices 1/0, matching HomAnd's {0, 1/4}
   // message space.
-  Lift<4, Lwe, Rlwe> lift(lwe_runtime);
-  Drop<4, Lwe, Rlwe, Decomp> drop(rlwe_runtime);
+  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime, rlwe_runtime);
 
-  Bit<Lwe, Rlwe> a_ct = lift.encrypt(true);
-  Bit<Lwe, Rlwe> b_ct = lift.encrypt(false);
+  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Bit<Lwe, Rlwe> b_ct = boundary.lift(false);
 
   Bit<Lwe, Rlwe> result_ct = circuit.And(a_ct, b_ct);
 
-  bool plaintext = drop.decrypt(result_ct);
+  bool plaintext = boundary.drop(result_ct);
 }
 ```
 

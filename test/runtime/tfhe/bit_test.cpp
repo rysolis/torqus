@@ -1,10 +1,8 @@
 #include <gtest/gtest.h>
 
 #include "tfhe/bit.hpp"
-#include "tfhe/boundary.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
-#include "tfhe/scope.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
 namespace bit_test {
@@ -84,8 +82,9 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
-  bool decoded = lwe_runtime_.decrypt(result_ct.ready()).value() != 0;
-  (void)decoded;
+  // Boundary::drop() expects an Rlwe-shaped (pending) Bit -- once
+  // materialized, decode directly via the Lwe-side Runtime instead.
+  EXPECT_TRUE(lwe_runtime_.decrypt(result_ct.ready()).value() != 0);
 
   // A second call is a harmless no-op.
   relay_.materialize(result_ct);

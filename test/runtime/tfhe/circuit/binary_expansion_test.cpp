@@ -8,11 +8,9 @@
 #include "primitive/torus.hpp"
 
 #include "tfhe/bit.hpp"
-#include "tfhe/boundary.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
-#include "tfhe/scope.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
 namespace binary_expansion_test {

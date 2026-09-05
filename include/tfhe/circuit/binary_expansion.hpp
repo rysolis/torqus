@@ -9,9 +9,9 @@
 #include <utility>
 #include <vector>
 
-#include "tfhe/bit.hpp"
+#include "tfhe/bit/bit.hpp"
+#include "tfhe/bit/scope.hpp"
 #include "tfhe/params.hpp"
-#include "tfhe/scope.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
 // H is the size of the one-hot output vector this expansion produces from

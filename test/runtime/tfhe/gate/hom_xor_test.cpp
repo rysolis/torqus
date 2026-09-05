@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "tfhe/bit.hpp"
-#include "tfhe/boundary.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_xor.hpp"
 #include "tfhe/operation/evaluator.hpp"

@@ -55,10 +55,7 @@ torqus/
 │       ├── key.hpp             # -> structure/key/: bootstrap / key-switch / public keys
 │       ├── operation.hpp       # -> operation/: leveled ops, bootstrap primitives
 │       ├── gate.hpp            # -> gate/: homomorphic gates (AND, AND-NOT, OR, XOR)
-│       ├── dial.hpp            # Dial<Resolution, Torus>: names a Torus value by slot index
-│       ├── bit.hpp             # Bit<Lwe, Rlwe>: hides a ciphertext's Lwe/Rlwe shape
-│       ├── scope.hpp           # Circuit/Relay: gate calls and materializing as method calls
-│       ├── lift.hpp            # Lift/Drop: encrypt-only / decrypt-only Runtime wrappers
+│       ├── bit.hpp             # -> bit/: plaintext/ciphertext ergonomics (Dial, Bit, Circuit/Relay, Boundary)
 │       ├── circuit.hpp         # -> circuit/: gate-level circuits (e.g. binary expansion)
 │       ├── math.hpp            # -> math/: modulus switching
 │       ├── serialize.hpp       # -> serialize/: wire (de)serialization

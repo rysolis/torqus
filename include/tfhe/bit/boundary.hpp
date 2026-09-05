@@ -8,8 +8,8 @@
 #include <cstdint>
 #include <functional>
 
-#include "tfhe/bit.hpp"
-#include "tfhe/dial.hpp"
+#include "tfhe/bit/bit.hpp"
+#include "tfhe/bit/dial.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/public_runtime.hpp"
 #include "tfhe/runtime.hpp"
