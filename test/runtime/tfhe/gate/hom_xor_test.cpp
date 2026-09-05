@@ -77,9 +77,6 @@ class HomXorCorrectnessTest : public HomXorFixture<typename Config::context> {
   using Torus = typename Base::Torus;
   using rTorus = typename Base::rTorus;
 
-  using Bit = Dial<4, Torus>;
-  using rBit = Dial<4, rTorus>;
-
   struct TestCase {
     Torus lhs;
     Torus rhs;
@@ -87,11 +84,18 @@ class HomXorCorrectnessTest : public HomXorFixture<typename Config::context> {
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {
-        {.lhs = Bit::at(true), .rhs = Bit::at(true), .ref = rBit::at(false)},
-        {.lhs = Bit::at(false), .rhs = Bit::at(true), .ref = rBit::at(true)},
-        {.lhs = Bit::at(true), .rhs = Bit::at(false), .ref = rBit::at(true)},
-        {.lhs = Bit::at(false), .rhs = Bit::at(false), .ref = rBit::at(false)}};
+    return {{.lhs = Dial<4, Torus>(true).value(),
+             .rhs = Dial<4, Torus>(true).value(),
+             .ref = Dial<4, rTorus>(false).value()},
+            {.lhs = Dial<4, Torus>(false).value(),
+             .rhs = Dial<4, Torus>(true).value(),
+             .ref = Dial<4, rTorus>(true).value()},
+            {.lhs = Dial<4, Torus>(true).value(),
+             .rhs = Dial<4, Torus>(false).value(),
+             .ref = Dial<4, rTorus>(true).value()},
+            {.lhs = Dial<4, Torus>(false).value(),
+             .rhs = Dial<4, Torus>(false).value(),
+             .ref = Dial<4, rTorus>(false).value()}};
   }
 };
 
@@ -107,8 +111,6 @@ TYPED_TEST(HomXorCorrectnessTest, VerifyCorrectness) {
 
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
-
-  using rBit = Dial<4, rTorus>;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -138,10 +140,10 @@ TYPED_TEST(HomXorCorrectnessTest, VerifyCorrectness) {
     rTorus err = res - ref;
     double norm = infinity_norm(err);
 
-    // Output lives at rBit's {0, 1/4} encoding; a wrong decode only
+    // Output lives at Dial<4, rTorus>'s {0, 1/4} encoding; a wrong decode only
     // happens past half that gap, so that's the margin "did it decode
     // right" is judged against here.
-    const double decode_margin = double(rBit::margin());
+    const double decode_margin = double(Dial<4, rTorus>::margin());
 
     std::cout << "\n========================================\n";
     std::cout << "           HomXor Test\n";

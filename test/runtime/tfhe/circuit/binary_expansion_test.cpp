@@ -93,27 +93,33 @@ class BinaryExpansionCorrectnessTest
   using Torus = Base::Torus;
   using rTorus = Base::rTorus;
 
-  using Bit = Dial<4, Torus>;
-  using rBit = Dial<4, rTorus>;
-
   struct TestCase {
     Vector<Torus, 2> operand;
     Vector<rTorus, 4> ref;
   };
 
   [[nodiscard]] static std::vector<TestCase> cases() {
-    return {{.operand = {Bit::at(false), Bit::at(false)},
-             .ref = {rBit::at(true), rBit::at(false), rBit::at(false),
-                     rBit::at(false)}},
-            {.operand = {Bit::at(true), Bit::at(false)},
-             .ref = {rBit::at(false), rBit::at(true), rBit::at(false),
-                     rBit::at(false)}},
-            {.operand = {Bit::at(false), Bit::at(true)},
-             .ref = {rBit::at(false), rBit::at(false), rBit::at(true),
-                     rBit::at(false)}},
-            {.operand = {Bit::at(true), Bit::at(true)},
-             .ref = {rBit::at(false), rBit::at(false), rBit::at(false),
-                     rBit::at(true)}}};
+    return {
+        {.operand = {Dial<4, Torus>(false).value(),
+                     Dial<4, Torus>(false).value()},
+         .ref = {Dial<4, rTorus>(true).value(), Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(false).value()}},
+        {.operand = {Dial<4, Torus>(true).value(),
+                     Dial<4, Torus>(false).value()},
+         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(true).value(),
+                 Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(false).value()}},
+        {.operand = {Dial<4, Torus>(false).value(),
+                     Dial<4, Torus>(true).value()},
+         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(true).value(),
+                 Dial<4, rTorus>(false).value()}},
+        {.operand = {Dial<4, Torus>(true).value(),
+                     Dial<4, Torus>(true).value()},
+         .ref = {Dial<4, rTorus>(false).value(), Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(false).value(),
+                 Dial<4, rTorus>(true).value()}}};
   }
 };
 
@@ -131,8 +137,6 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 
   using rTorus = typename Rlwe::torus_type;
   constexpr uint32_t N = Rlwe::N;
-
-  using rBit = Dial<4, rTorus>;
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -167,10 +171,10 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     Vector<rTorus, 4> err = res - ref;
     double norm = infinity_norm(err);
 
-    // Output lives at rBit's {0, 1/4} encoding; a wrong decode only
+    // Output lives at Dial<4, rTorus>'s {0, 1/4} encoding; a wrong decode only
     // happens past half that gap, so that's the margin "did it decode
     // right" is judged against here.
-    const double decode_margin = double(rBit::margin());
+    const double decode_margin = double(Dial<4, rTorus>::margin());
 
     std::cout << "\n========================================\n";
     std::cout << "         BinaryExpansion Test\n";

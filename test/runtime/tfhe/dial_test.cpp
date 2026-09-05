@@ -29,76 +29,79 @@ TYPED_TEST_SUITE(DialTest, dial_test::TestContexts);
 
 // Dial<4, Torus> reproduces the exact {0, 1/4} boolean encoding
 // tfhe/gate/Hom* already relies on (see hom_and_test.cpp's Torus(0u) /
-// Torus(1u, 4u) literals) -- a ciphertext encrypted from at(...) has to be
-// usable by those gates unchanged. Resolution is 4, not 2: those gates
-// sum two messages and compare against a single fixed decision boundary,
-// which only works if each message stays under half the circle, so they
-// reserve slots 2 and 3 as headroom and use only 0 and 1 -- Dial itself
-// has no opinion about that; it is purely index <-> Torus value.
+// Torus(1u, 4u) literals) -- a ciphertext encrypted from Dial(...).value()
+// has to be usable by those gates unchanged. Resolution is 4, not 2: those
+// gates sum two messages and compare against a single fixed decision
+// boundary, which only works if each message stays under half the circle,
+// so they reserve slots 2 and 3 as headroom and use only 0 and 1 -- Dial
+// itself has no opinion about that; it just wraps a Torus value.
 TYPED_TEST(DialTest, BoolMatchesExistingGateConvention) {
   using Torus = typename TypeParam::torus_type;
-  using Bit = Dial<4, Torus>;
+  using D = Dial<4, Torus>;
 
-  EXPECT_EQ(Bit::at(0), Torus(0u));
-  EXPECT_EQ(Bit::at(1), Torus(1u, 4u));
+  EXPECT_EQ(D(0).value(), Torus(0u));
+  EXPECT_EQ(D(1).value(), Torus(1u, 4u));
 
-  // bool converts implicitly to the slot index, so callers spell out
-  // intent directly rather than remembering which index means what.
-  EXPECT_EQ(Bit::at(false), Bit::at(0));
-  EXPECT_EQ(Bit::at(true), Bit::at(1));
+  // index accepts bool implicitly, so callers spell out intent directly
+  // rather than remembering which index means what.
+  EXPECT_EQ(D(false).value(), D(0).value());
+  EXPECT_EQ(D(true).value(), D(1).value());
 }
 
-TYPED_TEST(DialTest, AtMatchesFormulaForVariousResolutions) {
+TYPED_TEST(DialTest, ConstructedFromIndexMatchesFormula) {
   using Torus = typename TypeParam::torus_type;
 
   {
     using D = Dial<4, Torus>;
     for (uint32_t i = 0; i < D::resolution; ++i) {
-      EXPECT_EQ(D::at(i), Torus(i, 4u));
+      EXPECT_EQ(D(i).value(), Torus(i, 4u));
     }
   }
   {
     using D = Dial<8, Torus>;
     for (uint32_t i = 0; i < D::resolution; ++i) {
-      EXPECT_EQ(D::at(i), Torus(i, 8u));
+      EXPECT_EQ(D(i).value(), Torus(i, 8u));
     }
   }
 }
 
-TYPED_TEST(DialTest, DecodeRoundTripsThroughAt) {
+// Viewing the Torus sitting at a given index through a fresh Dial of the
+// same shape reads back that same index -- the "window" round-trips.
+TYPED_TEST(DialTest, IndexRoundTripsThroughConstruction) {
   using Torus = typename TypeParam::torus_type;
-  using Bit = Dial<4, Torus>;
+  using D = Dial<4, Torus>;
 
-  for (uint32_t i = 0; i < Bit::resolution; ++i) {
-    EXPECT_EQ(Bit::decode(Bit::at(i)), i);
+  for (uint32_t i = 0; i < D::resolution; ++i) {
+    Torus raw = D(i).value();
+    EXPECT_EQ(D(raw).index(), i);
   }
 }
 
-// decode() must still resolve to the right slot under noise up to (but not
+// index() must still resolve to the right slot under noise up to (but not
 // past) margin(). i == 0 exercises the wraparound case: subtracting noise
 // from slot 0 wraps to just below 1.
-TYPED_TEST(DialTest, DecodeToleratesNoiseWithinMargin) {
+TYPED_TEST(DialTest, IndexToleratesNoiseWithinMargin) {
   using Torus = typename TypeParam::torus_type;
-  using Bit = Dial<4, Torus>;
+  using D = Dial<4, Torus>;
 
-  // A fraction of Bit's own margin, built via Dial itself rather than
+  // A fraction of D's own margin, built via Dial itself rather than
   // duplicating its numerator/denominator construction here.
-  Torus tiny = Dial<64, Torus>::at(1);
+  Torus tiny = Dial<64, Torus>(1).value();
 
-  for (uint32_t i = 0; i < Bit::resolution; ++i) {
-    Torus above = Bit::at(i);
+  for (uint32_t i = 0; i < D::resolution; ++i) {
+    Torus above = D(i).value();
     above += tiny;
-    EXPECT_EQ(Bit::decode(above), i);
+    EXPECT_EQ(D(above).index(), i);
 
-    Torus below = Bit::at(i);
+    Torus below = D(i).value();
     below -= tiny;
-    EXPECT_EQ(Bit::decode(below), i);
+    EXPECT_EQ(D(below).index(), i);
   }
 }
 
 TYPED_TEST(DialTest, MarginIsHalfSlotWidth) {
   using Torus = typename TypeParam::torus_type;
-  using Bit = Dial<4, Torus>;
+  using D = Dial<4, Torus>;
 
-  EXPECT_EQ(Bit::margin(), Torus(1u, 8u));
+  EXPECT_EQ(D::margin(), Torus(1u, 8u));
 }

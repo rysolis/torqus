@@ -46,8 +46,8 @@ class Bit {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  explicit Bit(TLWE<Torus, n> ciphertext) : state_(std::move(ciphertext)) {}
-  explicit Bit(TLWE<rTorus, N> ciphertext) : state_(std::move(ciphertext)) {}
+  Bit(TLWE<Torus, n> ciphertext) : state_(std::move(ciphertext)) {}
+  Bit(TLWE<rTorus, N> ciphertext) : state_(std::move(ciphertext)) {}
 
   // True once this is Lwe-shaped -- safe to read via ready_ciphertext()
   // without a materialize() first.
