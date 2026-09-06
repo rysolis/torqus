@@ -33,7 +33,7 @@ class PublicRuntime {
   using Engine = std::mt19937;
 
   PublicRuntime(PublicKey<Torus, n, PkSamples> pk, Engine eng)
-      : pk_(std::move(pk)), eng_(std::move(eng)) {}
+      : pk_(std::move(pk)), eng_(eng) {}
 
   TLWE<Torus, n> encrypt(const Torus& pt) {
     return public_key::encrypt(pk_, eng_, pt);
