@@ -59,6 +59,15 @@ class Circuit {
         lhs.ready(), rhs.ready(), bk_));
   }
 
+  // Bootstraps `bit` back to fresh noise without changing its value -- a
+  // pure noise refresh for a wire that's about to feed into many more
+  // gates than its current noise budget allows. AND(bit, bit) is a
+  // tautology, so this reuses HomAnd's own already-verified offset math
+  // rather than deriving a new one for a dedicated identity test vector.
+  Bit<Lwe, Rlwe> Refresh(const Bit<Lwe, Rlwe>& bit) const {
+    return And(bit, bit);
+  }
+
  private:
   BootstrapKey<rTorus, N, l, n> bk_;
 };

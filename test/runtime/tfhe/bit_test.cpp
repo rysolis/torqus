@@ -91,6 +91,22 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   EXPECT_TRUE(result_ct.is_ready());
 }
 
+// Circuit::Refresh bootstraps a Bit back to fresh noise without changing
+// its value (see scope.hpp -- it's AND(bit, bit) under the hood).
+TEST_F(BitTest, RefreshPreservesValue) {
+  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+
+  Bit<Lwe, Rlwe> t_ct = boundary.lift(true);
+  Bit<Lwe, Rlwe> f_ct = boundary.lift(false);
+
+  Bit<Lwe, Rlwe> t_refreshed = circuit_.Refresh(t_ct);
+  Bit<Lwe, Rlwe> f_refreshed = circuit_.Refresh(f_ct);
+
+  EXPECT_FALSE(t_refreshed.is_ready());
+  EXPECT_TRUE(boundary.drop(t_refreshed));
+  EXPECT_FALSE(boundary.drop(f_refreshed));
+}
+
 TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
