@@ -91,20 +91,56 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   EXPECT_TRUE(result_ct.is_ready());
 }
 
-// Circuit::Refresh bootstraps a Bit back to fresh noise without changing
-// its value (see scope.hpp -- it's AND(bit, bit) under the hood).
-TEST_F(BitTest, RefreshPreservesValue) {
+// Circuit::Reslot<N, N> bootstraps a Bit back to fresh noise without
+// changing its value -- the pure-refresh case of Reslot (see scope.hpp).
+TEST_F(BitTest, ReslotWithSameResolutionPreservesValue) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
   Bit<Lwe, Rlwe> t_ct = boundary.lift(true);
   Bit<Lwe, Rlwe> f_ct = boundary.lift(false);
 
-  Bit<Lwe, Rlwe> t_refreshed = circuit_.Refresh(t_ct);
-  Bit<Lwe, Rlwe> f_refreshed = circuit_.Refresh(f_ct);
+  Bit<Lwe, Rlwe> t_refreshed = circuit_.Reslot<4, 4>(t_ct);
+  Bit<Lwe, Rlwe> f_refreshed = circuit_.Reslot<4, 4>(f_ct);
 
   EXPECT_FALSE(t_refreshed.is_ready());
   EXPECT_TRUE(boundary.drop(t_refreshed));
   EXPECT_FALSE(boundary.drop(f_refreshed));
+}
+
+// A Bit lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
+// 1/4) -- the step And/Or/AndNot/Xor expect.
+TEST_F(BitTest, ReslotMovesValueToNewResolution) {
+  Boundary<2, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<4, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
+
+  Bit<Lwe, Rlwe> t_ct = in_boundary.lift(true);
+  Bit<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+
+  Bit<Lwe, Rlwe> t_resloted = circuit_.Reslot<2, 4>(t_ct);
+  Bit<Lwe, Rlwe> f_resloted = circuit_.Reslot<2, 4>(f_ct);
+
+  EXPECT_TRUE(out_boundary.drop(t_resloted));
+  EXPECT_FALSE(out_boundary.drop(f_resloted));
+}
+
+// OutResolution has no power-of-two constraint (only InResolution does, so
+// scaling up to exactly 1/2 by repeated self-addition lands on an integer
+// number of doublings) -- Dial<4, Torus> (0 or 1/4) moved into Dial<100,
+// Torus> (0 or 1/100) exercises that.
+TEST_F(BitTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
+  Boundary<4, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<100, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
+
+  Bit<Lwe, Rlwe> t_ct = in_boundary.lift(true);
+  Bit<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+
+  Bit<Lwe, Rlwe> t_resloted = circuit_.Reslot<4, 100>(t_ct);
+  Bit<Lwe, Rlwe> f_resloted = circuit_.Reslot<4, 100>(f_ct);
+
+  // Dial<100,...>'s indices 0/1 are still 0 and 1/100 -- same true/false
+  // reading as Dial<4,...>'s 0/1, just on a finer grid.
+  EXPECT_EQ(out_boundary.drop(t_resloted), 1u);
+  EXPECT_EQ(out_boundary.drop(f_resloted), 0u);
 }
 
 TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
