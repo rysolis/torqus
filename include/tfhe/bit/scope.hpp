@@ -12,6 +12,7 @@
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/gate/hom_or.hpp"
 #include "tfhe/gate/hom_xor.hpp"
+#include "tfhe/operation/bootstrap/reslot.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 
@@ -66,6 +67,20 @@ class Circuit {
   // rather than deriving a new one for a dedicated identity test vector.
   Bit<Lwe, Rlwe> Refresh(const Bit<Lwe, Rlwe>& bit) const {
     return And(bit, bit);
+  }
+
+  // Bootstraps `bit` to fresh noise while moving its value from a
+  // 1/InResolution step to a 1/OutResolution step -- e.g. a Bit lifted at
+  // Dial<2, Torus> (0 or 1/2) that needs to become Dial<4, Torus> (0 or
+  // 1/4) before feeding into And/Or/AndNot/Xor/Refresh. Not a boolean gate
+  // (see tfhe/operation/bootstrap/reslot.hpp for why this can't just be
+  // Refresh with a different Resolution), so it lives under
+  // tfhe/operation/bootstrap rather than tfhe/gate.
+  template <uint32_t InResolution, uint32_t OutResolution>
+  Bit<Lwe, Rlwe> Reslot(const Bit<Lwe, Rlwe>& bit) const {
+    return Bit<Lwe, Rlwe>(
+        tfhe::bootstrap::Reslot<Lwe, Rlwe, Decomp, InResolution,
+                                OutResolution>::exec_impl(bit.ready(), bk_));
   }
 
  private:
