@@ -12,9 +12,13 @@
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/gate/hom_or.hpp"
 #include "tfhe/gate/hom_xor.hpp"
-#include "tfhe/operation/bootstrap/reslot.hpp"
+#include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
+#include "tfhe/operation/leveled/add.hpp"
+#include "tfhe/structure/ciphertext/tlwe.hpp"
+#include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
+#include "tfhe/utility/testvector.hpp"
 
 // Circuit<Lwe, Rlwe, Decomp> holds the BootstrapKey a gate call needs,
 // exposing And/Or/AndNot/Xor as methods instead of a call site spelling
@@ -64,14 +68,38 @@ class Circuit {
   // 1/InResolution step to a 1/OutResolution step -- e.g. a Bit lifted at
   // Dial<2, Torus> (0 or 1/2) that needs to become Dial<4, Torus> (0 or
   // 1/4) before feeding into And/Or/AndNot/Xor. InResolution == OutResolution
-  // is a pure noise refresh with no value change (see
-  // tfhe/operation/bootstrap/reslot.hpp). Not a boolean gate, so it lives
-  // under tfhe/operation/bootstrap rather than tfhe/gate.
+  // is a pure noise refresh with no value change.
+  //
+  // GateBootstrap's test vector (testvector::generate) always splits at
+  // exactly 1/4 and 3/4 of the circle, classifying a message as the
+  // negative half centered on 0 or the positive half centered on 1/2 -- it
+  // has no separate threshold parameter. So rather than just offsetting
+  // the input (which only shifts where 0/mu_in land, without changing how
+  // far apart they are), this first scales the input up by
+  // InResolution/2 -- via repeated self-addition, since no scalar-multiply
+  // leveled op exists -- so its two possible values become exactly
+  // {0, 1/2}: dead center of each half, for maximum noise margin. No
+  // offset is then needed at all.
   template <uint32_t InResolution, uint32_t OutResolution>
   Bit<Lwe, Rlwe> Reslot(const Bit<Lwe, Rlwe>& bit) const {
+    static_assert(InResolution % 2 == 0,
+                  "Reslot needs InResolution/2 doublings of the input to "
+                  "land its true value exactly on 1/2; an odd InResolution "
+                  "can't reach that by repeated self-addition");
+    constexpr uint32_t scale = InResolution / 2;
+    static constexpr rTorus mu_out(1u, OutResolution);
+
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu_out.value() >> 1u));
+
+    TLWE<Torus, n> scaled = bit.ready();
+    for (uint32_t i = 1; i < scale; ++i) {
+      scaled = tfhe::leveled::Add<Lwe>::exec_impl(scaled, bit.ready());
+    }
+
     return Bit<Lwe, Rlwe>(
-        tfhe::bootstrap::Reslot<Lwe, Rlwe, Decomp, InResolution,
-                                OutResolution>::exec_impl(bit.ready(), bk_));
+        tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
+            mu_out, tv, scaled, bk_));
   }
 
  private:

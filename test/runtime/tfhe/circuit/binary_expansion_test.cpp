@@ -122,7 +122,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    std::array<Bit<Lwe, Rlwe>, 4> res_ct = expansion.exec_impl(operand_ct);
+    std::array<Bit<Lwe, Rlwe>, 4> res_ct = expansion.exec(operand_ct);
 
     // ==================================
     // Assert

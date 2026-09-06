@@ -46,7 +46,7 @@ class BinaryExpansion {
   // One slot of the one-hot output. The k-step gate chain is sequential
   // (each step materializes the previous Bit before the next gate call),
   // but slots are independent -- farm them across threads instead of
-  // calling exec_impl directly if needed.
+  // calling exec directly if needed.
   Bit<Lwe, Rlwe> exec_slot_impl(uint32_t h,
                                 const std::vector<TLWE<Torus, n>>& v) const {
     TLWE<Torus, n> w;
@@ -62,15 +62,15 @@ class BinaryExpansion {
     return acc;
   }
 
-  std::array<Bit<Lwe, Rlwe>, H> exec_impl(
+  std::array<Bit<Lwe, Rlwe>, H> exec(
       const std::vector<TLWE<Torus, n>>& v) const {
-    return exec_impl_impl(v, std::make_index_sequence<H>{});
+    return exec_impl(v, std::make_index_sequence<H>{});
   }
 
  private:
   template <size_t... Hs>
-  std::array<Bit<Lwe, Rlwe>, H> exec_impl_impl(
-      const std::vector<TLWE<Torus, n>>& v, std::index_sequence<Hs...>) const {
+  std::array<Bit<Lwe, Rlwe>, H> exec_impl(const std::vector<TLWE<Torus, n>>& v,
+                                          std::index_sequence<Hs...>) const {
     return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
   }
 
