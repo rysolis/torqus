@@ -60,22 +60,13 @@ class Circuit {
         lhs.ready(), rhs.ready(), bk_));
   }
 
-  // Bootstraps `bit` back to fresh noise without changing its value -- a
-  // pure noise refresh for a wire that's about to feed into many more
-  // gates than its current noise budget allows. AND(bit, bit) is a
-  // tautology, so this reuses HomAnd's own already-verified offset math
-  // rather than deriving a new one for a dedicated identity test vector.
-  Bit<Lwe, Rlwe> Refresh(const Bit<Lwe, Rlwe>& bit) const {
-    return And(bit, bit);
-  }
-
   // Bootstraps `bit` to fresh noise while moving its value from a
   // 1/InResolution step to a 1/OutResolution step -- e.g. a Bit lifted at
   // Dial<2, Torus> (0 or 1/2) that needs to become Dial<4, Torus> (0 or
-  // 1/4) before feeding into And/Or/AndNot/Xor/Refresh. Not a boolean gate
-  // (see tfhe/operation/bootstrap/reslot.hpp for why this can't just be
-  // Refresh with a different Resolution), so it lives under
-  // tfhe/operation/bootstrap rather than tfhe/gate.
+  // 1/4) before feeding into And/Or/AndNot/Xor. InResolution == OutResolution
+  // is a pure noise refresh with no value change (see
+  // tfhe/operation/bootstrap/reslot.hpp). Not a boolean gate, so it lives
+  // under tfhe/operation/bootstrap rather than tfhe/gate.
   template <uint32_t InResolution, uint32_t OutResolution>
   Bit<Lwe, Rlwe> Reslot(const Bit<Lwe, Rlwe>& bit) const {
     return Bit<Lwe, Rlwe>(

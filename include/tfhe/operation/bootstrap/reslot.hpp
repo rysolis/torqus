@@ -28,10 +28,8 @@
 // via repeated self-addition, since no scalar-multiply leveled op exists
 // -- so its two possible values become exactly {0, 1/2}: dead center of
 // each half, for maximum noise margin. No offset is then needed at all.
-// This is deliberately separate from Circuit::Refresh (scope.hpp), whose
-// And(bit, bit) tautology is tied to HomAnd's own specific 3-input-sum ->
-// 2-output classification and doesn't generalize to an arbitrary
-// InResolution/OutResolution pair the way this does.
+// InResolution == OutResolution is a pure noise refresh with no value
+// change.
 namespace tfhe::bootstrap {
 
 template <typename Lwe, typename Rlwe, typename Decomp, uint32_t InResolution,
