@@ -67,6 +67,22 @@ class BinaryExpansion {
     return exec_impl(v, std::make_index_sequence<H>{});
   }
 
+  // Same computation as exec(), but each output slot is also materialized
+  // back down to Lwe-shaped before returning -- for a caller that just
+  // wants a ready-to-use result instead of a Relay::materialize() call per
+  // slot (the same exec-plus-materialize convenience tfhe::circuit::Reslot
+  // offers over Circuit::Reslot).
+  std::array<TLWE<Torus, n>, H> exec_ready(
+      const std::vector<TLWE<Torus, n>>& v) const {
+    std::array<Bit<Lwe, Rlwe>, H> result = exec(v);
+    std::array<TLWE<Torus, n>, H> ready;
+    for (size_t i = 0; i < H; ++i) {
+      relay_.materialize(result[i]);
+      ready[i] = std::move(result[i]).ready();
+    }
+    return ready;
+  }
+
  private:
   template <size_t... Hs>
   std::array<Bit<Lwe, Rlwe>, H> exec_impl(const std::vector<TLWE<Torus, n>>& v,

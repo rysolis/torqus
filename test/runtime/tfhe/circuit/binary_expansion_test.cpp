@@ -8,6 +8,7 @@
 #include "primitive/torus.hpp"
 
 #include "tfhe/bit.hpp"
+#include "tfhe/bit/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -138,6 +139,49 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 
     for (uint32_t i = 0; i < 4; ++i) {
       bool res = boundary.drop(res_ct[i]);
+      bool expected = (i == tc.hot);
+      EXPECT_EQ(res, expected);
+    }
+  }
+}
+
+// exec_ready() is exec() plus a Relay::materialize() per slot -- each
+// output comes back Lwe-shaped, so it decodes straight off the Lwe-side
+// Runtime instead of through Boundary::drop() (which expects an
+// Rlwe-shaped/pending Bit).
+TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Decomp = typename TypeParam::context::dcp_params;
+  using Kst = typename TypeParam::context::kst_params;
+
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                    this->rlwe_runtime_);
+
+  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
+      this->circuit_, this->relay_);
+
+  for (const auto& tc : TestFixture::cases()) {
+    std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
+    operand_ct.push_back(boundary.lift(tc.a).ready());
+    operand_ct.push_back(boundary.lift(tc.b).ready());
+
+    std::array<TLWE<typename Lwe::torus_type, Lwe::n>, 4> res_ct =
+        expansion.exec_ready(operand_ct);
+
+    std::cout << "\n========================================\n";
+    std::cout << "     BinaryExpansion exec_ready Test\n";
+    std::cout << "========================================\n";
+
+    std::cout << std::left;
+    std::cout << std::setw(14) << "operand" << ": (" << tc.a << ", " << tc.b
+              << ")\n";
+    std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
+
+    for (uint32_t i = 0; i < 4; ++i) {
+      bool res = Dial<4, typename Lwe::torus_type>(
+                     this->lwe_runtime_.decrypt(res_ct[i]))
+                     .index();
       bool expected = (i == tc.hot);
       EXPECT_EQ(res, expected);
     }
