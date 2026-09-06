@@ -4,7 +4,7 @@
 #ifndef TFHE_BOOTSTRAP_KEY_HPP
 #define TFHE_BOOTSTRAP_KEY_HPP
 
-#include "algebra/vector.hpp"
+#include <vector>
 
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/utility/analysis/tracker_if.hpp"
@@ -25,7 +25,11 @@ class BootstrapKey {
   const void* identity() const noexcept { return bks_[0].identity(); }
 
  private:
-  Vector<TRGSW<Torus, N, l>, n> bks_;
+  // TRGSW isn't a numeric primitive Vector<T,Size> is built for -- see
+  // trgsw.hpp's own comment. n can be large (e.g. 630), so this also
+  // keeps BootstrapKey itself small (a single heap-indirected buffer)
+  // rather than inlining every TRGSW into it.
+  std::vector<TRGSW<Torus, N, l>> bks_ = std::vector<TRGSW<Torus, N, l>>(n);
 };
 
 namespace bootstrap_key {

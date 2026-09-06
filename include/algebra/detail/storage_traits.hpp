@@ -8,12 +8,14 @@
 
 #include "primitive/concept/primitive.hpp"
 
+// storage_traits<T> is only defined for primitive_concept T exposing a
+// raw_value_type -- the numeric types (ModTorus, ModInt, UInt, ...)
+// Vector<T,Size>/Poly<T,Size>'s flat-buffer storage is built for.
+// Composite/aggregate T (TLWE, TRLWE, Bit, ...) has no specialization
+// here and so can't be a Vector<T,Size> element -- use std::vector<T>
+// for those instead (see e.g. trgsw.hpp's own trlwe_rows_).
 template <typename T, typename = void>
-struct storage_traits {
-  using value_type = T;
-  using raw_value_type = T;
-  static constexpr bool use_proxy = false;
-};
+struct storage_traits;
 
 template <primitive_concept T>
 struct storage_traits<T, std::void_t<typename T::raw_value_type>> {

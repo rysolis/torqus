@@ -9,13 +9,13 @@
 #include <concepts>
 #include <cstdint>
 #include <iostream>
+#include <vector>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
-#include "algebra/vector.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
@@ -46,8 +46,7 @@ UInt decompose(const Torus& v, size_t i) {
 
 template <typename Rlwe, typename Decomp, torus_concept Torus>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
-                  size_t j) {
+Torus reconstruct(const std::vector<Poly<UInt, Rlwe::N>>& repr, size_t j) {
   using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t l = Decomp::l;
   static constexpr uint32_t B = Decomp::B;
@@ -99,8 +98,7 @@ UInt decompose(const Torus& v, size_t i) {
 
 template <typename Rlwe, typename Decomp, torus_concept Torus>
   requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-Torus reconstruct(const Vector<Poly<UInt, Rlwe::N>, Decomp::l>& repr,
-                  size_t j) {
+Torus reconstruct(const std::vector<Poly<UInt, Rlwe::N>>& repr, size_t j) {
   static constexpr uint32_t l = Decomp::l;
   static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
@@ -179,7 +177,9 @@ class GadgetRepr {
   static constexpr double threshold = 1.0 / (1ULL << (Bbit * l));
 
  private:
-  Vector<Poly<UInt, N>, l> repr_;
+  // Poly isn't a numeric primitive Vector<T,Size> is built for -- see
+  // trgsw.hpp's own comment.
+  std::vector<Poly<UInt, N>> repr_ = std::vector<Poly<UInt, N>>(l);
 };
 
 template <typename Rlwe, typename Decomp>

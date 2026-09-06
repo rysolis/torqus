@@ -6,6 +6,7 @@
 
 #include <bit>
 #include <cstdint>
+#include <vector>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
@@ -44,8 +45,7 @@ UInt decompose(const Torus& v, size_t i) {
 }
 
 template <kst_concept Params, torus_concept Torus>
-Torus reconstruct(const Vector<Poly<UInt, Params::N>, Params::t>& repr,
-                  size_t j) {
+Torus reconstruct(const std::vector<Poly<UInt, Params::N>>& repr, size_t j) {
   using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
   TorusWord m = 0;

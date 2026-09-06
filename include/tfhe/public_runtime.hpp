@@ -4,6 +4,7 @@
 #ifndef TFHE_PUBLIC_RUNTIME_HPP
 #define TFHE_PUBLIC_RUNTIME_HPP
 
+#include <functional>
 #include <random>
 #include <utility>
 
@@ -16,10 +17,13 @@
 // the randomness it needs to encrypt/decrypt. Unlike Runtime, it never
 // touches the secret its PublicKey was generated from (see public_key.hpp),
 // so whoever holds one can encrypt without being trusted with that secret.
-// Both the key and the engine are owned by value, so a PublicRuntime can be
-// built wherever it's used (e.g. by a party that received its PublicKey
-// over the wire from whoever generated it) with its own local randomness,
-// rather than sharing state with the key's originator.
+// The key is owned by value, so a PublicRuntime can be built wherever it's
+// used (e.g. by a party that received its PublicKey over the wire from
+// whoever generated it), but the engine is borrowed by reference -- exactly
+// like Runtime/Cryptor -- so the caller keeps owning and advancing their own
+// local generator across every encrypt() call; two PublicRuntimes built from
+// the same live eng therefore never replay the same random stream the way
+// copying eng by value into each of them would.
 template <typename Params, uint32_t PkSamples>
   requires tlwe_concept<Params>
 class PublicRuntime {
@@ -32,16 +36,16 @@ class PublicRuntime {
   // same type).
   using Engine = std::mt19937;
 
-  PublicRuntime(PublicKey<Torus, n, PkSamples> pk, Engine eng)
-      : pk_(std::move(pk)), eng_(std::move(eng)) {}
+  PublicRuntime(PublicKey<Torus, n, PkSamples> pk, Engine& eng)
+      : pk_(std::move(pk)), eng_(eng) {}
 
   TLWE<Torus, n> encrypt(const Torus& pt) {
-    return public_key::encrypt(pk_, eng_, pt);
+    return public_key::encrypt(pk_, eng_.get(), pt);
   }
 
  private:
   PublicKey<Torus, n, PkSamples> pk_;
-  Engine eng_;
+  std::reference_wrapper<Engine> eng_;
 };
 
 #endif  // TFHE_PUBLIC_RUNTIME_HPP
