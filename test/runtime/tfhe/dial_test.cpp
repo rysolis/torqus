@@ -105,3 +105,54 @@ TYPED_TEST(DialTest, MarginIsHalfSlotWidth) {
 
   EXPECT_EQ(D::margin(), Torus(1u, 8u));
 }
+
+// Resolution doesn't have to be a power of two -- e.g. a scheme deriving
+// its slot count from a noise budget (not bit alignment) may land on
+// something like 9. index() falls back to a genuine multiply/round in
+// that case (see dial.hpp) instead of the power-of-two bit-shift path,
+// but the round-trip/noise-tolerance/margin behavior stays identical.
+TYPED_TEST(DialTest,
+           NonPowerOfTwoResolutionConstructedFromIndexMatchesFormula) {
+  using Torus = typename TypeParam::torus_type;
+  using D = Dial<9, Torus>;
+
+  static_assert(!D::is_power_of_two);
+  for (uint32_t i = 0; i < D::resolution; ++i) {
+    EXPECT_EQ(D(i).value(), Torus(i, 9u));
+  }
+}
+
+TYPED_TEST(DialTest,
+           NonPowerOfTwoResolutionIndexRoundTripsThroughConstruction) {
+  using Torus = typename TypeParam::torus_type;
+  using D = Dial<9, Torus>;
+
+  for (uint32_t i = 0; i < D::resolution; ++i) {
+    Torus raw = D(i).value();
+    EXPECT_EQ(D(raw).index(), i);
+  }
+}
+
+TYPED_TEST(DialTest, NonPowerOfTwoResolutionIndexToleratesNoiseWithinMargin) {
+  using Torus = typename TypeParam::torus_type;
+  using D = Dial<9, Torus>;
+
+  Torus tiny = Dial<64, Torus>(1).value();
+
+  for (uint32_t i = 0; i < D::resolution; ++i) {
+    Torus above = D(i).value();
+    above += tiny;
+    EXPECT_EQ(D(above).index(), i);
+
+    Torus below = D(i).value();
+    below -= tiny;
+    EXPECT_EQ(D(below).index(), i);
+  }
+}
+
+TYPED_TEST(DialTest, NonPowerOfTwoResolutionMarginIsHalfSlotWidth) {
+  using Torus = typename TypeParam::torus_type;
+  using D = Dial<9, Torus>;
+
+  EXPECT_EQ(D::margin(), Torus(1u, 18u));
+}
