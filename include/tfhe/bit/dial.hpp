@@ -105,21 +105,46 @@ class Dial {
       uint64_t idx = (static_cast<uint64_t>(raw) * Resolution + half) >> qbit;
       return static_cast<uint32_t>(idx % Resolution);
     } else {
-      // qbit > 32: raw alone can already need every bit of a 64-bit Word,
-      // so raw * Resolution (Resolution being up to 32 bits) can need up
-      // to 96 bits -- widen to __int128 rather than risk overflow.
-#if defined(__SIZEOF_INT128__)
-      using Wide = unsigned __int128;
-      Wide half = Wide{1} << (qbit - 1);
-      Wide idx = (static_cast<Wide>(raw) * Resolution + half) >> qbit;
+      // qbit > 32 (so qbit <= 64, Word's own limit -- see the QBit <=
+      // digits<Word> static_assert on ModTorus): raw alone can already
+      // need every bit of a 64-bit Word, so raw * Resolution (Resolution
+      // being up to 32 bits) can need up to 96 bits. __int128 would cover
+      // that, but it isn't ISO C++ (rejected under -Wpedantic on GCC), so
+      // the 96-bit product is built from two 64-bit halves by hand,
+      // schoolbook-multiplication style, same idea as ModTorus's own
+      // bit-serial (raw, resolution) constructor avoiding a wide type.
+      static_assert(qbit <= 64, "Word wider than 64 bits isn't supported");
+      constexpr uint64_t half = uint64_t{1} << (qbit - 1);
+
+      // raw * Resolution == (raw_hi * Resolution) << 32 + raw_lo * Resolution,
+      // i.e. a << 32 + b below -- computed as a (hi, low) pair of 64-bit
+      // words rather than a single wider type.
+      uint64_t raw_hi = raw >> 32;
+      uint64_t raw_lo = raw & 0xFFFFFFFFu;
+      uint64_t a = raw_hi * Resolution;
+      uint64_t b = raw_lo * Resolution;
+
+      // a << 32 truncates to (a's low 32 bits) << 32 in a 64-bit register
+      // -- exactly A_lo * 2^32 from the derivation above -- while a's own
+      // high 32 bits (a >> 32) carry into the pair's high word.
+      uint64_t a_lo = a << 32;
+      uint64_t low = a_lo + b;
+      uint64_t hi = (a >> 32) + (low < a_lo ? 1 : 0);
+
+      // Fold the rounding half into the same (hi, low) pair.
+      uint64_t low_rounded = low + half;
+      hi += (low_rounded < low) ? 1 : 0;
+
+      uint64_t idx;
+      if constexpr (qbit == 64) {
+        // low_rounded contributes nothing past bit 64 here -- shifting it
+        // right by a full 64 bits would be undefined behavior, so this
+        // case only needs the high word.
+        idx = hi;
+      } else {
+        idx = (low_rounded >> qbit) | (hi << (64 - qbit));
+      }
       return static_cast<uint32_t>(idx % Resolution);
-#else
-      static_assert(qbit <= 32,
-                    "Dial with a non-power-of-two Resolution and qbit > 32 "
-                    "needs 128-bit integer support (__int128), which this "
-                    "compiler doesn't provide");
-      return 0;
-#endif
     }
   }
 
