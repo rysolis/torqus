@@ -17,6 +17,12 @@
 // encoded outside this library's own gate suite) goes in and a plain
 // Lwe-shaped TLWE at this circuit's 1/OutResolution step comes out, with
 // no Bit unwrapping at the call site.
+//
+// Holds the Circuit/Relay by reference, not by value -- a caller that also
+// needs the underlying And/Or/AndNot/Xor/Reslot keeps its own Circuit and
+// Relay and layers this (and any other circuit:: wrapper) on top, rather
+// than duplicating the BootstrapKey/KeySwitchKey to give each wrapper its
+// own copy. The referenced Circuit/Relay must outlive this Reslot.
 namespace tfhe::circuit {
 
 template <uint32_t InResolution, uint32_t OutResolution, typename Lwe,
@@ -29,19 +35,20 @@ class Reslot {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Reslot(Circuit<Lwe, Rlwe, Decomp> circuit, Relay<Lwe, Rlwe, Kst> relay)
-      : circuit_(std::move(circuit)), relay_(std::move(relay)) {}
+  Reslot(const Circuit<Lwe, Rlwe, Decomp>& circuit,
+         const Relay<Lwe, Rlwe, Kst>& relay)
+      : circuit_(&circuit), relay_(&relay) {}
 
   TLWE<Torus, n> exec(const TLWE<Torus, n>& c) const {
-    Bit<Lwe, Rlwe> bit = circuit_.template Reslot<InResolution, OutResolution>(
+    Bit<Lwe, Rlwe> bit = circuit_->template Reslot<InResolution, OutResolution>(
         Bit<Lwe, Rlwe>(c));
-    relay_.materialize(bit);
+    relay_->materialize(bit);
     return std::move(bit).ready();
   }
 
  private:
-  Circuit<Lwe, Rlwe, Decomp> circuit_;
-  Relay<Lwe, Rlwe, Kst> relay_;
+  const Circuit<Lwe, Rlwe, Decomp>* circuit_;
+  const Relay<Lwe, Rlwe, Kst>* relay_;
 };
 
 }  // namespace tfhe::circuit

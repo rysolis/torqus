@@ -25,6 +25,10 @@
 // flat raw_value_type buffer, which Bit's std::variant state doesn't fit;
 // TLWE input is std::vector for the same reason -- neither is the
 // numeric-primitive Vector<T,Size> is built for).
+//
+// Holds the Circuit/Relay by reference, not by value -- see
+// tfhe/circuit/reslot.hpp's own comment on why. The referenced Circuit/Relay
+// must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -39,9 +43,9 @@ class BinaryExpansion {
 
   static constexpr uint32_t k = std::bit_width(H - 1);
 
-  BinaryExpansion(Circuit<Lwe, Rlwe, Decomp> circuit,
-                  Relay<Lwe, Rlwe, Kst> relay)
-      : circuit_(std::move(circuit)), relay_(std::move(relay)) {}
+  BinaryExpansion(const Circuit<Lwe, Rlwe, Decomp>& circuit,
+                  const Relay<Lwe, Rlwe, Kst>& relay)
+      : circuit_(&circuit), relay_(&relay) {}
 
   // One slot of the one-hot output. The k-step gate chain is sequential
   // (each step materializes the previous Bit before the next gate call),
@@ -56,8 +60,8 @@ class BinaryExpansion {
     for (size_t i = 0; i < k; ++i) {
       uint32_t bit = (h >> i) & 1u;
       Bit<Lwe, Rlwe> vi = v[i];
-      relay_.materialize(acc);
-      acc = bit ? circuit_.And(acc, vi) : circuit_.AndNot(acc, vi);
+      relay_->materialize(acc);
+      acc = bit ? circuit_->And(acc, vi) : circuit_->AndNot(acc, vi);
     }
     return acc;
   }
@@ -75,7 +79,7 @@ class BinaryExpansion {
   TLWE<Torus, n> exec_slot_ready(uint32_t h,
                                  const std::vector<TLWE<Torus, n>>& v) const {
     Bit<Lwe, Rlwe> bit = exec_slot_impl(h, v);
-    relay_.materialize(bit);
+    relay_->materialize(bit);
     return std::move(bit).ready();
   }
 
@@ -100,8 +104,8 @@ class BinaryExpansion {
     return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
   }
 
-  Circuit<Lwe, Rlwe, Decomp> circuit_;
-  Relay<Lwe, Rlwe, Kst> relay_;
+  const Circuit<Lwe, Rlwe, Decomp>* circuit_;
+  const Relay<Lwe, Rlwe, Kst>* relay_;
 };
 
 }  // namespace tfhe::circuit
