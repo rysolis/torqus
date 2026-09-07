@@ -8,7 +8,6 @@
 #include "primitive/torus.hpp"
 
 #include "tfhe/bit.hpp"
-#include "tfhe/bit/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -146,9 +145,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 }
 
 // exec_ready() is exec() plus a Relay::materialize() per slot -- each
-// output comes back Lwe-shaped, so it decodes straight off the Lwe-side
-// Runtime instead of through Boundary::drop() (which expects an
-// Rlwe-shaped/pending Bit).
+// output comes back Lwe-shaped, decoded via Boundary::drop()'s Lwe-shaped
+// overload directly (no Bit wrapping needed).
 TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
@@ -179,9 +177,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
     for (uint32_t i = 0; i < 4; ++i) {
-      bool res = Dial<4, typename Lwe::torus_type>(
-                     this->lwe_runtime_.decrypt(res_ct[i]))
-                     .index();
+      bool res = boundary.drop(res_ct[i]);
       bool expected = (i == tc.hot);
       EXPECT_EQ(res, expected);
     }

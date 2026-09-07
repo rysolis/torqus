@@ -4,7 +4,6 @@
 #include <iomanip>
 
 #include "tfhe/bit.hpp"
-#include "tfhe/bit/dial.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -93,6 +92,8 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
 
   Boundary<2, Lwe, Rlwe, Decomp, Tracking> in_boundary(this->lwe_runtime_,
                                                        this->rlwe_runtime_);
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> out_boundary(this->lwe_runtime_,
+                                                        this->rlwe_runtime_);
 
   tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst> reslot(this->circuit_,
                                                              this->relay_);
@@ -102,12 +103,9 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
 
     TLWE<typename Lwe::torus_type, Lwe::n> res_ct = reslot.exec(ct.ready());
 
-    // res_ct is already Lwe-shaped (exec materializes it), so decode
-    // directly via the Lwe-side Runtime instead of Boundary::drop(), which
-    // expects an Rlwe-shaped (pending) Bit.
-    bool res =
-        Dial<4, typename Lwe::torus_type>(this->lwe_runtime_.decrypt(res_ct))
-            .index();
+    // res_ct is already Lwe-shaped (exec materializes it) -- decoded via
+    // Boundary::drop()'s Lwe-shaped overload directly.
+    bool res = out_boundary.drop(res_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "         Circuit::Reslot Test\n";
