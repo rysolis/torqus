@@ -11,9 +11,8 @@
 
 // Wraps tfhe::bootstrap::Reslot<InResolution, OutResolution> -- the operand
 // must already be Lwe-shaped (Cipher::is_ready()); the result is
-// Rlwe-shaped (not yet materialized), same shape tfhe::circuit::And/Or/
-// AndNot/Xor's own results have. Materialize it via Relay before feeding
-// it into another call.
+// Rlwe-shaped (not yet materialized), same shape any Bootstrap gate result
+// has. Materialize it via Relay before feeding it into another call.
 //
 // Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
 // comment (tfhe/gate/hom_and.hpp) for why this is a compile-time policy.

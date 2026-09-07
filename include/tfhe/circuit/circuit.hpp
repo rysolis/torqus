@@ -12,8 +12,8 @@
 #include "tfhe/structure/key/key_switch_key.hpp"
 
 // BootstrapKeyHolder<Lwe, Rlwe, Decomp> owns a BootstrapKey and manages its
-// lifetime -- the one place that key actually lives. tfhe::circuit::And/
-// Or/AndNot/Xor/Reslot each take the raw BootstrapKey itself (a caller
+// lifetime -- the one place that key actually lives. tfhe::circuit::Reslot
+// and BinaryExpansion each take the raw BootstrapKey itself (a caller
 // holding a BootstrapKeyHolder passes holder.bk()), not the holder --
 // those don't need to know the holder concept exists; the holder's only
 // job is giving the key a name and a stable address several of them can

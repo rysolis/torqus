@@ -1,11 +1,11 @@
 #include <gtest/gtest.h>
 
 #include "tfhe/bit.hpp"
-#include "tfhe/circuit/and.hpp"
-#include "tfhe/circuit/and_not.hpp"
-#include "tfhe/circuit/or.hpp"
 #include "tfhe/circuit/reslot.hpp"
-#include "tfhe/circuit/xor.hpp"
+#include "tfhe/gate/hom_and.hpp"
+#include "tfhe/gate/hom_and_not.hpp"
+#include "tfhe/gate/hom_or.hpp"
+#include "tfhe/gate/hom_xor.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/random_generator.hpp"
@@ -37,10 +37,6 @@ class CipherTest : public ::testing::Test {
 
   BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
   KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
-  tfhe::circuit::And<Lwe, Rlwe, Decomp> and_;
-  tfhe::circuit::Or<Lwe, Rlwe, Decomp> or_;
-  tfhe::circuit::AndNot<Lwe, Rlwe, Decomp> and_not_;
-  tfhe::circuit::Xor<Lwe, Rlwe, Decomp> xor_;
   Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
@@ -54,16 +50,37 @@ class CipherTest : public ::testing::Test {
         lwe_runtime_
             .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                 rlwe_runtime_.holder().get()));
-    and_ = tfhe::circuit::And<Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    or_ = tfhe::circuit::Or<Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    and_not_ = tfhe::circuit::AndNot<Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    xor_ = tfhe::circuit::Xor<Lwe, Rlwe, Decomp>(bk_holder_.bk());
     relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
+  }
+
+  // Thin Cipher-in/Cipher-out adapters over tfhe::gate::Hom* -- gate::HomAnd
+  // et al. already do the actual work as static exec_impl calls, so these
+  // just extract .ready() and rewrap the (Rlwe-shaped) result as Cipher.
+  Cipher<Lwe, Rlwe> and_(const Cipher<Lwe, Rlwe>& lhs,
+                         const Cipher<Lwe, Rlwe>& rhs) const {
+    return Cipher<Lwe, Rlwe>(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
+        lhs.ready(), rhs.ready(), bk_holder_.bk()));
+  }
+  Cipher<Lwe, Rlwe> or_(const Cipher<Lwe, Rlwe>& lhs,
+                        const Cipher<Lwe, Rlwe>& rhs) const {
+    return Cipher<Lwe, Rlwe>(tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
+        lhs.ready(), rhs.ready(), bk_holder_.bk()));
+  }
+  Cipher<Lwe, Rlwe> and_not_(const Cipher<Lwe, Rlwe>& lhs,
+                             const Cipher<Lwe, Rlwe>& rhs) const {
+    return Cipher<Lwe, Rlwe>(
+        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(
+            lhs.ready(), rhs.ready(), bk_holder_.bk()));
+  }
+  Cipher<Lwe, Rlwe> xor_(const Cipher<Lwe, Rlwe>& lhs,
+                         const Cipher<Lwe, Rlwe>& rhs) const {
+    return Cipher<Lwe, Rlwe>(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
+        lhs.ready(), rhs.ready(), bk_holder_.bk()));
   }
 
   // A caller needing several (InResolution, OutResolution) pairs -- like
   // these tests -- builds one tfhe::circuit::Reslot per pair, same as
-  // holding several And/Or/AndNot/Xor for several parameter sets.
+  // holding several parameter sets for the Hom* adapters above.
   template <uint32_t InResolution, uint32_t OutResolution>
   Cipher<Lwe, Rlwe> reslot(const Cipher<Lwe, Rlwe>& bit) const {
     return tfhe::circuit::Reslot<InResolution, OutResolution, Lwe, Rlwe,
@@ -89,21 +106,21 @@ TEST_F(CipherTest, GateResultIsNotReady) {
   Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
 
-  Cipher<Lwe, Rlwe> result_ct = and_.exec(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
   EXPECT_TRUE(drop(boundary, result_ct));
 }
 
 // Relay::materialize() is how a caller normalizes a Cipher back to
-// Lwe-shaped -- And/Or/AndNot/Xor never do this on their own.
+// Lwe-shaped -- HomAnd/HomOr/HomAndNot/HomXor never do this on their own.
 TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
 
-  Cipher<Lwe, Rlwe> result_ct = and_.exec(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
@@ -134,7 +151,7 @@ TEST_F(CipherTest, ReslotWithSameResolutionPreservesValue) {
 }
 
 // A Cipher lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
-// 1/4) -- the step And/Or/AndNot/Xor expect.
+// 1/4) -- the step HomAnd/HomOr/HomAndNot/HomXor expect.
 TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
   Boundary<2, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
   Boundary<4, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
@@ -175,9 +192,9 @@ TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
   Cipher<Lwe, Rlwe> t_ct = boundary.lift(true);
   Cipher<Lwe, Rlwe> f_ct = boundary.lift(false);
 
-  Cipher<Lwe, Rlwe> or_result_ct = or_.exec(t_ct, f_ct);
-  Cipher<Lwe, Rlwe> and_not_result_ct = and_not_.exec(t_ct, f_ct);
-  Cipher<Lwe, Rlwe> xor_result_ct = xor_.exec(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> or_result_ct = or_(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> and_not_result_ct = and_not_(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> xor_result_ct = xor_(t_ct, f_ct);
 
   EXPECT_TRUE(drop(boundary, or_result_ct));
   EXPECT_TRUE(drop(boundary, and_not_result_ct));
@@ -195,7 +212,7 @@ TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
   Cipher<Lwe, Rlwe> a_ct = full_boundary.lift(true);
   Cipher<Lwe, Rlwe> b_ct = full_boundary.lift(true);
 
-  Cipher<Lwe, Rlwe> result_ct = and_.exec(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
   relay_.materialize(result_ct);
   ASSERT_TRUE(result_ct.is_ready());
 
@@ -222,9 +239,9 @@ TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
   EXPECT_FALSE(drop(boundary, f_ct));
 }
 
-// And/Or/AndNot/Xor require both operands already Lwe-shaped -- chaining a
-// gate's own (Rlwe-shaped) output into another gate call needs an explicit
-// Relay::materialize() first.
+// HomAnd/HomOr/HomAndNot/HomXor require both operands already Lwe-shaped --
+// chaining a gate's own (Rlwe-shaped) output into another gate call needs an
+// explicit Relay::materialize() first.
 TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
@@ -233,12 +250,12 @@ TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   Cipher<Lwe, Rlwe> c_ct = boundary.lift(false);
 
   // (a AND b) AND c == false
-  Cipher<Lwe, Rlwe> ab_ct = and_.exec(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> ab_ct = and_(a_ct, b_ct);
   ASSERT_FALSE(ab_ct.is_ready());
   relay_.materialize(ab_ct);
   ASSERT_TRUE(ab_ct.is_ready());
 
-  Cipher<Lwe, Rlwe> abc_ct = and_.exec(ab_ct, c_ct);
+  Cipher<Lwe, Rlwe> abc_ct = and_(ab_ct, c_ct);
 
   EXPECT_FALSE(drop(boundary, abc_ct));
 }

@@ -8,8 +8,6 @@
 #include "primitive/torus.hpp"
 
 #include "tfhe/bit.hpp"
-#include "tfhe/circuit/and.hpp"
-#include "tfhe/circuit/and_not.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -62,9 +60,6 @@ class BinaryExpansionFixture : public ::testing::Test {
 
   BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
   KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
-  tfhe::circuit::And<Lwe, Rlwe, Decomp> and_;
-  tfhe::circuit::AndNot<Lwe, Rlwe, Decomp> and_not_;
-  Relay<Lwe, Rlwe, Kst> relay_;
   tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion_;
 
   void SetUp() override {
@@ -78,11 +73,8 @@ class BinaryExpansionFixture : public ::testing::Test {
         lwe_runtime_
             .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                 rlwe_runtime_.holder().get()));
-    and_ = tfhe::circuit::And<Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    and_not_ = tfhe::circuit::AndNot<Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
     expansion_ = tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>(
-        and_, and_not_, relay_);
+        bk_holder_.bk(), ksk_holder_.ksk());
   }
 };
 
