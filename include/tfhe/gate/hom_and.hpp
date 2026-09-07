@@ -14,14 +14,23 @@
 #include "tfhe/utility/testvector.hpp"
 
 // Combines c1/c2 (both Lwe-shaped) into their homomorphic AND, returning
-// the result as a fresh Rlwe-domain ciphertext via GateBootstrap -- the
-// same Lwe-in/Rlwe-out shape GateBootstrap itself has. Chaining several of
+// the result as a fresh Rlwe-domain ciphertext via Backend -- the same
+// Lwe-in/Rlwe-out shape GateBootstrap itself has. Chaining several of
 // these together (as BinaryExpansion does) therefore needs a KeySwitch
 // back down to Lwe between calls; that's the caller's job (see
 // BinaryExpansion), not this one's.
+//
+// Backend defaults to bootstrap::GateBootstrap (today's software
+// implementation) -- a compile-time policy, not a runtime parameter, since
+// which one a given Circuit should use is a build-time choice (see
+// Circuit, which is what actually threads a non-default Backend down to
+// here); a program can still hold software- and hardware-backed Circuit
+// instances side by side, they're just different types.
 namespace tfhe::gate {
 
-template <typename Lwe, typename Rlwe, typename Decomp>
+template <typename Lwe, typename Rlwe, typename Decomp,
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomAnd {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -45,8 +54,7 @@ class HomAnd {
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
         offset, leveled::Add<Lwe>::exec_impl(c1, c2));
 
-    return bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv,
-                                                                  combined, bk);
+    return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 

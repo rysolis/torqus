@@ -9,6 +9,7 @@
 
 #include "tfhe/bit/bit.hpp"
 #include "tfhe/circuit/circuit.hpp"
+#include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
 // Wraps Circuit::Reslot<InResolution, OutResolution> plus the
@@ -23,10 +24,17 @@
 // Relay and layers this (and any other circuit:: wrapper) on top, rather
 // than duplicating the BootstrapKey/KeySwitchKey to give each wrapper its
 // own copy. The referenced Circuit/Relay must outlive this Reslot.
+//
+// Backend mirrors Circuit's own Backend parameter (see circuit.hpp) purely
+// so this can wrap a non-default-Backend Circuit -- Circuit<...,Backend>
+// and Circuit<...> (default) are different types, so without this Reslot
+// could only ever wrap the software one.
 namespace tfhe::circuit {
 
 template <uint32_t InResolution, uint32_t OutResolution, typename Lwe,
-          typename Rlwe, typename Decomp, typename Kst>
+          typename Rlwe, typename Decomp, typename Kst,
+          template <typename, typename, typename> class Backend =
+              tfhe::bootstrap::GateBootstrap>
 class Reslot {
  public:
   using Torus = typename Lwe::torus_type;
@@ -35,7 +43,7 @@ class Reslot {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Reslot(const Circuit<Lwe, Rlwe, Decomp>& circuit,
+  Reslot(const Circuit<Lwe, Rlwe, Decomp, Backend>& circuit,
          const Relay<Lwe, Rlwe, Kst>& relay)
       : circuit_(&circuit), relay_(&relay) {}
 
@@ -47,7 +55,7 @@ class Reslot {
   }
 
  private:
-  const Circuit<Lwe, Rlwe, Decomp>* circuit_;
+  const Circuit<Lwe, Rlwe, Decomp, Backend>* circuit_;
   const Relay<Lwe, Rlwe, Kst>* relay_;
 };
 

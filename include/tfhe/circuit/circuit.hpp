@@ -25,7 +25,16 @@
 // out <Kst, Decomp> and bk by hand. Both operands must already be
 // Lwe-shaped (Bit::is_ready()) -- materialize a gate's own output via
 // Relay::materialize() before feeding it into another call.
-template <typename Lwe, typename Rlwe, typename Decomp>
+//
+// Backend defaults to bootstrap::GateBootstrap and is forwarded to each
+// tfhe::gate::Hom* call and to Reslot's own bootstrap -- see HomAnd's own
+// doc comment for why this is a compile-time policy, not a runtime
+// parameter. Circuit<Lwe,Rlwe,Decomp> (Backend omitted) is byte-for-byte
+// today's Circuit; a caller that wants a non-default Backend just spells
+// it out, e.g. Circuit<Lwe,Rlwe,Decomp,MyHardwareBootstrap>.
+template <typename Lwe, typename Rlwe, typename Decomp,
+          template <typename, typename, typename> class Backend =
+              tfhe::bootstrap::GateBootstrap>
 class Circuit {
  public:
   using Torus = typename Lwe::torus_type;
@@ -41,27 +50,31 @@ class Circuit {
 
   Bit<Lwe, Rlwe> And(const Bit<Lwe, Rlwe>& lhs,
                      const Bit<Lwe, Rlwe>& rhs) const {
-    return Bit<Lwe, Rlwe>(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_));
+    return Bit<Lwe, Rlwe>(
+        tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::exec_impl(
+            lhs.ready(), rhs.ready(), bk_));
   }
 
   Bit<Lwe, Rlwe> Or(const Bit<Lwe, Rlwe>& lhs,
                     const Bit<Lwe, Rlwe>& rhs) const {
-    return Bit<Lwe, Rlwe>(tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_));
+    return Bit<Lwe, Rlwe>(
+        tfhe::gate::HomOr<Lwe, Rlwe, Decomp, Backend>::exec_impl(
+            lhs.ready(), rhs.ready(), bk_));
   }
 
   // lhs AND NOT rhs.
   Bit<Lwe, Rlwe> AndNot(const Bit<Lwe, Rlwe>& lhs,
                         const Bit<Lwe, Rlwe>& rhs) const {
-    return Bit<Lwe, Rlwe>(tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_));
+    return Bit<Lwe, Rlwe>(
+        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp, Backend>::exec_impl(
+            lhs.ready(), rhs.ready(), bk_));
   }
 
   Bit<Lwe, Rlwe> Xor(const Bit<Lwe, Rlwe>& lhs,
                      const Bit<Lwe, Rlwe>& rhs) const {
-    return Bit<Lwe, Rlwe>(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_));
+    return Bit<Lwe, Rlwe>(
+        tfhe::gate::HomXor<Lwe, Rlwe, Decomp, Backend>::exec_impl(
+            lhs.ready(), rhs.ready(), bk_));
   }
 
   // Bootstraps `bit` to fresh noise while moving its value from a
@@ -98,8 +111,7 @@ class Circuit {
     }
 
     return Bit<Lwe, Rlwe>(
-        tfhe::bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(
-            mu_out, tv, scaled, bk_));
+        Backend<Lwe, Rlwe, Decomp>::exec_impl(mu_out, tv, scaled, bk_));
   }
 
  private:

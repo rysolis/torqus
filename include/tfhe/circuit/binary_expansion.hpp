@@ -11,6 +11,7 @@
 
 #include "tfhe/bit/bit.hpp"
 #include "tfhe/circuit/circuit.hpp"
+#include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
@@ -26,13 +27,20 @@
 // TLWE input is std::vector for the same reason -- neither is the
 // numeric-primitive Vector<T,Size> is built for).
 //
+// Backend mirrors Circuit's own Backend parameter (see circuit.hpp) -- this
+// is what actually lets the H*k Bootstrap+KeySwitch calls in exec_slot_impl
+// below run against a non-default (e.g. hardware) Circuit, simply by
+// constructing this with one.
+//
 // Holds the Circuit/Relay by reference, not by value -- see
 // tfhe/circuit/reslot.hpp's own comment on why. The referenced Circuit/Relay
 // must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
-          typename Kst>
+          typename Kst,
+          template <typename, typename, typename> class Backend =
+              tfhe::bootstrap::GateBootstrap>
 class BinaryExpansion {
  public:
   using Torus = typename Lwe::torus_type;
@@ -43,7 +51,7 @@ class BinaryExpansion {
 
   static constexpr uint32_t k = std::bit_width(H - 1);
 
-  BinaryExpansion(const Circuit<Lwe, Rlwe, Decomp>& circuit,
+  BinaryExpansion(const Circuit<Lwe, Rlwe, Decomp, Backend>& circuit,
                   const Relay<Lwe, Rlwe, Kst>& relay)
       : circuit_(&circuit), relay_(&relay) {}
 
@@ -104,7 +112,7 @@ class BinaryExpansion {
     return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
   }
 
-  const Circuit<Lwe, Rlwe, Decomp>* circuit_;
+  const Circuit<Lwe, Rlwe, Decomp, Backend>* circuit_;
   const Relay<Lwe, Rlwe, Kst>* relay_;
 };
 

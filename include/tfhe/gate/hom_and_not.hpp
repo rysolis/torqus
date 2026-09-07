@@ -16,9 +16,14 @@
 
 // Combines c1/c2 (both Lwe-shaped) into their homomorphic ANDNOT (c1 AND
 // NOT c2), the same Lwe-in/Rlwe-out shape HomAnd has -- see HomAnd.
+//
+// Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
+// comment for why this is a compile-time policy.
 namespace tfhe::gate {
 
-template <typename Lwe, typename Rlwe, typename Decomp>
+template <typename Lwe, typename Rlwe, typename Decomp,
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomAndNot {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -42,8 +47,7 @@ class HomAndNot {
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
         offset, leveled::Sub<Lwe>::exec_impl(c1, c2));
 
-    return bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv,
-                                                                  combined, bk);
+    return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 
