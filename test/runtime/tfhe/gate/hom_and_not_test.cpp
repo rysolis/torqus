@@ -111,7 +111,7 @@ TYPED_TEST(HomAndNotCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Assert
     // ==================================
-    bool res = boundary.drop(res_ct);
+    bool res = drop(boundary, res_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "           HomAndNot Test\n";
