@@ -8,6 +8,8 @@
 #include "primitive/torus.hpp"
 
 #include "tfhe/bit.hpp"
+#include "tfhe/circuit/and.hpp"
+#include "tfhe/circuit/and_not.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -58,20 +60,29 @@ class BinaryExpansionFixture : public ::testing::Test {
   Runtime<Lwe, Tracking> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
-  Circuit<Lwe, Rlwe, Decomp> circuit_;
+  BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
+  KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
+  tfhe::circuit::And<Lwe, Rlwe, Decomp> and_;
+  tfhe::circuit::AndNot<Lwe, Rlwe, Decomp> and_not_;
   Relay<Lwe, Rlwe, Kst> relay_;
+  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
     lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
-    circuit_ = Circuit<Lwe, Rlwe, Decomp>(
+    bk_holder_ = BootstrapKeyHolder<Lwe, Rlwe, Decomp>(
         rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
             lwe_runtime_.holder().get()));
-    relay_ = Relay<Lwe, Rlwe, Kst>(
+    ksk_holder_ = KeySwitchKeyHolder<Lwe, Rlwe, Kst>(
         lwe_runtime_
             .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                 rlwe_runtime_.holder().get()));
+    and_ = tfhe::circuit::And<Lwe, Rlwe, Decomp>(bk_holder_.bk());
+    and_not_ = tfhe::circuit::AndNot<Lwe, Rlwe, Decomp>(bk_holder_.bk());
+    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
+    expansion_ = tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>(
+        and_, and_not_, relay_);
   }
 };
 
@@ -103,13 +114,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
-  using Kst = typename TypeParam::context::kst_params;
 
   Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
                                                     this->rlwe_runtime_);
-
-  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
-      this->circuit_, this->relay_);
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
@@ -122,7 +129,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    std::array<Cipher<Lwe, Rlwe>, 4> res_ct = expansion.exec(operand_ct);
+    std::array<Cipher<Lwe, Rlwe>, 4> res_ct = this->expansion_.exec(operand_ct);
 
     // ==================================
     // Assert
@@ -151,13 +158,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
-  using Kst = typename TypeParam::context::kst_params;
 
   Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
                                                     this->rlwe_runtime_);
-
-  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
-      this->circuit_, this->relay_);
 
   for (const auto& tc : TestFixture::cases()) {
     std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
@@ -165,7 +168,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
     operand_ct.push_back(boundary.lift(tc.b));
 
     std::array<TLWE<typename Lwe::torus_type, Lwe::n>, 4> res_ct =
-        expansion.exec_ready(operand_ct);
+        this->expansion_.exec_ready(operand_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "     BinaryExpansion exec_ready Test\n";
@@ -191,13 +194,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
-  using Kst = typename TypeParam::context::kst_params;
 
   Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
                                                     this->rlwe_runtime_);
-
-  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
-      this->circuit_, this->relay_);
 
   for (const auto& tc : TestFixture::cases()) {
     std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
@@ -215,7 +214,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
 
     for (uint32_t h = 0; h < 4; ++h) {
       TLWE<typename Lwe::torus_type, Lwe::n> res_ct =
-          expansion.exec_slot_ready(h, operand_ct);
+          this->expansion_.exec_slot_ready(h, operand_ct);
 
       bool res = boundary.drop(res_ct);
       bool expected = (h == tc.hot);

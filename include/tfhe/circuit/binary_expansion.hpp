@@ -10,6 +10,8 @@
 #include <vector>
 
 #include "tfhe/bit/cipher.hpp"
+#include "tfhe/circuit/and.hpp"
+#include "tfhe/circuit/and_not.hpp"
 #include "tfhe/circuit/circuit.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
@@ -17,26 +19,26 @@
 
 // H is the size of the one-hot output vector this expansion produces from
 // k = ceil(log2(H)) Lwe-shaped input bit-ciphertexts. Each slot chains
-// HomAnd/HomAndNot through Cipher<Lwe, Rlwe>, materializing between steps
-// (via this instance's own Relay/Circuit); only the last step per slot
-// stays Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out
-// shape a single gate does. Output is Cipher, not raw TLWE, so chaining this
-// circuit's result into another Circuit call needs no manual rewrapping
+// And/AndNot through Cipher<Lwe, Rlwe>, materializing between steps (via
+// this instance's own Relay); only the last step per slot stays
+// Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out shape a
+// single gate does. Output is Cipher, not raw TLWE, so chaining this
+// circuit's result into another gate call needs no manual rewrapping
 // (Vector<T,Size> itself can't hold Cipher -- it stores element types as a
 // flat raw_value_type buffer, which Cipher's std::variant state doesn't fit;
 // TLWE input is std::vector for the same reason -- neither is the
 // numeric-primitive Vector<T,Size> is built for).
 //
-// Backend mirrors Circuit's own Backend parameter (see circuit.hpp) -- this
-// is what actually lets the H*k Bootstrap+KeySwitch calls in exec_slot_impl
-// below run against a non-default (e.g. hardware) Circuit, simply by
-// constructing this with one.
+// Backend mirrors And/AndNot's own Backend parameter -- this is what
+// actually lets the H*k Bootstrap+KeySwitch calls in exec_slot_impl below
+// run against non-default (e.g. hardware) And/AndNot, simply by
+// constructing this with some.
 //
-// Holds the Circuit/Relay by reference, not by value -- a caller that also
-// needs the underlying And/Or/AndNot/Xor/Reslot keeps its own Circuit and
-// Relay and layers this on top, rather than duplicating the BootstrapKey/
-// KeySwitchKey to give BinaryExpansion its own copy. The referenced
-// Circuit/Relay must outlive this BinaryExpansion.
+// Takes the And/AndNot/Relay it needs directly, by reference, not by
+// value -- a caller that also needs the underlying Or/Xor/Reslot keeps its
+// own of each and layers this on top, rather than duplicating the
+// BootstrapKey/KeySwitchKey to give BinaryExpansion its own copy. The
+// referenced And/AndNot/Relay must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -53,9 +55,11 @@ class BinaryExpansion {
 
   static constexpr uint32_t k = std::bit_width(H - 1);
 
-  BinaryExpansion(const Circuit<Lwe, Rlwe, Decomp, Backend>& circuit,
+  BinaryExpansion() = default;
+  BinaryExpansion(const And<Lwe, Rlwe, Decomp, Backend>& and_op,
+                  const AndNot<Lwe, Rlwe, Decomp, Backend>& and_not_op,
                   const Relay<Lwe, Rlwe, Kst>& relay)
-      : circuit_(&circuit), relay_(&relay) {}
+      : and_(&and_op), and_not_(&and_not_op), relay_(&relay) {}
 
   // One slot of the one-hot output. The k-step gate chain is sequential
   // (each step materializes the previous Cipher before the next gate call),
@@ -71,7 +75,7 @@ class BinaryExpansion {
       uint32_t bit = (h >> i) & 1u;
       Cipher<Lwe, Rlwe> vi = v[i];
       relay_->materialize(acc);
-      acc = bit ? circuit_->And(acc, vi) : circuit_->AndNot(acc, vi);
+      acc = bit ? and_->exec(acc, vi) : and_not_->exec(acc, vi);
     }
     return acc;
   }
@@ -113,7 +117,8 @@ class BinaryExpansion {
     return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
   }
 
-  const Circuit<Lwe, Rlwe, Decomp, Backend>* circuit_;
+  const And<Lwe, Rlwe, Decomp, Backend>* and_;
+  const AndNot<Lwe, Rlwe, Decomp, Backend>* and_not_;
   const Relay<Lwe, Rlwe, Kst>* relay_;
 };
 

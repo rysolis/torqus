@@ -8,32 +8,42 @@
 #include <utility>
 
 #include "tfhe/bit/cipher.hpp"
-#include "tfhe/gate/hom_and.hpp"
-#include "tfhe/gate/hom_and_not.hpp"
-#include "tfhe/gate/hom_or.hpp"
-#include "tfhe/gate/hom_xor.hpp"
-#include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
-#include "tfhe/operation/bootstrap/reslot.hpp"
-#include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 
-// Circuit<Lwe, Rlwe, Decomp> holds the BootstrapKey a gate call needs,
-// exposing And/Or/AndNot/Xor as methods instead of a call site spelling
-// out <Kst, Decomp> and bk by hand. Both operands must already be
-// Lwe-shaped (Cipher::is_ready()) -- materialize a gate's own output via
-// Relay::materialize() before feeding it into another call.
-//
-// Backend defaults to bootstrap::GateBootstrap and is forwarded to each
-// tfhe::gate::Hom* call and to Reslot's own bootstrap -- see HomAnd's own
-// doc comment for why this is a compile-time policy, not a runtime
-// parameter. Circuit<Lwe,Rlwe,Decomp> (Backend omitted) is byte-for-byte
-// today's Circuit; a caller that wants a non-default Backend just spells
-// it out, e.g. Circuit<Lwe,Rlwe,Decomp,MyHardwareBootstrap>.
-template <typename Lwe, typename Rlwe, typename Decomp,
-          template <typename, typename, typename> class Backend =
-              tfhe::bootstrap::GateBootstrap>
-class Circuit {
+// BootstrapKeyHolder<Lwe, Rlwe, Decomp> owns a BootstrapKey and manages its
+// lifetime -- the one place that key actually lives. tfhe::circuit::And/
+// Or/AndNot/Xor/Reslot each take the raw BootstrapKey itself (a caller
+// holding a BootstrapKeyHolder passes holder.bk()), not the holder --
+// those don't need to know the holder concept exists; the holder's only
+// job is giving the key a name and a stable address several of them can
+// point at, with no one of them privileged as "the real owner." The
+// referenced key must outlive anything built from it.
+template <typename Lwe, typename Rlwe, typename Decomp>
+class BootstrapKeyHolder {
+ public:
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
+
+  static constexpr uint32_t l = Decomp::l;
+
+  BootstrapKeyHolder() = default;
+  explicit BootstrapKeyHolder(BootstrapKey<rTorus, N, l, n> bk)
+      : bk_(std::move(bk)) {}
+
+  const BootstrapKey<rTorus, N, l, n>& bk() const { return bk_; }
+
+ private:
+  BootstrapKey<rTorus, N, l, n> bk_;
+};
+
+// KeySwitchKeyHolder<Lwe, Rlwe, Kst> is BootstrapKeyHolder's counterpart
+// for the KeySwitchKey Relay below needs.
+template <typename Lwe, typename Rlwe, typename Kst>
+class KeySwitchKeyHolder {
  public:
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
@@ -41,66 +51,26 @@ class Circuit {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t t = Kst::t;
 
-  Circuit() = default;
-  explicit Circuit(BootstrapKey<rTorus, N, l, n> bk) : bk_(std::move(bk)) {}
+  KeySwitchKeyHolder() = default;
+  explicit KeySwitchKeyHolder(KeySwitchKey<Torus, n, t, N> ksk)
+      : ksk_(std::move(ksk)) {}
 
-  Cipher<Lwe, Rlwe> And(const Cipher<Lwe, Rlwe>& lhs,
-                        const Cipher<Lwe, Rlwe>& rhs) const {
-    return Cipher<Lwe, Rlwe>(
-        tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::exec_impl(
-            lhs.ready(), rhs.ready(), bk_));
-  }
-
-  Cipher<Lwe, Rlwe> Or(const Cipher<Lwe, Rlwe>& lhs,
-                       const Cipher<Lwe, Rlwe>& rhs) const {
-    return Cipher<Lwe, Rlwe>(
-        tfhe::gate::HomOr<Lwe, Rlwe, Decomp, Backend>::exec_impl(
-            lhs.ready(), rhs.ready(), bk_));
-  }
-
-  // lhs AND NOT rhs.
-  Cipher<Lwe, Rlwe> AndNot(const Cipher<Lwe, Rlwe>& lhs,
-                           const Cipher<Lwe, Rlwe>& rhs) const {
-    return Cipher<Lwe, Rlwe>(
-        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp, Backend>::exec_impl(
-            lhs.ready(), rhs.ready(), bk_));
-  }
-
-  Cipher<Lwe, Rlwe> Xor(const Cipher<Lwe, Rlwe>& lhs,
-                        const Cipher<Lwe, Rlwe>& rhs) const {
-    return Cipher<Lwe, Rlwe>(
-        tfhe::gate::HomXor<Lwe, Rlwe, Decomp, Backend>::exec_impl(
-            lhs.ready(), rhs.ready(), bk_));
-  }
-
-  // Bootstraps `bit` to fresh noise while moving its value from a
-  // 1/InResolution step to a 1/OutResolution step -- e.g. a Cipher lifted at
-  // Dial<2, Torus> (0 or 1/2) that needs to become Dial<4, Torus> (0 or
-  // 1/4) before feeding into And/Or/AndNot/Xor. InResolution == OutResolution
-  // is a pure noise refresh with no value change. The result isn't
-  // materialized -- call Relay::materialize() before feeding it into
-  // another call, same as And/Or/AndNot/Xor's own results.
-  //
-  // The actual algorithm (see tfhe::bootstrap::Reslot's own doc comment)
-  // takes/returns raw TLWE, not Cipher -- this is a thin convenience wrapper
-  // around it, matching how And/Or/AndNot/Xor wrap tfhe::gate::HomAnd/
-  // HomOr/HomAndNot/HomXor.
-  template <uint32_t InResolution, uint32_t OutResolution>
-  Cipher<Lwe, Rlwe> Reslot(const Cipher<Lwe, Rlwe>& bit) const {
-    return Cipher<Lwe, Rlwe>(
-        tfhe::bootstrap::Reslot<Lwe, Rlwe, Decomp, Backend>::template exec_impl<
-            InResolution, OutResolution>(bit.ready(), bk_));
-  }
+  const KeySwitchKey<Torus, n, t, N>& ksk() const { return ksk_; }
 
  private:
-  BootstrapKey<rTorus, N, l, n> bk_;
+  KeySwitchKey<Torus, n, t, N> ksk_;
 };
 
-// Relay<Lwe, Rlwe, Kst> holds the KeySwitchKey needed to materialize a
-// Cipher -- converting a gate's Rlwe-shaped result back down to Lwe-shaped so
-// it can feed into another Circuit call.
+// Relay<Lwe, Rlwe, Kst> holds a pointer to the raw KeySwitchKey needed to
+// materialize a Cipher -- converting a gate's Rlwe-shaped result back
+// down to Lwe-shaped so it can feed into another gate call. Takes the key
+// itself, not a KeySwitchKeyHolder -- a caller holding one passes
+// holder.ksk() straight through; Relay has no need to know the holder
+// concept exists.
+//
+// The referenced key must outlive this Relay.
 template <typename Lwe, typename Rlwe, typename Kst>
 class Relay {
  public:
@@ -113,16 +83,16 @@ class Relay {
   static constexpr uint32_t t = Kst::t;
 
   Relay() = default;
-  explicit Relay(KeySwitchKey<Torus, n, t, N> ksk) : ksk_(std::move(ksk)) {}
+  explicit Relay(const KeySwitchKey<Torus, n, t, N>& ksk) : ksk_(&ksk) {}
 
   // Converts `bit` in place to Lwe-shaped -- a no-op if already
   // bit.is_ready().
   void materialize(Cipher<Lwe, Rlwe>& bit) const {
-    bit.template materialize<Kst>(ksk_);
+    bit.template materialize<Kst>(*ksk_);
   }
 
  private:
-  KeySwitchKey<Torus, n, t, N> ksk_;
+  const KeySwitchKey<Torus, n, t, N>* ksk_;
 };
 
 #endif  // TFHE_CIRCUIT_HPP
