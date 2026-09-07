@@ -8,7 +8,7 @@
 #include <utility>
 
 #include "tfhe/bit/bit.hpp"
-#include "tfhe/bit/scope.hpp"
+#include "tfhe/circuit/circuit.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 
 // Wraps Circuit::Reslot<InResolution, OutResolution> plus the

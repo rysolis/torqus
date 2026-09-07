@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "tfhe/bit/bit.hpp"
-#include "tfhe/bit/scope.hpp"
+#include "tfhe/circuit/circuit.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 

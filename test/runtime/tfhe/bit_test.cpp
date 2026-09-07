@@ -92,7 +92,7 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
 }
 
 // Circuit::Reslot<N, N> bootstraps a Bit back to fresh noise without
-// changing its value -- the pure-refresh case of Reslot (see scope.hpp).
+// changing its value -- the pure-refresh case of Reslot (see circuit.hpp).
 TEST_F(BitTest, ReslotWithSameResolutionPreservesValue) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 

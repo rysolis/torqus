@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_SCOPE_HPP
-#define TFHE_SCOPE_HPP
+#ifndef TFHE_CIRCUIT_HPP
+#define TFHE_CIRCUIT_HPP
 
 #include <cstdint>
 #include <utility>
@@ -133,4 +133,4 @@ class Relay {
   KeySwitchKey<Torus, n, t, N> ksk_;
 };
 
-#endif  // TFHE_SCOPE_HPP
+#endif  // TFHE_CIRCUIT_HPP

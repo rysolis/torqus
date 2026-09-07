@@ -16,8 +16,8 @@
 // Bit<Lwe, Rlwe> is a boolean ciphertext that hides whether it is
 // currently Lwe-shaped (TLWE<Torus, n>, ready to feed straight into a
 // gate) or Rlwe-shaped (TLWE<rTorus, N>, what every gate call returns).
-// See tfhe/bit/scope.hpp: Circuit's And/Or/AndNot/Xor need both operands
-// already Lwe-shaped; Relay::materialize() converts one that isn't.
+// See tfhe/circuit/circuit.hpp: Circuit's And/Or/AndNot/Xor need both
+// operands already Lwe-shaped; Relay::materialize() converts one that isn't.
 template <typename Lwe, typename Rlwe>
 class Bit {
  public:
