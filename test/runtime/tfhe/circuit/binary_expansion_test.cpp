@@ -116,8 +116,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // Arrange
     // ==================================
     std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
-    operand_ct.push_back(boundary.lift(tc.a).ready());
-    operand_ct.push_back(boundary.lift(tc.b).ready());
+    operand_ct.push_back(boundary.lift(tc.a));
+    operand_ct.push_back(boundary.lift(tc.b));
 
     // ==================================
     // Act
@@ -137,7 +137,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
     for (uint32_t i = 0; i < 4; ++i) {
-      bool res = boundary.drop(res_ct[i]);
+      bool res = drop(boundary, res_ct[i]);
       bool expected = (i == tc.hot);
       EXPECT_EQ(res, expected);
     }
@@ -161,8 +161,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
 
   for (const auto& tc : TestFixture::cases()) {
     std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
-    operand_ct.push_back(boundary.lift(tc.a).ready());
-    operand_ct.push_back(boundary.lift(tc.b).ready());
+    operand_ct.push_back(boundary.lift(tc.a));
+    operand_ct.push_back(boundary.lift(tc.b));
 
     std::array<TLWE<typename Lwe::torus_type, Lwe::n>, 4> res_ct =
         expansion.exec_ready(operand_ct);
@@ -179,6 +179,46 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
     for (uint32_t i = 0; i < 4; ++i) {
       bool res = boundary.drop(res_ct[i]);
       bool expected = (i == tc.hot);
+      EXPECT_EQ(res, expected);
+    }
+  }
+}
+
+// exec_slot_ready(h, v) is exec_slot_impl(h, v) plus a Relay::materialize()
+// -- the per-slot counterpart to exec_ready(), for a caller farming slots
+// across its own thread pool instead of computing all H at once.
+TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Decomp = typename TypeParam::context::dcp_params;
+  using Kst = typename TypeParam::context::kst_params;
+
+  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                    this->rlwe_runtime_);
+
+  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion(
+      this->circuit_, this->relay_);
+
+  for (const auto& tc : TestFixture::cases()) {
+    std::vector<TLWE<typename Lwe::torus_type, Lwe::n>> operand_ct;
+    operand_ct.push_back(boundary.lift(tc.a));
+    operand_ct.push_back(boundary.lift(tc.b));
+
+    std::cout << "\n========================================\n";
+    std::cout << "  BinaryExpansion exec_slot_ready Test\n";
+    std::cout << "========================================\n";
+
+    std::cout << std::left;
+    std::cout << std::setw(14) << "operand" << ": (" << tc.a << ", " << tc.b
+              << ")\n";
+    std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
+
+    for (uint32_t h = 0; h < 4; ++h) {
+      TLWE<typename Lwe::torus_type, Lwe::n> res_ct =
+          expansion.exec_slot_ready(h, operand_ct);
+
+      bool res = boundary.drop(res_ct);
+      bool expected = (h == tc.hot);
       EXPECT_EQ(res, expected);
     }
   }

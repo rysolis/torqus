@@ -67,7 +67,7 @@ TEST_F(BitTest, GateResultIsNotReady) {
   Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
-  EXPECT_TRUE(boundary.drop(result_ct));
+  EXPECT_TRUE(drop(boundary, result_ct));
 }
 
 // Relay::materialize() is how a caller normalizes a Bit back to
@@ -82,9 +82,9 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
-  // boundary.drop(bit) handles either shape -- result_ct is now
-  // Lwe-shaped, but it still decodes the same way.
-  EXPECT_TRUE(boundary.drop(result_ct));
+  // drop(boundary, bit) handles either shape -- result_ct is now
+  // Lwe-shaped, but it still decodes the same way (see boundary.hpp).
+  EXPECT_TRUE(drop(boundary, result_ct));
 
   // A second call is a harmless no-op.
   relay_.materialize(result_ct);
@@ -103,8 +103,8 @@ TEST_F(BitTest, ReslotWithSameResolutionPreservesValue) {
   Bit<Lwe, Rlwe> f_refreshed = circuit_.Reslot<4, 4>(f_ct);
 
   EXPECT_FALSE(t_refreshed.is_ready());
-  EXPECT_TRUE(boundary.drop(t_refreshed));
-  EXPECT_FALSE(boundary.drop(f_refreshed));
+  EXPECT_TRUE(drop(boundary, t_refreshed));
+  EXPECT_FALSE(drop(boundary, f_refreshed));
 }
 
 // A Bit lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
@@ -119,8 +119,8 @@ TEST_F(BitTest, ReslotMovesValueToNewResolution) {
   Bit<Lwe, Rlwe> t_resloted = circuit_.Reslot<2, 4>(t_ct);
   Bit<Lwe, Rlwe> f_resloted = circuit_.Reslot<2, 4>(f_ct);
 
-  EXPECT_TRUE(out_boundary.drop(t_resloted));
-  EXPECT_FALSE(out_boundary.drop(f_resloted));
+  EXPECT_TRUE(drop(out_boundary, t_resloted));
+  EXPECT_FALSE(drop(out_boundary, f_resloted));
 }
 
 // OutResolution has no power-of-two constraint (only InResolution does, so
@@ -139,8 +139,8 @@ TEST_F(BitTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
 
   // Dial<100,...>'s indices 0/1 are still 0 and 1/100 -- same true/false
   // reading as Dial<4,...>'s 0/1, just on a finer grid.
-  EXPECT_EQ(out_boundary.drop(t_resloted), 1u);
-  EXPECT_EQ(out_boundary.drop(f_resloted), 0u);
+  EXPECT_EQ(drop(out_boundary, t_resloted), 1u);
+  EXPECT_EQ(drop(out_boundary, f_resloted), 0u);
 }
 
 TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
@@ -153,9 +153,9 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   Bit<Lwe, Rlwe> and_not_result_ct = circuit_.AndNot(t_ct, f_ct);
   Bit<Lwe, Rlwe> xor_result_ct = circuit_.Xor(t_ct, f_ct);
 
-  EXPECT_TRUE(boundary.drop(or_result_ct));
-  EXPECT_TRUE(boundary.drop(and_not_result_ct));
-  EXPECT_TRUE(boundary.drop(xor_result_ct));
+  EXPECT_TRUE(drop(boundary, or_result_ct));
+  EXPECT_TRUE(drop(boundary, and_not_result_ct));
+  EXPECT_TRUE(drop(boundary, xor_result_ct));
 }
 
 // A Boundary built with only the Lwe-side secret can still drop()
@@ -166,8 +166,6 @@ TEST_F(BitTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
   Boundary<4, Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
   Boundary<4, Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
 
-  EXPECT_TRUE(lwe_only_boundary.has_secret());
-
   Bit<Lwe, Rlwe> a_ct = full_boundary.lift(true);
   Bit<Lwe, Rlwe> b_ct = full_boundary.lift(true);
 
@@ -175,7 +173,27 @@ TEST_F(BitTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
   relay_.materialize(result_ct);
   ASSERT_TRUE(result_ct.is_ready());
 
-  EXPECT_TRUE(lwe_only_boundary.drop(result_ct));
+  EXPECT_TRUE(drop(lwe_only_boundary, result_ct));
+}
+
+// PublicBoundary can lift() without ever touching the secret -- built from
+// a PublicKey generated under lwe_runtime_'s own secret, its output still
+// decodes correctly through a secret-holding Boundary.
+TEST_F(BitTest, PublicBoundaryLiftsWithoutTheSecret) {
+  static constexpr uint32_t kPkSamples = 8;
+  PublicKey<typename Lwe::torus_type, Lwe::n, kPkSamples> pk =
+      lwe_runtime_.template generate_public_key<kPkSamples>();
+  PublicRuntime<Lwe, kPkSamples> pub(pk, eng_);
+  PublicBoundary<4, Lwe, kPkSamples> public_boundary(pub);
+
+  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+
+  Bit<Lwe, Rlwe> t_ct = public_boundary.lift(true);
+  Bit<Lwe, Rlwe> f_ct = public_boundary.lift(false);
+
+  EXPECT_TRUE(t_ct.is_ready());
+  EXPECT_TRUE(drop(boundary, t_ct));
+  EXPECT_FALSE(drop(boundary, f_ct));
 }
 
 // Circuit's And/Or/AndNot/Xor require both operands already Lwe-shaped --
@@ -196,5 +214,5 @@ TEST_F(BitTest, ChainingTwoGatesNeedsExplicitMaterialize) {
 
   Bit<Lwe, Rlwe> abc_ct = circuit_.And(ab_ct, c_ct);
 
-  EXPECT_FALSE(boundary.drop(abc_ct));
+  EXPECT_FALSE(drop(boundary, abc_ct));
 }

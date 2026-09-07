@@ -67,6 +67,18 @@ class BinaryExpansion {
     return exec_impl(v, std::make_index_sequence<H>{});
   }
 
+  // Same computation as exec_slot_impl(h, v), but also materialized back
+  // down to Lwe-shaped before returning -- for a caller farming slots
+  // across its own thread pool (see exec_slot_impl's own doc comment),
+  // this gives the same "no second Relay needed" convenience exec_ready()
+  // gives the single-threaded, all-slots-at-once caller.
+  TLWE<Torus, n> exec_slot_ready(uint32_t h,
+                                 const std::vector<TLWE<Torus, n>>& v) const {
+    Bit<Lwe, Rlwe> bit = exec_slot_impl(h, v);
+    relay_.materialize(bit);
+    return std::move(bit).ready();
+  }
+
   // Same computation as exec(), but each output slot is also materialized
   // back down to Lwe-shaped before returning -- for a caller that just
   // wants a ready-to-use result instead of a Relay::materialize() call per
@@ -74,11 +86,9 @@ class BinaryExpansion {
   // offers over Circuit::Reslot).
   std::array<TLWE<Torus, n>, H> exec_ready(
       const std::vector<TLWE<Torus, n>>& v) const {
-    std::array<Bit<Lwe, Rlwe>, H> result = exec(v);
     std::array<TLWE<Torus, n>, H> ready;
-    for (size_t i = 0; i < H; ++i) {
-      relay_.materialize(result[i]);
-      ready[i] = std::move(result[i]).ready();
+    for (uint32_t h = 0; h < H; ++h) {
+      ready[h] = exec_slot_ready(h, v);
     }
     return ready;
   }
