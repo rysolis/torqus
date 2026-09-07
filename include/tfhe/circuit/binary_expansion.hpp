@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "tfhe/bit/bit.hpp"
+#include "tfhe/bit/cipher.hpp"
 #include "tfhe/circuit/circuit.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
@@ -17,13 +17,13 @@
 
 // H is the size of the one-hot output vector this expansion produces from
 // k = ceil(log2(H)) Lwe-shaped input bit-ciphertexts. Each slot chains
-// HomAnd/HomAndNot through Bit<Lwe, Rlwe>, materializing between steps
+// HomAnd/HomAndNot through Cipher<Lwe, Rlwe>, materializing between steps
 // (via this instance's own Relay/Circuit); only the last step per slot
 // stays Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out
-// shape a single gate does. Output is Bit, not raw TLWE, so chaining this
+// shape a single gate does. Output is Cipher, not raw TLWE, so chaining this
 // circuit's result into another Circuit call needs no manual rewrapping
-// (Vector<T,Size> itself can't hold Bit -- it stores element types as a
-// flat raw_value_type buffer, which Bit's std::variant state doesn't fit;
+// (Vector<T,Size> itself can't hold Cipher -- it stores element types as a
+// flat raw_value_type buffer, which Cipher's std::variant state doesn't fit;
 // TLWE input is std::vector for the same reason -- neither is the
 // numeric-primitive Vector<T,Size> is built for).
 //
@@ -32,9 +32,11 @@
 // below run against a non-default (e.g. hardware) Circuit, simply by
 // constructing this with one.
 //
-// Holds the Circuit/Relay by reference, not by value -- see
-// tfhe/circuit/reslot.hpp's own comment on why. The referenced Circuit/Relay
-// must outlive this BinaryExpansion.
+// Holds the Circuit/Relay by reference, not by value -- a caller that also
+// needs the underlying And/Or/AndNot/Xor/Reslot keeps its own Circuit and
+// Relay and layers this on top, rather than duplicating the BootstrapKey/
+// KeySwitchKey to give BinaryExpansion its own copy. The referenced
+// Circuit/Relay must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -56,25 +58,25 @@ class BinaryExpansion {
       : circuit_(&circuit), relay_(&relay) {}
 
   // One slot of the one-hot output. The k-step gate chain is sequential
-  // (each step materializes the previous Bit before the next gate call),
+  // (each step materializes the previous Cipher before the next gate call),
   // but slots are independent -- farm them across threads instead of
   // calling exec directly if needed.
-  Bit<Lwe, Rlwe> exec_slot_impl(uint32_t h,
-                                const std::vector<TLWE<Torus, n>>& v) const {
+  Cipher<Lwe, Rlwe> exec_slot_impl(uint32_t h,
+                                   const std::vector<TLWE<Torus, n>>& v) const {
     TLWE<Torus, n> w;
     w.b() = Torus(1u, 4u);
-    Bit<Lwe, Rlwe> acc = w;
+    Cipher<Lwe, Rlwe> acc = w;
 
     for (size_t i = 0; i < k; ++i) {
       uint32_t bit = (h >> i) & 1u;
-      Bit<Lwe, Rlwe> vi = v[i];
+      Cipher<Lwe, Rlwe> vi = v[i];
       relay_->materialize(acc);
       acc = bit ? circuit_->And(acc, vi) : circuit_->AndNot(acc, vi);
     }
     return acc;
   }
 
-  std::array<Bit<Lwe, Rlwe>, H> exec(
+  std::array<Cipher<Lwe, Rlwe>, H> exec(
       const std::vector<TLWE<Torus, n>>& v) const {
     return exec_impl(v, std::make_index_sequence<H>{});
   }
@@ -86,7 +88,7 @@ class BinaryExpansion {
   // gives the single-threaded, all-slots-at-once caller.
   TLWE<Torus, n> exec_slot_ready(uint32_t h,
                                  const std::vector<TLWE<Torus, n>>& v) const {
-    Bit<Lwe, Rlwe> bit = exec_slot_impl(h, v);
+    Cipher<Lwe, Rlwe> bit = exec_slot_impl(h, v);
     relay_->materialize(bit);
     return std::move(bit).ready();
   }
@@ -94,8 +96,7 @@ class BinaryExpansion {
   // Same computation as exec(), but each output slot is also materialized
   // back down to Lwe-shaped before returning -- for a caller that just
   // wants a ready-to-use result instead of a Relay::materialize() call per
-  // slot (the same exec-plus-materialize convenience tfhe::circuit::Reslot
-  // offers over Circuit::Reslot).
+  // slot.
   std::array<TLWE<Torus, n>, H> exec_ready(
       const std::vector<TLWE<Torus, n>>& v) const {
     std::array<TLWE<Torus, n>, H> ready;
@@ -107,8 +108,8 @@ class BinaryExpansion {
 
  private:
   template <size_t... Hs>
-  std::array<Bit<Lwe, Rlwe>, H> exec_impl(const std::vector<TLWE<Torus, n>>& v,
-                                          std::index_sequence<Hs...>) const {
+  std::array<Cipher<Lwe, Rlwe>, H> exec_impl(
+      const std::vector<TLWE<Torus, n>>& v, std::index_sequence<Hs...>) const {
     return {exec_slot_impl(static_cast<uint32_t>(Hs), v)...};
   }
 

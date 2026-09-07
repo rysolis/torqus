@@ -7,7 +7,7 @@
 #include <cassert>
 #include <cstdint>
 
-#include "tfhe/bit/bit.hpp"
+#include "tfhe/bit/cipher.hpp"
 #include "tfhe/bit/dial.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/public_runtime.hpp"
@@ -48,8 +48,8 @@ class PublicBoundary {
 // Rlwe-shaped drop() overload asserts it was actually given that secret.
 //
 // Boundary itself only knows about raw ciphertexts -- it has no notion of
-// Bit's own Lwe-shaped/Rlwe-shaped distinction. The free drop(boundary,
-// bit) overload below bridges a Bit to whichever raw drop() applies.
+// Cipher's own Lwe-shaped/Rlwe-shaped distinction. The free drop(boundary,
+// bit) overload below bridges a Cipher to whichever raw drop() applies.
 template <uint32_t Resolution, typename Lwe, typename Rlwe, typename Decomp,
           typename... Feature>
 class Boundary {
@@ -96,14 +96,14 @@ class Boundary {
   Runtime<ParamsPack<Rlwe, Decomp>, Feature...>* rlwe_runtime_;
 };
 
-// Bridges a Bit's current shape (Lwe- or Rlwe-shaped) to the matching
-// Boundary::drop() overload -- Boundary itself has no dependency on Bit,
+// Bridges a Cipher's current shape (Lwe- or Rlwe-shaped) to the matching
+// Boundary::drop() overload -- Boundary itself has no dependency on Cipher,
 // so this is the one place that needs to know both.
 template <uint32_t Resolution, typename Lwe, typename Rlwe, typename Decomp,
           typename... Feature>
 uint32_t drop(
     const Boundary<Resolution, Lwe, Rlwe, Decomp, Feature...>& boundary,
-    const Bit<Lwe, Rlwe>& bit) {
+    const Cipher<Lwe, Rlwe>& bit) {
   return bit.is_ready() ? boundary.drop(bit.ready())
                         : boundary.drop(bit.pending());
 }

@@ -122,7 +122,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Act
     // ==================================
-    std::array<Bit<Lwe, Rlwe>, 4> res_ct = expansion.exec(operand_ct);
+    std::array<Cipher<Lwe, Rlwe>, 4> res_ct = expansion.exec(operand_ct);
 
     // ==================================
     // Assert
@@ -146,7 +146,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
 
 // exec_ready() is exec() plus a Relay::materialize() per slot -- each
 // output comes back Lwe-shaped, decoded via Boundary::drop()'s Lwe-shaped
-// overload directly (no Bit wrapping needed).
+// overload directly (no Cipher wrapping needed).
 TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;

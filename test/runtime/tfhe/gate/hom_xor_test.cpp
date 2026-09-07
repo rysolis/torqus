@@ -97,13 +97,13 @@ TYPED_TEST(HomXorCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Arrange
     // ==================================
-    Bit<Lwe, Rlwe> lhs_ct = boundary.lift(tc.lhs);
-    Bit<Lwe, Rlwe> rhs_ct = boundary.lift(tc.rhs);
+    Cipher<Lwe, Rlwe> lhs_ct = boundary.lift(tc.lhs);
+    Cipher<Lwe, Rlwe> rhs_ct = boundary.lift(tc.rhs);
 
     // ==================================
     // Act
     // ==================================
-    Bit<Lwe, Rlwe> res_ct(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
+    Cipher<Lwe, Rlwe> res_ct(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
         lhs_ct.ready(), rhs_ct.ready(), this->BK_));
 
     // ==================================

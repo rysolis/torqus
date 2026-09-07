@@ -5,7 +5,7 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
-namespace bit_test {
+namespace cipher_test {
 // Real noise enabled -- same params as tfhe/gate/hom_and_test.cpp's own
 // Context, plus binary_expansion_test.cpp's Context2 kst_params (base
 // kept small since KeySwitch noise grows with the base; see that file's
@@ -15,14 +15,14 @@ using Rlwe =
     rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>;
 using Decomp = dcp_params<16, 7>;
 using Kst = kst_params<2, 11>;
-}  // namespace bit_test
+}  // namespace cipher_test
 
-class BitTest : public ::testing::Test {
+class CipherTest : public ::testing::Test {
  protected:
-  using Lwe = bit_test::Lwe;
-  using Rlwe = bit_test::Rlwe;
-  using Decomp = bit_test::Decomp;
-  using Kst = bit_test::Kst;
+  using Lwe = cipher_test::Lwe;
+  using Rlwe = cipher_test::Rlwe;
+  using Decomp = cipher_test::Decomp;
+  using Kst = cipher_test::Kst;
 
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
@@ -47,38 +47,38 @@ class BitTest : public ::testing::Test {
   }
 };
 
-// A freshly-encrypted Bit starts out Lwe-shaped.
-TEST_F(BitTest, FreshlyEncryptedBitIsReady) {
+// A freshly-encrypted Cipher starts out Lwe-shaped.
+TEST_F(CipherTest, FreshlyEncryptedBitIsReady) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
 
   EXPECT_TRUE(a_ct.is_ready());
 }
 
 // hom_and's result is Rlwe-shaped -- exactly what every tfhe/gate/Hom*
 // returns -- until something materializes it back down.
-TEST_F(BitTest, GateResultIsNotReady) {
+TEST_F(CipherTest, GateResultIsNotReady) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> b_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
 
-  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
   EXPECT_TRUE(drop(boundary, result_ct));
 }
 
-// Relay::materialize() is how a caller normalizes a Bit back to
+// Relay::materialize() is how a caller normalizes a Cipher back to
 // Lwe-shaped -- Circuit's And/Or/AndNot/Xor never do this on their own.
-TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
+TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> b_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
 
-  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
@@ -91,33 +91,33 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   EXPECT_TRUE(result_ct.is_ready());
 }
 
-// Circuit::Reslot<N, N> bootstraps a Bit back to fresh noise without
+// Circuit::Reslot<N, N> bootstraps a Cipher back to fresh noise without
 // changing its value -- the pure-refresh case of Reslot (see circuit.hpp).
-TEST_F(BitTest, ReslotWithSameResolutionPreservesValue) {
+TEST_F(CipherTest, ReslotWithSameResolutionPreservesValue) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> t_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> f_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift(false);
 
-  Bit<Lwe, Rlwe> t_refreshed = circuit_.Reslot<4, 4>(t_ct);
-  Bit<Lwe, Rlwe> f_refreshed = circuit_.Reslot<4, 4>(f_ct);
+  Cipher<Lwe, Rlwe> t_refreshed = circuit_.Reslot<4, 4>(t_ct);
+  Cipher<Lwe, Rlwe> f_refreshed = circuit_.Reslot<4, 4>(f_ct);
 
   EXPECT_FALSE(t_refreshed.is_ready());
   EXPECT_TRUE(drop(boundary, t_refreshed));
   EXPECT_FALSE(drop(boundary, f_refreshed));
 }
 
-// A Bit lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
+// A Cipher lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
 // 1/4) -- the step And/Or/AndNot/Xor expect.
-TEST_F(BitTest, ReslotMovesValueToNewResolution) {
+TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
   Boundary<2, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
   Boundary<4, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> t_ct = in_boundary.lift(true);
-  Bit<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = in_boundary.lift(true);
+  Cipher<Lwe, Rlwe> f_ct = in_boundary.lift(false);
 
-  Bit<Lwe, Rlwe> t_resloted = circuit_.Reslot<2, 4>(t_ct);
-  Bit<Lwe, Rlwe> f_resloted = circuit_.Reslot<2, 4>(f_ct);
+  Cipher<Lwe, Rlwe> t_resloted = circuit_.Reslot<2, 4>(t_ct);
+  Cipher<Lwe, Rlwe> f_resloted = circuit_.Reslot<2, 4>(f_ct);
 
   EXPECT_TRUE(drop(out_boundary, t_resloted));
   EXPECT_FALSE(drop(out_boundary, f_resloted));
@@ -127,15 +127,15 @@ TEST_F(BitTest, ReslotMovesValueToNewResolution) {
 // scaling up to exactly 1/2 by repeated self-addition lands on an integer
 // number of doublings) -- Dial<4, Torus> (0 or 1/4) moved into Dial<100,
 // Torus> (0 or 1/100) exercises that.
-TEST_F(BitTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
+TEST_F(CipherTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
   Boundary<4, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
   Boundary<100, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> t_ct = in_boundary.lift(true);
-  Bit<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = in_boundary.lift(true);
+  Cipher<Lwe, Rlwe> f_ct = in_boundary.lift(false);
 
-  Bit<Lwe, Rlwe> t_resloted = circuit_.Reslot<4, 100>(t_ct);
-  Bit<Lwe, Rlwe> f_resloted = circuit_.Reslot<4, 100>(f_ct);
+  Cipher<Lwe, Rlwe> t_resloted = circuit_.Reslot<4, 100>(t_ct);
+  Cipher<Lwe, Rlwe> f_resloted = circuit_.Reslot<4, 100>(f_ct);
 
   // Dial<100,...>'s indices 0/1 are still 0 and 1/100 -- same true/false
   // reading as Dial<4,...>'s 0/1, just on a finer grid.
@@ -143,15 +143,15 @@ TEST_F(BitTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
   EXPECT_EQ(drop(out_boundary, f_resloted), 0u);
 }
 
-TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
+TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> t_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> f_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift(false);
 
-  Bit<Lwe, Rlwe> or_result_ct = circuit_.Or(t_ct, f_ct);
-  Bit<Lwe, Rlwe> and_not_result_ct = circuit_.AndNot(t_ct, f_ct);
-  Bit<Lwe, Rlwe> xor_result_ct = circuit_.Xor(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> or_result_ct = circuit_.Or(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> and_not_result_ct = circuit_.AndNot(t_ct, f_ct);
+  Cipher<Lwe, Rlwe> xor_result_ct = circuit_.Xor(t_ct, f_ct);
 
   EXPECT_TRUE(drop(boundary, or_result_ct));
   EXPECT_TRUE(drop(boundary, and_not_result_ct));
@@ -162,14 +162,14 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
 // Lwe-shaped ciphertexts -- e.g. a party that only ever decodes
 // already-materialized results and has no lasting need to keep the
 // Rlwe-side Runtime alive as a member.
-TEST_F(BitTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
+TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
   Boundary<4, Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
   Boundary<4, Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
 
-  Bit<Lwe, Rlwe> a_ct = full_boundary.lift(true);
-  Bit<Lwe, Rlwe> b_ct = full_boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = full_boundary.lift(true);
+  Cipher<Lwe, Rlwe> b_ct = full_boundary.lift(true);
 
-  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
   relay_.materialize(result_ct);
   ASSERT_TRUE(result_ct.is_ready());
 
@@ -179,7 +179,7 @@ TEST_F(BitTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
 // PublicBoundary can lift() without ever touching the secret -- built from
 // a PublicKey generated under lwe_runtime_'s own secret, its output still
 // decodes correctly through a secret-holding Boundary.
-TEST_F(BitTest, PublicBoundaryLiftsWithoutTheSecret) {
+TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
   static constexpr uint32_t kPkSamples = 8;
   PublicKey<typename Lwe::torus_type, Lwe::n, kPkSamples> pk =
       lwe_runtime_.template generate_public_key<kPkSamples>();
@@ -188,8 +188,8 @@ TEST_F(BitTest, PublicBoundaryLiftsWithoutTheSecret) {
 
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> t_ct = public_boundary.lift(true);
-  Bit<Lwe, Rlwe> f_ct = public_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = public_boundary.lift(true);
+  Cipher<Lwe, Rlwe> f_ct = public_boundary.lift(false);
 
   EXPECT_TRUE(t_ct.is_ready());
   EXPECT_TRUE(drop(boundary, t_ct));
@@ -199,20 +199,20 @@ TEST_F(BitTest, PublicBoundaryLiftsWithoutTheSecret) {
 // Circuit's And/Or/AndNot/Xor require both operands already Lwe-shaped --
 // chaining a gate's own (Rlwe-shaped) output into another gate call needs
 // an explicit Relay::materialize() first.
-TEST_F(BitTest, ChainingTwoGatesNeedsExplicitMaterialize) {
+TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> b_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> c_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> c_ct = boundary.lift(false);
 
   // (a AND b) AND c == false
-  Bit<Lwe, Rlwe> ab_ct = circuit_.And(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> ab_ct = circuit_.And(a_ct, b_ct);
   ASSERT_FALSE(ab_ct.is_ready());
   relay_.materialize(ab_ct);
   ASSERT_TRUE(ab_ct.is_ready());
 
-  Bit<Lwe, Rlwe> abc_ct = circuit_.And(ab_ct, c_ct);
+  Cipher<Lwe, Rlwe> abc_ct = circuit_.And(ab_ct, c_ct);
 
   EXPECT_FALSE(drop(boundary, abc_ct));
 }
