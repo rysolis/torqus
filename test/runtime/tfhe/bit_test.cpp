@@ -82,9 +82,9 @@ TEST_F(BitTest, ExplicitMaterializeMakesItReady) {
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
-  // Boundary::drop() expects an Rlwe-shaped (pending) Bit -- once
-  // materialized, decode directly via the Lwe-side Runtime instead.
-  EXPECT_TRUE(lwe_runtime_.decrypt(result_ct.ready()).value() != 0);
+  // boundary.drop(bit) handles either shape -- result_ct is now
+  // Lwe-shaped, but it still decodes the same way.
+  EXPECT_TRUE(boundary.drop(result_ct));
 
   // A second call is a harmless no-op.
   relay_.materialize(result_ct);
@@ -156,6 +156,26 @@ TEST_F(BitTest, HomOrHomAndNotHomXorAllWork) {
   EXPECT_TRUE(boundary.drop(or_result_ct));
   EXPECT_TRUE(boundary.drop(and_not_result_ct));
   EXPECT_TRUE(boundary.drop(xor_result_ct));
+}
+
+// A Boundary built with only the Lwe-side secret can still drop()
+// Lwe-shaped ciphertexts -- e.g. a party that only ever decodes
+// already-materialized results and has no lasting need to keep the
+// Rlwe-side Runtime alive as a member.
+TEST_F(BitTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
+  Boundary<4, Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<4, Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
+
+  EXPECT_TRUE(lwe_only_boundary.has_secret());
+
+  Bit<Lwe, Rlwe> a_ct = full_boundary.lift(true);
+  Bit<Lwe, Rlwe> b_ct = full_boundary.lift(true);
+
+  Bit<Lwe, Rlwe> result_ct = circuit_.And(a_ct, b_ct);
+  relay_.materialize(result_ct);
+  ASSERT_TRUE(result_ct.is_ready());
+
+  EXPECT_TRUE(lwe_only_boundary.drop(result_ct));
 }
 
 // Circuit's And/Or/AndNot/Xor require both operands already Lwe-shaped --
