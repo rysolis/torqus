@@ -47,20 +47,24 @@ class CircuitReslotFixture : public ::testing::Test {
   Runtime<Lwe, Tracking> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
-  Circuit<Lwe, Rlwe, Decomp> circuit_;
+  BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
+  KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
+  tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp> reslot_;
   Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
     lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
-    circuit_ = Circuit<Lwe, Rlwe, Decomp>(
+    bk_holder_ = BootstrapKeyHolder<Lwe, Rlwe, Decomp>(
         rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
             lwe_runtime_.holder().get()));
-    relay_ = Relay<Lwe, Rlwe, Kst>(
+    ksk_holder_ = KeySwitchKeyHolder<Lwe, Rlwe, Kst>(
         lwe_runtime_
             .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                 rlwe_runtime_.holder().get()));
+    reslot_ = tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp>(bk_holder_.bk());
+    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
   }
 };
 
@@ -81,31 +85,29 @@ TYPED_TEST_SUITE(CircuitReslotCorrectnessTest,
                  circuit_reslot_test::TestContexts);
 
 // A ciphertext lifted at Dial<2, Torus> (0 or 1/2) -- e.g. a ballot bit
-// encoded outside this library's own gate suite -- comes back both moved
-// to Dial<4, Torus> (0 or 1/4) and already materialized (is_ready()),
-// ready to feed straight into And/Or/AndNot/Xor.
+// encoded outside this library's own gate suite -- comes back moved to
+// Dial<4, Torus> (0 or 1/4), the step And/Or/AndNot/Xor expect. Not yet
+// materialized -- same shape And/Or/AndNot/Xor's own results have -- so an
+// explicit Relay::materialize() gets it the rest of the way to Lwe-shaped.
 TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
-  using Kst = typename TypeParam::context::kst_params;
 
   Boundary<2, Lwe, Rlwe, Decomp, Tracking> in_boundary(this->lwe_runtime_,
                                                        this->rlwe_runtime_);
   Boundary<4, Lwe, Rlwe, Decomp, Tracking> out_boundary(this->lwe_runtime_,
                                                         this->rlwe_runtime_);
 
-  tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst> reslot(this->circuit_,
-                                                             this->relay_);
-
   for (const auto& tc : TestFixture::cases()) {
-    Bit<Lwe, Rlwe> ct = in_boundary.lift(tc.value);
+    Cipher<Lwe, Rlwe> ct = in_boundary.lift(tc.value);
 
-    TLWE<typename Lwe::torus_type, Lwe::n> res_ct = reslot.exec(ct.ready());
+    Cipher<Lwe, Rlwe> resloted = this->reslot_.exec(ct);
+    ASSERT_FALSE(resloted.is_ready());
+    this->relay_.materialize(resloted);
+    ASSERT_TRUE(resloted.is_ready());
 
-    // res_ct is already Lwe-shaped (exec materializes it) -- decoded via
-    // Boundary::drop()'s Lwe-shaped overload directly.
-    bool res = out_boundary.drop(res_ct);
+    bool res = drop(out_boundary, resloted);
 
     std::cout << "\n========================================\n";
     std::cout << "         Circuit::Reslot Test\n";

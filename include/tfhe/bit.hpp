@@ -4,9 +4,9 @@
 #ifndef TFHE_BIT_HPP
 #define TFHE_BIT_HPP
 
-#include "tfhe/bit/bit.hpp"
 #include "tfhe/bit/boundary.hpp"
+#include "tfhe/bit/cipher.hpp"
 #include "tfhe/bit/dial.hpp"
-#include "tfhe/bit/scope.hpp"
+#include "tfhe/circuit/circuit.hpp"
 
 #endif  // TFHE_BIT_HPP

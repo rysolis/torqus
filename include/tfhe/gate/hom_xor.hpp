@@ -22,9 +22,14 @@
 // 1, i.e. 0 mod 1) while sending the differing-bit case to 1/2, right in
 // the middle of the true region -- so no offset is needed, just the extra
 // doubling.
+//
+// Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
+// comment for why this is a compile-time policy.
 namespace tfhe::gate {
 
-template <typename Lwe, typename Rlwe, typename Decomp>
+template <typename Lwe, typename Rlwe, typename Decomp,
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomXor {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -45,8 +50,7 @@ class HomXor {
     TLWE<Torus, n> sum = leveled::Add<Lwe>::exec_impl(c1, c2);
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(sum, sum);
 
-    return bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv,
-                                                                  combined, bk);
+    return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 

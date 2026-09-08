@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_BIT_BIT_HPP
-#define TFHE_BIT_BIT_HPP
+#ifndef TFHE_BIT_CIPHER_HPP
+#define TFHE_BIT_CIPHER_HPP
 
 #include <cstdint>
 #include <utility>
@@ -13,13 +13,18 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 
-// Bit<Lwe, Rlwe> is a boolean ciphertext that hides whether it is
-// currently Lwe-shaped (TLWE<Torus, n>, ready to feed straight into a
-// gate) or Rlwe-shaped (TLWE<rTorus, N>, what every gate call returns).
-// See tfhe/bit/scope.hpp: Circuit's And/Or/AndNot/Xor need both operands
-// already Lwe-shaped; Relay::materialize() converts one that isn't.
+// Cipher<Lwe, Rlwe> is a ciphertext that hides whether it is currently
+// Lwe-shaped (TLWE<Torus, n>, ready to feed straight into a gate) or
+// Rlwe-shaped (TLWE<rTorus, N>, what every gate call returns). It carries
+// no notion of resolution or value on its own -- whether it reads as a
+// boolean or as one of many values is entirely up to which
+// Dial<Resolution, Torus> decodes it; a Cipher decoded through Dial<4,
+// Torus> is a boolean, the same Cipher decoded through some other
+// resolution isn't.
+// See tfhe/circuit/circuit.hpp: Circuit's And/Or/AndNot/Xor need both
+// operands already Lwe-shaped; Relay::materialize() converts one that isn't.
 template <typename Lwe, typename Rlwe>
-class Bit {
+class Cipher {
  public:
   using Torus = typename Lwe::torus_type;
   static constexpr uint32_t n = Lwe::n;
@@ -27,8 +32,8 @@ class Bit {
   using rTorus = typename Rlwe::torus_type;
   static constexpr uint32_t N = Rlwe::N;
 
-  Bit(TLWE<Torus, n> ciphertext) : state_(std::move(ciphertext)) {}
-  Bit(TLWE<rTorus, N> ciphertext) : state_(std::move(ciphertext)) {}
+  Cipher(TLWE<Torus, n> ciphertext) : state_(std::move(ciphertext)) {}
+  Cipher(TLWE<rTorus, N> ciphertext) : state_(std::move(ciphertext)) {}
 
   // True once this is Lwe-shaped -- safe to read via ready()
   // without a materialize() first.
@@ -37,7 +42,7 @@ class Bit {
   }
 
   // Valid only when is_ready(). The && overload moves out of a temporary
-  // Bit instead of copying (e.g. `lift.encrypt(v).ready()`).
+  // Cipher instead of copying (e.g. `lift.encrypt(v).ready()`).
   const TLWE<Torus, n>& ready() const& {
     return std::get<TLWE<Torus, n>>(state_);
   }
@@ -49,7 +54,7 @@ class Bit {
   // Rlwe secret's own coefficients (see Cryptor's sample-extracted
   // decrypt overload) -- a circuit's final output can read this straight
   // off without paying for a materialize() it doesn't need. The &&
-  // overload moves out of a temporary Bit instead of copying.
+  // overload moves out of a temporary Cipher instead of copying.
   const TLWE<rTorus, N>& pending() const& {
     return std::get<TLWE<rTorus, N>>(state_);
   }
@@ -71,4 +76,4 @@ class Bit {
   std::variant<TLWE<Torus, n>, TLWE<rTorus, N>> state_;
 };
 
-#endif  // TFHE_BIT_BIT_HPP
+#endif  // TFHE_BIT_CIPHER_HPP

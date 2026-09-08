@@ -17,9 +17,14 @@
 // Lwe-in/Rlwe-out shape HomAnd has -- see HomAnd. Only the offset's sign
 // differs from HomAnd's (+1/8 here vs. -1/8 there), shifting the same
 // decision boundary so that either input being true is enough.
+//
+// Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
+// comment for why this is a compile-time policy.
 namespace tfhe::gate {
 
-template <typename Lwe, typename Rlwe, typename Decomp>
+template <typename Lwe, typename Rlwe, typename Decomp,
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomOr {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -43,8 +48,7 @@ class HomOr {
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
         offset, leveled::Add<Lwe>::exec_impl(c1, c2));
 
-    return bootstrap::GateBootstrap<Lwe, Rlwe, Decomp>::exec_impl(mu, tv,
-                                                                  combined, bk);
+    return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
   }
 };
 
