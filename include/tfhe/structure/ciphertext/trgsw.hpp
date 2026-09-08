@@ -5,6 +5,7 @@
 #define TFHE_TRGSW_HPP
 
 #include <array>
+#include <cstddef>
 #include <iostream>
 
 #include "primitive/concept/primitive.hpp"
@@ -46,7 +47,7 @@ class TRGSW {
   // length, ~6-7) and fixed at compile time, so std::array inlines it
   // with no extra allocation -- see BootstrapKey's own storage comment
   // for the contrasting case (n can be large).
-  std::array<TRLWE<Torus, N>, 2 * l> trlwe_rows_;
+  std::array<TRLWE<Torus, N>, std::size_t{2} * l> trlwe_rows_;
 };
 
 template <typename To, typename From, uint32_t N, uint32_t l>
