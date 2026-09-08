@@ -25,10 +25,11 @@ class BootstrapKey {
   const void* identity() const noexcept { return bks_[0].identity(); }
 
  private:
-  // TRGSW isn't a numeric primitive Vector<T,Size> is built for -- see
-  // trgsw.hpp's own comment. n can be large (e.g. 630), so this also
-  // keeps BootstrapKey itself small (a single heap-indirected buffer)
-  // rather than inlining every TRGSW into it.
+  // n is fixed at compile time but, unlike TRGSW's own 2*l rows (see
+  // trgsw.hpp), can be large in practice (e.g. 630) -- inlining n TRGSWs
+  // the way TRGSW inlines its rows would make BootstrapKey itself large
+  // to construct/copy, so this stays a single heap-indirected buffer
+  // instead.
   std::vector<TRGSW<Torus, N, l>> bks_ = std::vector<TRGSW<Torus, N, l>>(n);
 };
 

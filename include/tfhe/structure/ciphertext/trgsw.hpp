@@ -4,8 +4,9 @@
 #ifndef TFHE_TRGSW_HPP
 #define TFHE_TRGSW_HPP
 
+#include <array>
+#include <cstddef>
 #include <iostream>
-#include <vector>
 
 #include "primitive/concept/primitive.hpp"
 #include "primitive/torus.hpp"
@@ -40,10 +41,13 @@ class TRGSW {
 
  private:
   // TRLWE isn't a numeric primitive Vector<T,Size> is built for (no
-  // raw_value_type/proxy storage) -- std::vector holds it out-of-line
-  // instead, keeping TRGSW itself small and this move O(1).
-  std::vector<TRLWE<Torus, N>> trlwe_rows_ =
-      std::vector<TRLWE<Torus, N>>(2 * l);
+  // raw_value_type/proxy storage), but it's already heap-indirected via
+  // its own Poly/Vector members, so it's cheap to move regardless of how
+  // this outer container stores it. 2*l is small (l is a decomposition
+  // length, ~6-7) and fixed at compile time, so std::array inlines it
+  // with no extra allocation -- see BootstrapKey's own storage comment
+  // for the contrasting case (n can be large).
+  std::array<TRLWE<Torus, N>, std::size_t{2} * l> trlwe_rows_;
 };
 
 template <typename To, typename From, uint32_t N, uint32_t l>

@@ -5,6 +5,7 @@ it's not needed just to *use* torqus as a library; see the
 [README](README.md#usage) for that.
 
 - [Performance & Concurrency](#performance--concurrency)
+- [Fixed-Size Collections: `std::array` vs `std::vector`](#fixed-size-collections-stdarray-vs-stdvector)
 - [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [Build & Run the Test Suite (Docker)](#build--run-the-test-suite-docker)
@@ -29,6 +30,34 @@ computational acceleration (GPU, ...) is intentionally left to
 downstream forks -- this repository optimizes for
 the correctness and readability of the reference implementation, not for
 raw throughput.
+
+## Fixed-Size Collections: `std::array` vs `std::vector`
+
+Several types hold a count of elements that's fixed at compile time via a
+template parameter, but the element type isn't a numeric primitive
+`Vector<T,Size>` (`algebra/vector.hpp`) can store inline (e.g. `TRLWE`,
+`TRGSW`, `Cipher`) -- so `Vector<T,Size>` itself isn't an option, and the
+choice is between `std::array<T,Size>` and `std::vector<T>`.
+
+Since the element types here already hold their own data out-of-line (a
+`TRLWE`'s `Poly`/`Vector` members, ultimately down to `Cipher`'s own
+variant), the element itself is cheap to move regardless of which outer
+container holds it -- so the deciding factor is the outer container's own
+footprint, not move cost:
+
+- **`std::array<T,Size>`** when `Size` is small and bounded by design
+  (a decomposition length `l` ~6-7, a one-hot output width `H` ~4).
+  Inlining is cheap, needs no extra allocation, and the count is visible
+  in the type. Used by `TRGSW` (`2*l` `TRLWE` rows) and
+  `BinaryExpansion::exec()`'s return type.
+- **`std::vector<T>`** when `Size`, though fixed at compile time, can be
+  large in realistic use (an LWE dimension `n` ~630). Inlining that many
+  elements would make the outer type itself expensive to construct, copy,
+  or pass around. Used by `BootstrapKey` (`n` `TRGSW`s).
+
+When adding a new fixed-size, non-primitive collection, pick based on
+which side of that line its `Size` realistically falls on, and say why in
+a comment next to the storage member (see the ones above).
 
 ## Project Structure
 
