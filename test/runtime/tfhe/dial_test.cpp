@@ -4,7 +4,7 @@
 
 #include "primitive/torus.hpp"
 
-#include "tfhe/bit.hpp"
+#include "tfhe/cipher.hpp"
 
 namespace dial_test {
 struct Ctx1 {

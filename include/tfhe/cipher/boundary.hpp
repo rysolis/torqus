@@ -1,14 +1,14 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_BOUNDARY_HPP
-#define TFHE_BOUNDARY_HPP
+#ifndef TFHE_CIPHER_BOUNDARY_HPP
+#define TFHE_CIPHER_BOUNDARY_HPP
 
 #include <cassert>
 #include <cstdint>
 
-#include "tfhe/bit/cipher.hpp"
-#include "tfhe/bit/dial.hpp"
+#include "tfhe/cipher/cipher.hpp"
+#include "tfhe/cipher/dial.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/public_runtime.hpp"
 #include "tfhe/runtime.hpp"
@@ -108,4 +108,4 @@ uint32_t drop(
                         : boundary.drop(bit.pending());
 }
 
-#endif  // TFHE_BOUNDARY_HPP
+#endif  // TFHE_CIPHER_BOUNDARY_HPP

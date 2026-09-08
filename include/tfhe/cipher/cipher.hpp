@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_BIT_CIPHER_HPP
-#define TFHE_BIT_CIPHER_HPP
+#ifndef TFHE_CIPHER_CIPHER_HPP
+#define TFHE_CIPHER_CIPHER_HPP
 
 #include <cstdint>
 #include <utility>
@@ -21,8 +21,9 @@
 // Dial<Resolution, Torus> decodes it; a Cipher decoded through Dial<4,
 // Torus> is a boolean, the same Cipher decoded through some other
 // resolution isn't.
-// See tfhe/circuit/circuit.hpp: Circuit's And/Or/AndNot/Xor need both
-// operands already Lwe-shaped; Relay::materialize() converts one that isn't.
+// See tfhe/gate/hom_and.hpp: HomAnd/HomOr/HomAndNot/HomXor need both
+// operands already Lwe-shaped; Relay::materialize() (tfhe/circuit/relay.hpp)
+// converts one that isn't.
 template <typename Lwe, typename Rlwe>
 class Cipher {
  public:
@@ -76,4 +77,4 @@ class Cipher {
   std::variant<TLWE<Torus, n>, TLWE<rTorus, N>> state_;
 };
 
-#endif  // TFHE_BIT_CIPHER_HPP
+#endif  // TFHE_CIPHER_CIPHER_HPP
