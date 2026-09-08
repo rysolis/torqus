@@ -83,8 +83,8 @@ class CipherTest : public ::testing::Test {
   // holding several parameter sets for the Hom* adapters above.
   template <uint32_t InResolution, uint32_t OutResolution>
   Cipher<Lwe, Rlwe> reslot(const Cipher<Lwe, Rlwe>& bit) const {
-    return tfhe::circuit::Reslot<InResolution, OutResolution, Lwe, Rlwe,
-                                 Decomp>(bk_holder_.bk())
+    return tfhe::circuit::Reslot<InResolution, OutResolution, Lwe, Rlwe, Decomp,
+                                 Kst>(bk_holder_.bk(), ksk_holder_.ksk())
         .exec(bit);
   }
 };
