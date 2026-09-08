@@ -84,9 +84,11 @@ class Party {
   // Valid only after generate_bootstrap_key()/generate_key_switch_key()
   // has actually been called.
   const BootstrapKey<rTorus, N, l, n>& bootstrap_key() const {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return bk_.value();
   }
   const KeySwitchKey<Torus, n, t, N>& key_switch_key() const {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     return ksk_.value();
   }
 
