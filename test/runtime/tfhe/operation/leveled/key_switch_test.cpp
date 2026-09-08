@@ -77,7 +77,7 @@ class KeySwitchFixture : public ::testing::Test {
     // Prepare Key Switch Key
     KSK_ =
         dst_lwe_runtime_.template generate_key_switch_key<SrcLwe, DstLwe, Kst>(
-            src_lwe_runtime_.holder().get());
+            src_lwe_runtime_.secret());
   }
 };
 

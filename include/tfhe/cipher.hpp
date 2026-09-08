@@ -7,5 +7,6 @@
 #include "tfhe/cipher/boundary.hpp"
 #include "tfhe/cipher/cipher.hpp"
 #include "tfhe/cipher/dial.hpp"
+#include "tfhe/cipher/party.hpp"
 
 #endif  // TFHE_CIPHER_HPP

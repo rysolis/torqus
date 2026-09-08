@@ -63,7 +63,7 @@ class HomAndNotFixture : public ::testing::Test {
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime_.holder().get());
+        lwe_runtime_.secret());
   }
 };
 

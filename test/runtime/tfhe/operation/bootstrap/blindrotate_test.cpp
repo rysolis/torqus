@@ -88,14 +88,14 @@ class BlindRotateFixture : public ::testing::Test {
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime.holder().get());
+        lwe_runtime.secret());
 
     // Prepare Vector<ModInt<M>, n + 1> phase_ct;
     randomize(phase_ct_, this->eng_);
 
     ModInt<M> b{};
     for (size_t i = 0; i < n; ++i) {
-      b += static_cast<UInt>(lwe_runtime.holder().get()[i]) *
+      b += static_cast<UInt>(lwe_runtime.secret()[i]) *
            static_cast<ModInt<M>>(phase_ct_[i]);
     }
 

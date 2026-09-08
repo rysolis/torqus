@@ -51,10 +51,10 @@ class CipherTest : public ::testing::Test {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>>(eng_);
 
     bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime_.holder().get());
+        lwe_runtime_.secret());
     ksk_ = lwe_runtime_
                .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                   rlwe_runtime_.holder().get());
+                   rlwe_runtime_.secret());
     relay_ = Relay<Lwe, Rlwe, Kst>(ksk_);
   }
 
