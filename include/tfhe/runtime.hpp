@@ -144,6 +144,13 @@ class Runtime {
     return holder_.value();
   }
 
+  // The raw pointer generate_bootstrap_key()/generate_key_switch_key()
+  // want as their other Runtime's secret -- holder() stays the source of
+  // truth (also needed whole by the copy-secret constructor above), this
+  // just skips the intermediate SecretHolder a caller only wants the
+  // pointer out of.
+  const UInt::raw_value_type* secret() const noexcept { return holder().get(); }
+
  private:
   // cryptor_ carries the same never-unset-when-called invariant as holder_
   // above.

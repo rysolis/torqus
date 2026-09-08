@@ -277,7 +277,7 @@ int main() {
   // Chaining gate outputs needs a Relay too -- see Relay::materialize()
   // (tfhe/circuit.hpp).
   auto bk = rlwe_runtime.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-      lwe_runtime.holder().get());
+      lwe_runtime.secret());
 
   // 4 slots, true/false at indices 1/0, matching HomAnd's {0, 1/4}
   // message space.
@@ -286,8 +286,8 @@ int main() {
   Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift(false);
 
-  Cipher<Lwe, Rlwe> result_ct(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
-      a_ct.ready(), b_ct.ready(), bk));
+  Cipher<Lwe, Rlwe> result_ct = tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
+      a_ct.ready(), b_ct.ready(), bk);
 
   bool plaintext = drop(boundary, result_ct);
 }

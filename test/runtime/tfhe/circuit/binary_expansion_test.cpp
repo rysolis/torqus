@@ -74,10 +74,10 @@ class BinaryExpansionFixture : public ::testing::Test {
     lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
     bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-        lwe_runtime_.holder().get());
+        lwe_runtime_.secret());
     ksk_ = lwe_runtime_
                .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                   rlwe_runtime_.holder().get());
+                   rlwe_runtime_.secret());
     expansion_ =
         tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>(bk_, ksk_);
   }
