@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "tfhe/bit.hpp"
+#include "tfhe/cipher.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/gate/hom_or.hpp"
 #include "tfhe/operation/evaluator.hpp"

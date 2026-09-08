@@ -72,18 +72,19 @@ the umbrella header that pulls in its subdirectory.
 | Leveled arithmetic | `Add`, `Sub`, `KeySwitch`, `SampleExtract` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
 | Bootstrap primitives | `BlindRotate`, `ExternalProduct`, `CMux`, `GateBootstrap` | [`tfhe/operation.hpp`](include/tfhe/operation.hpp) |
 | Gates | `HomAnd`, `HomAndNot`, `HomOr`, `HomXor` | [`tfhe/gate.hpp`](include/tfhe/gate.hpp) |
-| Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
-| Ciphertext state | `Bit` (hides whether a ciphertext is Lwe- or Rlwe-shaped), `Circuit`/`Relay` (gate calls and materializing as method calls, not raw key arguments) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
-| Plaintext/ciphertext boundary | `Boundary` (`lift()`: plaintext -> `Bit`, always available; `drop()`: `Bit` -> plaintext, only once constructed with the secret -- see `has_secret()`) | [`tfhe/bit.hpp`](include/tfhe/bit.hpp) |
-| Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Bit`/`Circuit`/`Relay`) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
+| Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
+| Ciphertext state | `Cipher` (hides whether a ciphertext is Lwe- or Rlwe-shaped) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
+| Plaintext/ciphertext boundary | `Boundary` (`lift()`: plaintext -> `Cipher`, always available; `drop()`: `Cipher` -> plaintext, only once constructed with the secret -- see `has_secret()`) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
+| Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Cipher`), `Relay` (materializing a `Cipher` back to Lwe-shaped as a method call, not a raw `KeySwitch` argument), `Reslot` (bootstraps a `Cipher` onto a different `Dial` resolution) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
 | Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
 
 Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
 ciphertext out (see the `HomAnd` example below); chaining several
 together, as `BinaryExpansion` does, needs a `KeySwitch` back down to
-Lwe between calls -- `Bit`/`Circuit`/`Relay` wrap that dance behind
-`Circuit::And`/`Or`/`AndNot`/`Xor` and an explicit `Relay::materialize()`
-instead of every call site juggling raw keys and `KeySwitch` by hand.
+Lwe between calls -- `Cipher` wraps a gate's raw `TLWE` in/out so a caller
+never has to notice which shape it currently is, and `Relay::materialize()`
+does the `KeySwitch` as a method call instead of every call site juggling
+raw keys by hand.
 
 ***
 
@@ -240,15 +241,14 @@ into your build even if your project also has `BUILD_TESTING` on.
 
 ### Example: a homomorphic AND gate
 
-Encrypt two bits under a `Runtime` and combine them with a `Circuit`:
-[`Bit`](include/tfhe/bit.hpp) hides whether a ciphertext is Lwe- or
-Rlwe-shaped, `Circuit` turns a gate call into a
-method call that doesn't need `bk` (or `<Decomp>`) spelled out by hand --
-its own signature is the guarantee that combining ciphertexts never
-touches the secret -- and `Boundary` crosses the plaintext/ciphertext
-boundary: `lift()` always works, `drop()` only once it was built with the
-actual secret (see `has_secret()`). Everything above comes in through
-the single umbrella header `tfhe/bit.hpp` (see [Project
+Encrypt two bits under a `Runtime` and combine them with `HomAnd`:
+[`Cipher`](include/tfhe/cipher.hpp) hides whether a ciphertext is Lwe- or
+Rlwe-shaped, so a gate's raw `TLWE` in/out can be wrapped/unwrapped at the
+call site without the caller having to track which shape it currently is,
+and `Boundary` crosses the plaintext/ciphertext boundary: `lift()` always
+works, `drop()` only once it was built with the actual secret (see
+`has_secret()`). `Cipher`, `Dial`, and `Boundary` all come in through the
+single umbrella header `tfhe/cipher.hpp` (see [Project
 Structure](DEVELOPING.md#project-structure)) rather than reaching into
 the subdirectory it pulls in for you:
 
@@ -257,7 +257,8 @@ the subdirectory it pulls in for you:
 
 #include "primitive.hpp"
 
-#include "tfhe/bit.hpp"
+#include "tfhe/cipher.hpp"
+#include "tfhe/gate/hom_and.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 
@@ -273,21 +274,22 @@ int main() {
   Runtime<Lwe> lwe_runtime(eng);
   Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime(eng);
 
-  // Chaining gate outputs needs a Relay too -- see Relay::materialize().
-  Circuit<Lwe, Rlwe, Decomp> circuit(
-      rlwe_runtime.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-          lwe_runtime.holder().get()));
+  // Chaining gate outputs needs a Relay too -- see Relay::materialize()
+  // (tfhe/circuit.hpp).
+  auto bk = rlwe_runtime.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+      lwe_runtime.holder().get());
 
   // 4 slots, true/false at indices 1/0, matching HomAnd's {0, 1/4}
   // message space.
   Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime, rlwe_runtime);
 
-  Bit<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Bit<Lwe, Rlwe> b_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift(false);
 
-  Bit<Lwe, Rlwe> result_ct = circuit.And(a_ct, b_ct);
+  Cipher<Lwe, Rlwe> result_ct(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
+      a_ct.ready(), b_ct.ready(), bk));
 
-  bool plaintext = boundary.drop(result_ct);
+  bool plaintext = drop(boundary, result_ct);
 }
 ```
 

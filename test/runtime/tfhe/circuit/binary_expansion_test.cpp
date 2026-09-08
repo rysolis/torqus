@@ -7,7 +7,7 @@
 
 #include "primitive/torus.hpp"
 
-#include "tfhe/bit.hpp"
+#include "tfhe/cipher.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
@@ -52,29 +52,34 @@ class BinaryExpansionFixture : public ::testing::Test {
   using Decomp = Context::dcp_params;
   using Kst = Context::kst_params;
 
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
+  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t t = Kst::t;
+
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Lwe, Tracking> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
 
-  BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
-  KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
+  BootstrapKey<rTorus, N, l, n> bk_;
+  KeySwitchKey<Torus, n, t, N> ksk_;
   tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst> expansion_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
     lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
 
-    bk_holder_ = BootstrapKeyHolder<Lwe, Rlwe, Decomp>(
-        rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-            lwe_runtime_.holder().get()));
-    ksk_holder_ = KeySwitchKeyHolder<Lwe, Rlwe, Kst>(
-        lwe_runtime_
-            .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                rlwe_runtime_.holder().get()));
-    expansion_ = tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>(
-        bk_holder_.bk(), ksk_holder_.ksk());
+    bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+        lwe_runtime_.holder().get());
+    ksk_ = lwe_runtime_
+               .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+                   rlwe_runtime_.holder().get());
+    expansion_ =
+        tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst>(bk_, ksk_);
   }
 };
 
