@@ -49,8 +49,7 @@ class CircuitReslotFixture : public ::testing::Test {
 
   BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
   KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
-  tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp> reslot_;
-  Relay<Lwe, Rlwe, Kst> relay_;
+  tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst> reslot_;
 
   void SetUp() override {
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
@@ -63,8 +62,8 @@ class CircuitReslotFixture : public ::testing::Test {
         lwe_runtime_
             .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                 rlwe_runtime_.holder().get()));
-    reslot_ = tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp>(bk_holder_.bk());
-    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
+    reslot_ = tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst>(
+        bk_holder_.bk(), ksk_holder_.ksk());
   }
 };
 
@@ -86,9 +85,11 @@ TYPED_TEST_SUITE(CircuitReslotCorrectnessTest,
 
 // A ciphertext lifted at Dial<2, Torus> (0 or 1/2) -- e.g. a ballot bit
 // encoded outside this library's own gate suite -- comes back moved to
-// Dial<4, Torus> (0 or 1/4), the step And/Or/AndNot/Xor expect. Not yet
-// materialized -- same shape And/Or/AndNot/Xor's own results have -- so an
-// explicit Relay::materialize() gets it the rest of the way to Lwe-shaped.
+// Dial<4, Torus> (0 or 1/4), the step HomAnd/HomOr/HomAndNot/HomXor expect.
+// exec_ready() does the bootstrap plus a Relay::materialize() in one call
+// -- no separate Relay needed by the caller (see Reslot's own doc comment;
+// exec() alone staying Rlwe-shaped/pending is covered by CipherTest's own
+// Reslot* tests, which use the same underlying tfhe::bootstrap::Reslot).
 TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
@@ -102,12 +103,9 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   for (const auto& tc : TestFixture::cases()) {
     Cipher<Lwe, Rlwe> ct = in_boundary.lift(tc.value);
 
-    Cipher<Lwe, Rlwe> resloted = this->reslot_.exec(ct);
-    ASSERT_FALSE(resloted.is_ready());
-    this->relay_.materialize(resloted);
-    ASSERT_TRUE(resloted.is_ready());
+    TLWE<typename Lwe::torus_type, Lwe::n> ready = this->reslot_.exec_ready(ct);
 
-    bool res = drop(out_boundary, resloted);
+    bool res = out_boundary.drop(ready);
 
     std::cout << "\n========================================\n";
     std::cout << "         Circuit::Reslot Test\n";
