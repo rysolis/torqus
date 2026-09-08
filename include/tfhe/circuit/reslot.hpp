@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "tfhe/bit/cipher.hpp"
-#include "tfhe/circuit/circuit.hpp"
+#include "tfhe/cipher/cipher.hpp"
+#include "tfhe/circuit/relay.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/bootstrap/reslot.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -25,11 +25,10 @@
 // Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
 // comment (tfhe/gate/hom_and.hpp) for why this is a compile-time policy.
 //
-// Takes the BootstrapKey/KeySwitchKey directly, not a Holder -- a caller
-// holding one passes holder.bk()/holder.ksk() straight through; Reslot has
-// no need to know the holder concept exists. Holds a pointer to the
-// BootstrapKey (not a copy) and its own Relay built from the KeySwitchKey
-// -- the referenced keys must outlive this Reslot.
+// Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
+// own key values straight through. Holds a pointer to the BootstrapKey
+// (not a copy) and its own Relay built from the KeySwitchKey -- the
+// referenced keys must outlive this Reslot.
 namespace tfhe::circuit {
 
 template <uint32_t InResolution, uint32_t OutResolution, typename Lwe,

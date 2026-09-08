@@ -9,13 +9,14 @@
 #include <utility>
 #include <vector>
 
-#include "tfhe/bit/cipher.hpp"
-#include "tfhe/circuit/circuit.hpp"
+#include "tfhe/cipher/cipher.hpp"
+#include "tfhe/circuit/relay.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
+#include "tfhe/structure/key/bootstrap_key.hpp"
 
 // H is the size of the one-hot output vector this expansion produces from
 // k = ceil(log2(H)) Lwe-shaped input bit-ciphertexts. Each slot chains
@@ -34,12 +35,10 @@
 // calls in exec_slot_impl below run against a non-default (e.g. hardware)
 // backend, simply by instantiating this with one.
 //
-// Takes the BootstrapKey/KeySwitchKey directly, not a Holder -- a caller
-// holding one passes holder.bk()/holder.ksk() straight through;
-// BinaryExpansion has no need to know the holder concept exists. Holds a
-// pointer to the BootstrapKey (not a copy) and its own Relay built from
-// the KeySwitchKey -- the referenced keys must outlive this
-// BinaryExpansion.
+// Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
+// own key values straight through. Holds a pointer to the BootstrapKey
+// (not a copy) and its own Relay built from the KeySwitchKey -- the
+// referenced keys must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,

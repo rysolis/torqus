@@ -1,8 +1,8 @@
 // Copyright 2026 Ryuhei Morita
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef TFHE_DIAL_HPP
-#define TFHE_DIAL_HPP
+#ifndef TFHE_CIPHER_DIAL_HPP
+#define TFHE_CIPHER_DIAL_HPP
 
 #include <bit>
 #include <cassert>
@@ -160,4 +160,4 @@ class Dial {
   Torus value_;
 };
 
-#endif  // TFHE_DIAL_HPP
+#endif  // TFHE_CIPHER_DIAL_HPP

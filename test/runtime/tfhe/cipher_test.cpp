@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "tfhe/bit.hpp"
+#include "tfhe/cipher.hpp"
 #include "tfhe/circuit/reslot.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
@@ -29,28 +29,33 @@ class CipherTest : public ::testing::Test {
   using Decomp = cipher_test::Decomp;
   using Kst = cipher_test::Kst;
 
+  using rTorus = typename Rlwe::torus_type;
+  static constexpr uint32_t N = Rlwe::N;
+  using Torus = typename Lwe::torus_type;
+  static constexpr uint32_t n = Lwe::n;
+  static constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t t = Kst::t;
+
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
   Runtime<Lwe> lwe_runtime_;
   Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime_;
 
-  BootstrapKeyHolder<Lwe, Rlwe, Decomp> bk_holder_;
-  KeySwitchKeyHolder<Lwe, Rlwe, Kst> ksk_holder_;
+  BootstrapKey<rTorus, N, l, n> bk_;
+  KeySwitchKey<Torus, n, t, N> ksk_;
   Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
     lwe_runtime_ = Runtime<Lwe>(eng_);
     rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>>(eng_);
 
-    bk_holder_ = BootstrapKeyHolder<Lwe, Rlwe, Decomp>(
-        rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
-            lwe_runtime_.holder().get()));
-    ksk_holder_ = KeySwitchKeyHolder<Lwe, Rlwe, Kst>(
-        lwe_runtime_
-            .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-                rlwe_runtime_.holder().get()));
-    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_holder_.ksk());
+    bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+        lwe_runtime_.holder().get());
+    ksk_ = lwe_runtime_
+               .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+                   rlwe_runtime_.holder().get());
+    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_);
   }
 
   // Thin Cipher-in/Cipher-out adapters over tfhe::gate::Hom* -- gate::HomAnd
@@ -59,23 +64,23 @@ class CipherTest : public ::testing::Test {
   Cipher<Lwe, Rlwe> and_(const Cipher<Lwe, Rlwe>& lhs,
                          const Cipher<Lwe, Rlwe>& rhs) const {
     return Cipher<Lwe, Rlwe>(tfhe::gate::HomAnd<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_holder_.bk()));
+        lhs.ready(), rhs.ready(), bk_));
   }
   Cipher<Lwe, Rlwe> or_(const Cipher<Lwe, Rlwe>& lhs,
                         const Cipher<Lwe, Rlwe>& rhs) const {
     return Cipher<Lwe, Rlwe>(tfhe::gate::HomOr<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_holder_.bk()));
+        lhs.ready(), rhs.ready(), bk_));
   }
   Cipher<Lwe, Rlwe> and_not_(const Cipher<Lwe, Rlwe>& lhs,
                              const Cipher<Lwe, Rlwe>& rhs) const {
     return Cipher<Lwe, Rlwe>(
-        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(
-            lhs.ready(), rhs.ready(), bk_holder_.bk()));
+        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp>::exec_impl(lhs.ready(),
+                                                            rhs.ready(), bk_));
   }
   Cipher<Lwe, Rlwe> xor_(const Cipher<Lwe, Rlwe>& lhs,
                          const Cipher<Lwe, Rlwe>& rhs) const {
     return Cipher<Lwe, Rlwe>(tfhe::gate::HomXor<Lwe, Rlwe, Decomp>::exec_impl(
-        lhs.ready(), rhs.ready(), bk_holder_.bk()));
+        lhs.ready(), rhs.ready(), bk_));
   }
 
   // A caller needing several (InResolution, OutResolution) pairs -- like
@@ -84,7 +89,7 @@ class CipherTest : public ::testing::Test {
   template <uint32_t InResolution, uint32_t OutResolution>
   Cipher<Lwe, Rlwe> reslot(const Cipher<Lwe, Rlwe>& bit) const {
     return tfhe::circuit::Reslot<InResolution, OutResolution, Lwe, Rlwe, Decomp,
-                                 Kst>(bk_holder_.bk(), ksk_holder_.ksk())
+                                 Kst>(bk_, ksk_)
         .exec(bit);
   }
 };

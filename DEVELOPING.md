@@ -55,8 +55,8 @@ torqus/
 │       ├── key.hpp             # -> structure/key/: bootstrap / key-switch / public keys
 │       ├── operation.hpp       # -> operation/: leveled ops, bootstrap primitives
 │       ├── gate.hpp            # -> gate/: homomorphic gates (AND, AND-NOT, OR, XOR)
-│       ├── bit.hpp             # -> bit/: plaintext/ciphertext ergonomics (Dial, Bit, Circuit/Relay, Boundary)
-│       ├── circuit.hpp         # -> circuit/: gate-level circuits (e.g. binary expansion)
+│       ├── cipher.hpp          # -> cipher/: plaintext/ciphertext ergonomics (Dial, Cipher, Boundary)
+│       ├── circuit.hpp         # -> circuit/: gate-level circuits (BinaryExpansion, Relay, Reslot)
 │       ├── math.hpp            # -> math/: modulus switching
 │       ├── serialize.hpp       # -> serialize/: wire (de)serialization
 │       ├── transport.hpp       # direct vs. serialized hand-off between protocol roles
