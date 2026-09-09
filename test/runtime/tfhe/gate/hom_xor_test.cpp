@@ -90,15 +90,15 @@ TYPED_TEST(HomXorCorrectnessTest, VerifyCorrectness) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
 
-  Boundary<4, Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
-                                                    this->rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                 this->rlwe_runtime_);
 
   for (const auto& tc : TestFixture::cases()) {
     // ==================================
     // Arrange
     // ==================================
-    Cipher<Lwe, Rlwe> lhs_ct = boundary.lift(tc.lhs);
-    Cipher<Lwe, Rlwe> rhs_ct = boundary.lift(tc.rhs);
+    Cipher<Lwe, Rlwe> lhs_ct = boundary.template lift<4>(tc.lhs);
+    Cipher<Lwe, Rlwe> rhs_ct = boundary.template lift<4>(tc.rhs);
 
     // ==================================
     // Act
@@ -109,7 +109,7 @@ TYPED_TEST(HomXorCorrectnessTest, VerifyCorrectness) {
     // ==================================
     // Assert
     // ==================================
-    bool res = drop(boundary, res_ct);
+    bool res = boundary.template drop<4>(res_ct);
 
     std::cout << "\n========================================\n";
     std::cout << "           HomXor Test\n";
