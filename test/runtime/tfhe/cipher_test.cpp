@@ -96,9 +96,9 @@ class CipherTest : public ::testing::Test {
 
 // A freshly-encrypted Cipher starts out Lwe-shaped.
 TEST_F(CipherTest, FreshlyEncryptedBitIsReady) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
 
   EXPECT_TRUE(a_ct.is_ready());
 }
@@ -106,32 +106,32 @@ TEST_F(CipherTest, FreshlyEncryptedBitIsReady) {
 // hom_and's result is Rlwe-shaped -- exactly what every tfhe/gate/Hom*
 // returns -- until something materializes it back down.
 TEST_F(CipherTest, GateResultIsNotReady) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
 
   Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
 
   EXPECT_FALSE(result_ct.is_ready());
-  EXPECT_TRUE(drop(boundary, result_ct));
+  EXPECT_TRUE(boundary.drop<4>(result_ct));
 }
 
 // Relay::materialize() is how a caller normalizes a Cipher back to
 // Lwe-shaped -- HomAnd/HomOr/HomAndNot/HomXor never do this on their own.
 TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
 
   Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
   relay_.materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
-  // drop(boundary, bit) handles either shape -- result_ct is now
-  // Lwe-shaped, but it still decodes the same way (see boundary.hpp).
-  EXPECT_TRUE(drop(boundary, result_ct));
+  // drop<4>() handles either shape -- result_ct is now Lwe-shaped, but it
+  // still decodes the same way (see boundary.hpp).
+  EXPECT_TRUE(boundary.drop<4>(result_ct));
 
   // A second call is a harmless no-op.
   relay_.materialize(result_ct);
@@ -142,33 +142,34 @@ TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
 // its value -- the pure-refresh case of Reslot (see
 // tfhe/operation/bootstrap/reslot.hpp).
 TEST_F(CipherTest, ReslotWithSameResolutionPreservesValue) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> t_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> f_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
 
   Cipher<Lwe, Rlwe> t_refreshed = reslot<4, 4>(t_ct);
   Cipher<Lwe, Rlwe> f_refreshed = reslot<4, 4>(f_ct);
 
   EXPECT_FALSE(t_refreshed.is_ready());
-  EXPECT_TRUE(drop(boundary, t_refreshed));
-  EXPECT_FALSE(drop(boundary, f_refreshed));
+  EXPECT_TRUE(boundary.drop<4>(t_refreshed));
+  EXPECT_FALSE(boundary.drop<4>(f_refreshed));
 }
 
 // A Cipher lifted at Dial<2, Torus> (0 or 1/2) moved into Dial<4, Torus> (0 or
 // 1/4) -- the step HomAnd/HomOr/HomAndNot/HomXor expect.
 TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
-  Boundary<2, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
-  Boundary<4, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
+  // One Boundary now covers both resolutions -- lift<2>()/drop<4>() name
+  // the resolution per call, not per Boundary (see boundary.hpp).
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> t_ct = in_boundary.lift(true);
-  Cipher<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift<2>(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift<2>(false);
 
   Cipher<Lwe, Rlwe> t_resloted = reslot<2, 4>(t_ct);
   Cipher<Lwe, Rlwe> f_resloted = reslot<2, 4>(f_ct);
 
-  EXPECT_TRUE(drop(out_boundary, t_resloted));
-  EXPECT_FALSE(drop(out_boundary, f_resloted));
+  EXPECT_TRUE(boundary.drop<4>(t_resloted));
+  EXPECT_FALSE(boundary.drop<4>(f_resloted));
 }
 
 // OutResolution has no power-of-two constraint (only InResolution does, so
@@ -176,34 +177,33 @@ TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
 // number of doublings) -- Dial<4, Torus> (0 or 1/4) moved into Dial<100,
 // Torus> (0 or 1/100) exercises that.
 TEST_F(CipherTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
-  Boundary<4, Lwe, Rlwe, Decomp> in_boundary(lwe_runtime_, rlwe_runtime_);
-  Boundary<100, Lwe, Rlwe, Decomp> out_boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> t_ct = in_boundary.lift(true);
-  Cipher<Lwe, Rlwe> f_ct = in_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
 
   Cipher<Lwe, Rlwe> t_resloted = reslot<4, 100>(t_ct);
   Cipher<Lwe, Rlwe> f_resloted = reslot<4, 100>(f_ct);
 
   // Dial<100,...>'s indices 0/1 are still 0 and 1/100 -- same true/false
   // reading as Dial<4,...>'s 0/1, just on a finer grid.
-  EXPECT_EQ(drop(out_boundary, t_resloted), 1u);
-  EXPECT_EQ(drop(out_boundary, f_resloted), 0u);
+  EXPECT_EQ(boundary.drop<100>(t_resloted), 1u);
+  EXPECT_EQ(boundary.drop<100>(f_resloted), 0u);
 }
 
 TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> t_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> f_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
 
   Cipher<Lwe, Rlwe> or_result_ct = or_(t_ct, f_ct);
   Cipher<Lwe, Rlwe> and_not_result_ct = and_not_(t_ct, f_ct);
   Cipher<Lwe, Rlwe> xor_result_ct = xor_(t_ct, f_ct);
 
-  EXPECT_TRUE(drop(boundary, or_result_ct));
-  EXPECT_TRUE(drop(boundary, and_not_result_ct));
-  EXPECT_TRUE(drop(boundary, xor_result_ct));
+  EXPECT_TRUE(boundary.drop<4>(or_result_ct));
+  EXPECT_TRUE(boundary.drop<4>(and_not_result_ct));
+  EXPECT_TRUE(boundary.drop<4>(xor_result_ct));
 }
 
 // A Boundary built with only the Lwe-side secret can still drop()
@@ -211,17 +211,17 @@ TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
 // already-materialized results and has no lasting need to keep the
 // Rlwe-side Runtime alive as a member.
 TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
-  Boundary<4, Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
-  Boundary<4, Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
 
-  Cipher<Lwe, Rlwe> a_ct = full_boundary.lift(true);
-  Cipher<Lwe, Rlwe> b_ct = full_boundary.lift(true);
+  Cipher<Lwe, Rlwe> a_ct = full_boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> b_ct = full_boundary.lift<4>(true);
 
   Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
   relay_.materialize(result_ct);
   ASSERT_TRUE(result_ct.is_ready());
 
-  EXPECT_TRUE(drop(lwe_only_boundary, result_ct));
+  EXPECT_TRUE(lwe_only_boundary.drop<4>(result_ct));
 }
 
 // PublicBoundary can lift() without ever touching the secret -- built from
@@ -232,27 +232,27 @@ TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
   PublicKey<typename Lwe::torus_type, Lwe::n, kPkSamples> pk =
       lwe_runtime_.template generate_public_key<kPkSamples>();
   PublicRuntime<Lwe, kPkSamples> pub(pk, eng_);
-  PublicBoundary<4, Lwe, kPkSamples> public_boundary(pub);
+  PublicBoundary<Lwe, kPkSamples> public_boundary(pub);
 
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> t_ct = public_boundary.lift(true);
-  Cipher<Lwe, Rlwe> f_ct = public_boundary.lift(false);
+  Cipher<Lwe, Rlwe> t_ct = public_boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> f_ct = public_boundary.lift<4>(false);
 
   EXPECT_TRUE(t_ct.is_ready());
-  EXPECT_TRUE(drop(boundary, t_ct));
-  EXPECT_FALSE(drop(boundary, f_ct));
+  EXPECT_TRUE(boundary.drop<4>(t_ct));
+  EXPECT_FALSE(boundary.drop<4>(f_ct));
 }
 
 // HomAnd/HomOr/HomAndNot/HomXor require both operands already Lwe-shaped --
 // chaining a gate's own (Rlwe-shaped) output into another gate call needs an
 // explicit Relay::materialize() first.
 TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
-  Boundary<4, Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
-  Cipher<Lwe, Rlwe> a_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> b_ct = boundary.lift(true);
-  Cipher<Lwe, Rlwe> c_ct = boundary.lift(false);
+  Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
+  Cipher<Lwe, Rlwe> c_ct = boundary.lift<4>(false);
 
   // (a AND b) AND c == false
   Cipher<Lwe, Rlwe> ab_ct = and_(a_ct, b_ct);
@@ -262,5 +262,5 @@ TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
 
   Cipher<Lwe, Rlwe> abc_ct = and_(ab_ct, c_ct);
 
-  EXPECT_FALSE(drop(boundary, abc_ct));
+  EXPECT_FALSE(boundary.drop<4>(abc_ct));
 }

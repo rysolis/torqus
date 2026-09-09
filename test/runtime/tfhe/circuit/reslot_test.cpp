@@ -99,17 +99,17 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
 
-  Boundary<2, Lwe, Rlwe, Decomp, Tracking> in_boundary(this->lwe_runtime_,
-                                                       this->rlwe_runtime_);
-  Boundary<4, Lwe, Rlwe, Decomp, Tracking> out_boundary(this->lwe_runtime_,
-                                                        this->rlwe_runtime_);
+  // One Boundary now covers both resolutions -- lift<2>()/drop<4>() name
+  // the resolution per call, not per Boundary (see boundary.hpp).
+  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                 this->rlwe_runtime_);
 
   for (const auto& tc : TestFixture::cases()) {
-    Cipher<Lwe, Rlwe> ct = in_boundary.lift(tc.value);
+    Cipher<Lwe, Rlwe> ct = boundary.template lift<2>(tc.value);
 
     TLWE<typename Lwe::torus_type, Lwe::n> ready = this->reslot_.exec_ready(ct);
 
-    bool res = out_boundary.drop(ready);
+    bool res = boundary.template drop<4>(ready);
 
     std::cout << "\n========================================\n";
     std::cout << "         Circuit::Reslot Test\n";
