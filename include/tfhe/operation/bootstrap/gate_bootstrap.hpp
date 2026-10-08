@@ -12,13 +12,17 @@
 
 #include "algebra/vector.hpp"
 
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/math/modswitch.hpp"
 #include "tfhe/operation/bootstrap/blindrotate.hpp"
 #include "tfhe/operation/leveled/add.hpp"
+#include "tfhe/operation/leveled/key_switch.hpp"
 #include "tfhe/operation/leveled/sample_extract.hpp"
+#include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 
 namespace {
 
@@ -53,6 +57,8 @@ class GateBootstrap {
 
   static constexpr uint32_t l = Decomp::l;
 
+  // Bootstrap only -- returns the Rlwe-dimension result. KeySwitch is the
+  // caller's job (see HomAnd/HomAndNot/BinaryExpansion's own Relay).
   static TLWE<rTorus, N> exec_impl(const rTorus mu, const TRLWE<rTorus, N>& tv,
                                    const TLWE<Torus, n>& tlwe,
                                    const BootstrapKey<rTorus, N, l, n>& bk) {
@@ -73,6 +79,21 @@ class GateBootstrap {
 
     return leveled::Add<Rlwe>::exec_impl(
         offset, leveled::SampleExtract<Lwe, Rlwe>::exec_impl(rot, 0));
+  }
+
+  // Bootstrap, then an immediate KeySwitch -- returns the Lwe-dimension
+  // result directly instead of leaving it for the caller's own Relay.
+  // Opt-in: a caller (HomAnd/HomAndNot/BinaryExpansion/Reslot) reaches this
+  // only by explicitly supplying Kst, same as calling this one and not the
+  // plain overload above is itself the opt-in.
+  template <typename Kst>
+    requires kst_concept<Kst>
+  static TLWE<Torus, n> exec_impl(
+      const rTorus mu, const TRLWE<rTorus, N>& tv, const TLWE<Torus, n>& tlwe,
+      const BootstrapKey<rTorus, N, l, n>& bk,
+      const KeySwitchKey<Torus, n, Kst::t, N>& ksk) {
+    return leveled::KeySwitch<ExtractedLwe<Rlwe>, Lwe, Kst>::exec_impl(
+        exec_impl(mu, tv, tlwe, bk), ksk);
   }
 };
 

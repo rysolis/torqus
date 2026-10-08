@@ -90,10 +90,10 @@ TYPED_TEST_SUITE(CircuitReslotCorrectnessTest,
 // A ciphertext lifted at Dial<2, Torus> (0 or 1/2) -- e.g. a ballot bit
 // encoded outside this library's own gate suite -- comes back moved to
 // Dial<4, Torus> (0 or 1/4), the step HomAnd/HomOr/HomAndNot/HomXor expect.
-// exec_ready() does the bootstrap plus a Relay::materialize() in one call
-// -- no separate Relay needed by the caller (see Reslot's own doc comment;
-// exec() alone staying Rlwe-shaped/pending is covered by CipherTest's own
-// Reslot* tests, which use the same underlying tfhe::bootstrap::Reslot).
+// materialize() forwards to this instance's own Relay -- no separate Relay
+// needed by the caller (see Reslot's own doc comment; exec() alone staying
+// Rlwe-shaped/pending is covered by CipherTest's own Reslot* tests, which
+// use the same underlying tfhe::bootstrap::Reslot).
 TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
@@ -107,9 +107,10 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   for (const auto& tc : TestFixture::cases()) {
     Cipher<Lwe, Rlwe> ct = boundary.template lift<2>(tc.value);
 
-    TLWE<typename Lwe::torus_type, Lwe::n> ready = this->reslot_.exec_ready(ct);
+    Cipher<Lwe, Rlwe> resloted = this->reslot_.exec(ct);
+    this->reslot_.materialize(resloted);
 
-    bool res = boundary.template drop<4>(ready);
+    bool res = boundary.template drop<4>(resloted);
 
     std::cout << "\n========================================\n";
     std::cout << "         Circuit::Reslot Test\n";
@@ -120,5 +121,40 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
     std::cout << std::setw(14) << "actual" << ": " << res << "\n";
 
     EXPECT_EQ(res, tc.value);
+  }
+}
+
+// this->reslot_ has FuseKeySwitch=false (the default): exec() calls
+// Backend's plain exec_impl and materialize() does the KeySwitch.
+// fused_reslot below has FuseKeySwitch=true instead, same Backend
+// (GateBootstrap) -- same bk_/ksk_, same input, confirming both agree
+// bit-for-bit.
+TYPED_TEST(CircuitReslotCorrectnessTest, FuseKeySwitchMatchesDefault) {
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Decomp = typename TypeParam::context::dcp_params;
+  using Kst = typename TypeParam::context::kst_params;
+  using Torus = typename Lwe::torus_type;
+
+  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                 this->rlwe_runtime_);
+  tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst,
+                        tfhe::bootstrap::GateBootstrap, true>
+      fused_reslot(this->bk_, this->ksk_);
+
+  for (const auto& tc : TestFixture::cases()) {
+    Cipher<Lwe, Rlwe> ct = boundary.template lift<2>(tc.value);
+
+    Cipher<Lwe, Rlwe> expected = this->reslot_.exec(ct);
+    Cipher<Lwe, Rlwe> actual = fused_reslot.exec(ct);
+
+    const TLWE<Torus, Lwe::n>& expected_ready =
+        this->reslot_.materialize(expected);
+    const TLWE<Torus, Lwe::n>& actual_ready = fused_reslot.materialize(actual);
+
+    EXPECT_EQ(actual_ready.b(), expected_ready.b());
+    for (uint32_t j = 0; j < Lwe::n; ++j) {
+      EXPECT_EQ(Torus(actual_ready.a()[j]), Torus(expected_ready.a()[j]));
+    }
   }
 }

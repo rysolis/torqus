@@ -13,7 +13,6 @@
 #include "tfhe/circuit/relay.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
-#include "tfhe/operation/bootstrap/fused_gate_bootstrap.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -36,10 +35,12 @@
 // calls in exec_slot_impl below run against a non-default (e.g. hardware)
 // backend, simply by instantiating this with one.
 //
-// A Backend at the Bootstrap+KeySwitch granularity instead (see
-// fused_gate_bootstrap.hpp) gets its own exec_impl overload call in
-// exec_slot_impl -- its result is already Lwe-shaped, so relay_ has
-// nothing left to do.
+// FuseKeySwitch (false by default) picks which of Backend's two exec_impl
+// overloads exec_slot_impl calls -- true calls its Kst-templated one,
+// landing already Lwe-shaped, so relay_ has nothing left to do; false
+// calls the plain one and relay_ does the KeySwitch as usual. An explicit
+// choice, not detected from Backend -- Backend must actually provide the
+// Kst-templated overload when FuseKeySwitch is true.
 //
 // Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
 // own key values straight through. Holds a pointer to the BootstrapKey
@@ -49,7 +50,9 @@ namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
           typename Kst,
-          template <typename...> class Backend = tfhe::bootstrap::GateBootstrap>
+          template <typename, typename, typename> class Backend =
+              tfhe::bootstrap::GateBootstrap,
+          bool FuseKeySwitch = false>
 class BinaryExpansion {
  public:
   using Torus = typename Lwe::torus_type;
@@ -82,11 +85,10 @@ class BinaryExpansion {
       uint32_t bit = (h >> i) & 1u;
       Cipher<Lwe, Rlwe> vi = v[i];
 
-      // No-op if acc is already Lwe-shaped (the fused-Backend branch below).
+      // No-op if acc is already Lwe-shaped (the FuseKeySwitch branch below).
       relay_.materialize(acc);
 
-      if constexpr (tfhe::bootstrap::fused_gate_backend_concept<
-                        Backend, Lwe, Rlwe, Decomp, Kst>) {
+      if constexpr (FuseKeySwitch) {
         acc = bit ? Cipher<Lwe, Rlwe>(
                         tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::
                             template exec_impl<Kst>(acc.ready(), vi.ready(),
@@ -115,29 +117,10 @@ class BinaryExpansion {
     return exec_impl(v, std::make_index_sequence<H>{});
   }
 
-  // Same computation as exec_slot_impl(h, v), but also materialized back
-  // down to Lwe-shaped before returning -- for a caller farming slots
-  // across its own thread pool (see exec_slot_impl's own doc comment),
-  // this gives the same "no second Relay needed" convenience exec_ready()
-  // gives the single-threaded, all-slots-at-once caller.
-  TLWE<Torus, n> exec_slot_ready(uint32_t h,
-                                 const std::vector<TLWE<Torus, n>>& v) const {
-    Cipher<Lwe, Rlwe> bit = exec_slot_impl(h, v);
-    relay_.materialize(bit);
-    return std::move(bit).ready();
-  }
-
-  // Same computation as exec(), but each output slot is also materialized
-  // back down to Lwe-shaped before returning -- for a caller that just
-  // wants a ready-to-use result instead of a Relay::materialize() call per
-  // slot.
-  std::array<TLWE<Torus, n>, H> exec_ready(
-      const std::vector<TLWE<Torus, n>>& v) const {
-    std::array<TLWE<Torus, n>, H> ready;
-    for (uint32_t h = 0; h < H; ++h) {
-      ready[h] = exec_slot_ready(h, v);
-    }
-    return ready;
+  // Forwards to this instance's own Relay -- a no-op if bit is already
+  // Lwe-shaped.
+  const TLWE<Torus, n>& materialize(Cipher<Lwe, Rlwe>& bit) const {
+    return relay_.materialize(bit);
   }
 
  private:

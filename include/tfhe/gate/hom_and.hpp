@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "tfhe/operation/bootstrap/fused_gate_bootstrap.hpp"
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -29,12 +29,14 @@
 // here); a program can still hold software- and hardware-backed Circuit
 // instances side by side, they're just different types.
 //
-// The second exec_impl overload is for a Backend at the Bootstrap+
-// KeySwitch granularity instead (see fused_gate_bootstrap.hpp).
+// The second exec_impl overload calls Backend's own Kst-templated
+// exec_impl instead (see gate_bootstrap.hpp) -- an explicit choice by the
+// caller (BinaryExpansion), not something detected from Backend.
 namespace tfhe::gate {
 
 template <typename Lwe, typename Rlwe, typename Decomp,
-          template <typename...> class Backend = bootstrap::GateBootstrap>
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomAnd {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -62,8 +64,7 @@ class HomAnd {
   }
 
   template <typename Kst>
-    requires bootstrap::fused_gate_backend_concept<Backend, Lwe, Rlwe, Decomp,
-                                                   Kst>
+    requires kst_concept<Kst>
   static TLWE<Torus, n> exec_impl(
       const TLWE<Torus, n>& c1, const TLWE<Torus, n>& c2,
       const BootstrapKey<rTorus, N, l, n>& bk,
@@ -78,8 +79,8 @@ class HomAnd {
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
         offset, leveled::Add<Lwe>::exec_impl(c1, c2));
 
-    return Backend<Lwe, Rlwe, Decomp, Kst>::exec_impl(mu, tv, combined, bk,
-                                                      ksk);
+    return Backend<Lwe, Rlwe, Decomp>::template exec_impl<Kst>(mu, tv, combined,
+                                                               bk, ksk);
   }
 };
 

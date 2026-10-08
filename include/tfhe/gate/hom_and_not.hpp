@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "tfhe/operation/bootstrap/fused_gate_bootstrap.hpp"
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/operation/leveled/sub.hpp"
@@ -21,11 +21,12 @@
 //
 // Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
 // comment for why this is a compile-time policy, and for the second
-// exec_impl overload below (Bootstrap+KeySwitch-granularity Backend).
+// exec_impl overload below.
 namespace tfhe::gate {
 
 template <typename Lwe, typename Rlwe, typename Decomp,
-          template <typename...> class Backend = bootstrap::GateBootstrap>
+          template <typename, typename, typename> class Backend =
+              bootstrap::GateBootstrap>
 class HomAndNot {
  public:
   using rTorus = typename Rlwe::torus_type;
@@ -53,8 +54,7 @@ class HomAndNot {
   }
 
   template <typename Kst>
-    requires bootstrap::fused_gate_backend_concept<Backend, Lwe, Rlwe, Decomp,
-                                                   Kst>
+    requires kst_concept<Kst>
   static TLWE<Torus, n> exec_impl(
       const TLWE<Torus, n>& c1, const TLWE<Torus, n>& c2,
       const BootstrapKey<rTorus, N, l, n>& bk,
@@ -69,8 +69,8 @@ class HomAndNot {
     TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
         offset, leveled::Sub<Lwe>::exec_impl(c1, c2));
 
-    return Backend<Lwe, Rlwe, Decomp, Kst>::exec_impl(mu, tv, combined, bk,
-                                                      ksk);
+    return Backend<Lwe, Rlwe, Decomp>::template exec_impl<Kst>(mu, tv, combined,
+                                                               bk, ksk);
   }
 };
 

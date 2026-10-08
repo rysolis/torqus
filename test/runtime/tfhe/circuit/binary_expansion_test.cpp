@@ -14,6 +14,7 @@
 #include "tfhe/utility/random_generator.hpp"
 
 namespace binary_expansion_test {
+
 template <typename Context, bool Verbose = true>
 struct TestConfig {
   using context = Context;
@@ -148,10 +149,9 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   }
 }
 
-// exec_ready() is exec() plus a Relay::materialize() per slot -- each
-// output comes back Lwe-shaped, decoded via Boundary::drop()'s Lwe-shaped
-// overload directly (no Cipher wrapping needed).
-TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
+// materialize() forwards to this instance's own Relay -- each exec()
+// output converts to Lwe-shaped in place.
+TYPED_TEST(BinaryExpansionCorrectnessTest, MaterializeMakesAllSlotsReady) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
@@ -164,11 +164,10 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
     operand_ct.push_back(boundary.template lift<4>(tc.a));
     operand_ct.push_back(boundary.template lift<4>(tc.b));
 
-    std::array<TLWE<typename Lwe::torus_type, Lwe::n>, 4> res_ct =
-        this->expansion_.exec_ready(operand_ct);
+    std::array<Cipher<Lwe, Rlwe>, 4> res_ct = this->expansion_.exec(operand_ct);
 
     std::cout << "\n========================================\n";
-    std::cout << "     BinaryExpansion exec_ready Test\n";
+    std::cout << "     BinaryExpansion materialize Test\n";
     std::cout << "========================================\n";
 
     std::cout << std::left;
@@ -177,17 +176,18 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecReadyMaterializesAllSlots) {
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
     for (uint32_t i = 0; i < 4; ++i) {
-      bool res = boundary.template drop<4>(res_ct[i]);
+      bool res =
+          boundary.template drop<4>(this->expansion_.materialize(res_ct[i]));
       bool expected = (i == tc.hot);
       EXPECT_EQ(res, expected);
     }
   }
 }
 
-// exec_slot_ready(h, v) is exec_slot_impl(h, v) plus a Relay::materialize()
-// -- the per-slot counterpart to exec_ready(), for a caller farming slots
-// across its own thread pool instead of computing all H at once.
-TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
+// Same as above, but materializing one slot at a time via exec_slot_impl --
+// a caller farming slots across its own thread pool instead of computing
+// all H at once.
+TYPED_TEST(BinaryExpansionCorrectnessTest, MaterializeMakesOneSlotReady) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
@@ -201,7 +201,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
     operand_ct.push_back(boundary.template lift<4>(tc.b));
 
     std::cout << "\n========================================\n";
-    std::cout << "  BinaryExpansion exec_slot_ready Test\n";
+    std::cout << "  BinaryExpansion materialize (1 slot) Test\n";
     std::cout << "========================================\n";
 
     std::cout << std::left;
@@ -210,23 +210,21 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
     std::cout << std::setw(14) << "hot index" << ": " << tc.hot << "\n";
 
     for (uint32_t h = 0; h < 4; ++h) {
-      TLWE<typename Lwe::torus_type, Lwe::n> res_ct =
-          this->expansion_.exec_slot_ready(h, operand_ct);
-
-      bool res = boundary.template drop<4>(res_ct);
+      Cipher<Lwe, Rlwe> res_ct = this->expansion_.exec_slot_impl(h, operand_ct);
+      bool res =
+          boundary.template drop<4>(this->expansion_.materialize(res_ct));
       bool expected = (h == tc.hot);
       EXPECT_EQ(res, expected);
     }
   }
 }
 
-// Instantiating BinaryExpansion with tfhe::bootstrap::FusedGateBootstrap --
-// Bootstrap and KeySwitch fused into one Backend call, in place of
-// GateBootstrap plus this instance's own Relay (see
-// fused_gate_bootstrap.hpp and BinaryExpansion::exec_slot_impl's own doc
-// comment) -- produces bit-identical results to the default-Backend
-// instance above, same bk_/ksk_, same inputs.
-TYPED_TEST(BinaryExpansionCorrectnessTest, FusedBackendMatchesDefaultBackend) {
+// this->expansion_ has FuseKeySwitch=false (the default): each
+// exec_slot_impl step calls Backend's plain exec_impl and relay_ does the
+// KeySwitch. fused_expansion below has FuseKeySwitch=true instead, same
+// Backend (GateBootstrap) -- same bk_/ksk_, same inputs, confirming both
+// branches agree bit-for-bit.
+TYPED_TEST(BinaryExpansionCorrectnessTest, FusedKeySwitchMatchesDefault) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
   using Decomp = typename TypeParam::context::dcp_params;
@@ -236,7 +234,7 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, FusedBackendMatchesDefaultBackend) {
   Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
                                                  this->rlwe_runtime_);
   tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst,
-                                 tfhe::bootstrap::FusedGateBootstrap>
+                                 tfhe::bootstrap::GateBootstrap, true>
       fused_expansion(this->bk_, this->ksk_);
 
   for (const auto& tc : TestFixture::cases()) {
@@ -244,15 +242,19 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, FusedBackendMatchesDefaultBackend) {
     operand_ct.push_back(boundary.template lift<4>(tc.a));
     operand_ct.push_back(boundary.template lift<4>(tc.b));
 
-    std::array<TLWE<Torus, Lwe::n>, 4> expected =
-        this->expansion_.exec_ready(operand_ct);
-    std::array<TLWE<Torus, Lwe::n>, 4> actual =
-        fused_expansion.exec_ready(operand_ct);
+    std::array<Cipher<Lwe, Rlwe>, 4> expected =
+        this->expansion_.exec(operand_ct);
+    std::array<Cipher<Lwe, Rlwe>, 4> actual = fused_expansion.exec(operand_ct);
 
     for (uint32_t h = 0; h < 4; ++h) {
-      EXPECT_EQ(actual[h].b(), expected[h].b());
+      const TLWE<Torus, Lwe::n>& expected_ready =
+          this->expansion_.materialize(expected[h]);
+      const TLWE<Torus, Lwe::n>& actual_ready =
+          fused_expansion.materialize(actual[h]);
+
+      EXPECT_EQ(actual_ready.b(), expected_ready.b());
       for (uint32_t j = 0; j < Lwe::n; ++j) {
-        EXPECT_EQ(Torus(actual[h].a()[j]), Torus(expected[h].a()[j]));
+        EXPECT_EQ(Torus(actual_ready.a()[j]), Torus(expected_ready.a()[j]));
       }
     }
   }
