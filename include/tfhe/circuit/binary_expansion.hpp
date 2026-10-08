@@ -13,6 +13,7 @@
 #include "tfhe/circuit/relay.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
+#include "tfhe/operation/bootstrap/fused_gate_bootstrap.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -35,6 +36,11 @@
 // calls in exec_slot_impl below run against a non-default (e.g. hardware)
 // backend, simply by instantiating this with one.
 //
+// A Backend at the Bootstrap+KeySwitch granularity instead (see
+// fused_gate_bootstrap.hpp) gets its own exec_impl overload call in
+// exec_slot_impl -- its result is already Lwe-shaped, so relay_ has
+// nothing left to do.
+//
 // Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
 // own key values straight through. Holds a pointer to the BootstrapKey
 // (not a copy) and its own Relay built from the KeySwitchKey -- the
@@ -43,8 +49,7 @@ namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
           typename Kst,
-          template <typename, typename, typename> class Backend =
-              tfhe::bootstrap::GateBootstrap>
+          template <typename...> class Backend = tfhe::bootstrap::GateBootstrap>
 class BinaryExpansion {
  public:
   using Torus = typename Lwe::torus_type;
@@ -76,8 +81,23 @@ class BinaryExpansion {
     for (size_t i = 0; i < k; ++i) {
       uint32_t bit = (h >> i) & 1u;
       Cipher<Lwe, Rlwe> vi = v[i];
+
+      // No-op if acc is already Lwe-shaped (the fused-Backend branch below).
       relay_.materialize(acc);
-      acc = bit ? Cipher<Lwe, Rlwe>(
+
+      if constexpr (tfhe::bootstrap::fused_gate_backend_concept<
+                        Backend, Lwe, Rlwe, Decomp, Kst>) {
+        acc = bit ? Cipher<Lwe, Rlwe>(
+                        tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::
+                            template exec_impl<Kst>(acc.ready(), vi.ready(),
+                                                    *bk_, relay_.ksk()))
+                  : Cipher<Lwe, Rlwe>(
+                        tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp, Backend>::
+                            template exec_impl<Kst>(acc.ready(), vi.ready(),
+                                                    *bk_, relay_.ksk()));
+      } else {
+        acc =
+            bit ? Cipher<Lwe, Rlwe>(
                       tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::exec_impl(
                           acc.ready(), vi.ready(), *bk_))
                 : Cipher<Lwe, Rlwe>(
@@ -85,6 +105,7 @@ class BinaryExpansion {
                                             Backend>::exec_impl(acc.ready(),
                                                                 vi.ready(),
                                                                 *bk_));
+      }
     }
     return acc;
   }

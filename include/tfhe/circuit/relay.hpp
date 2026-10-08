@@ -36,6 +36,8 @@ class Relay {
     bit.template materialize<Kst>(*ksk_);
   }
 
+  const KeySwitchKey<Torus, n, t, N>& ksk() const noexcept { return *ksk_; }
+
  private:
   const KeySwitchKey<Torus, n, t, N>* ksk_;
 };

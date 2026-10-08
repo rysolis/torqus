@@ -219,3 +219,41 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, ExecSlotReadyMaterializesOneSlot) {
     }
   }
 }
+
+// Instantiating BinaryExpansion with tfhe::bootstrap::FusedGateBootstrap --
+// Bootstrap and KeySwitch fused into one Backend call, in place of
+// GateBootstrap plus this instance's own Relay (see
+// fused_gate_bootstrap.hpp and BinaryExpansion::exec_slot_impl's own doc
+// comment) -- produces bit-identical results to the default-Backend
+// instance above, same bk_/ksk_, same inputs.
+TYPED_TEST(BinaryExpansionCorrectnessTest, FusedBackendMatchesDefaultBackend) {
+  using Lwe = typename TypeParam::context::lwe_params;
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Decomp = typename TypeParam::context::dcp_params;
+  using Kst = typename TypeParam::context::kst_params;
+  using Torus = typename Lwe::torus_type;
+
+  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
+                                                 this->rlwe_runtime_);
+  tfhe::circuit::BinaryExpansion<4, Lwe, Rlwe, Decomp, Kst,
+                                 tfhe::bootstrap::FusedGateBootstrap>
+      fused_expansion(this->bk_, this->ksk_);
+
+  for (const auto& tc : TestFixture::cases()) {
+    std::vector<TLWE<Torus, Lwe::n>> operand_ct;
+    operand_ct.push_back(boundary.template lift<4>(tc.a));
+    operand_ct.push_back(boundary.template lift<4>(tc.b));
+
+    std::array<TLWE<Torus, Lwe::n>, 4> expected =
+        this->expansion_.exec_ready(operand_ct);
+    std::array<TLWE<Torus, Lwe::n>, 4> actual =
+        fused_expansion.exec_ready(operand_ct);
+
+    for (uint32_t h = 0; h < 4; ++h) {
+      EXPECT_EQ(actual[h].b(), expected[h].b());
+      for (uint32_t j = 0; j < Lwe::n; ++j) {
+        EXPECT_EQ(Torus(actual[h].a()[j]), Torus(expected[h].a()[j]));
+      }
+    }
+  }
+}
