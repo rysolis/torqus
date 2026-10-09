@@ -6,11 +6,13 @@
 
 #include <cstdint>
 
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 // Bootstraps `c` (Lwe-shaped) to fresh noise while moving its value from a
@@ -65,6 +67,34 @@ class Reslot {
     }
 
     return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu_out, tv, scaled, bk);
+  }
+
+  // Same as above, but calls Backend's own Kst-templated exec_impl
+  // instead (see gate_bootstrap.hpp), returning the Lwe-dimension result
+  // directly. An explicit choice by the caller (circuit::Reslot), not
+  // detected from Backend -- Backend must actually provide this overload.
+  template <uint32_t InResolution, uint32_t OutResolution, typename Kst>
+    requires kst_concept<Kst>
+  static TLWE<Torus, n> exec_impl(
+      const TLWE<Torus, n>& c, const BootstrapKey<rTorus, N, l, n>& bk,
+      const KeySwitchKey<Torus, n, Kst::t, N>& ksk) {
+    static_assert(InResolution % 2 == 0,
+                  "Reslot needs InResolution/2 doublings of the input to "
+                  "land its true value exactly on 1/2; an odd InResolution "
+                  "can't reach that by repeated self-addition");
+    constexpr uint32_t scale = InResolution / 2;
+    static constexpr rTorus mu_out(1u, OutResolution);
+
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu_out.value() >> 1u));
+
+    TLWE<Torus, n> scaled = c;
+    for (uint32_t i = 1; i < scale; ++i) {
+      scaled = leveled::Add<Lwe>::exec_impl(scaled, c);
+    }
+
+    return Backend<Lwe, Rlwe, Decomp>::template exec_impl<Kst>(mu_out, tv,
+                                                               scaled, bk, ksk);
   }
 };
 

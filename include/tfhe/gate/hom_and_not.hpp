@@ -6,19 +6,22 @@
 
 #include <cstdint>
 
+#include "tfhe/concept/tfhe.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/leveled/add.hpp"
 #include "tfhe/operation/leveled/sub.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/utility/testvector.hpp"
 
 // Combines c1/c2 (both Lwe-shaped) into their homomorphic ANDNOT (c1 AND
 // NOT c2), the same Lwe-in/Rlwe-out shape HomAnd has -- see HomAnd.
 //
 // Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
-// comment for why this is a compile-time policy.
+// comment for why this is a compile-time policy, and for the second
+// exec_impl overload below.
 namespace tfhe::gate {
 
 template <typename Lwe, typename Rlwe, typename Decomp,
@@ -48,6 +51,26 @@ class HomAndNot {
         offset, leveled::Sub<Lwe>::exec_impl(c1, c2));
 
     return Backend<Lwe, Rlwe, Decomp>::exec_impl(mu, tv, combined, bk);
+  }
+
+  template <typename Kst>
+    requires kst_concept<Kst>
+  static TLWE<Torus, n> exec_impl(
+      const TLWE<Torus, n>& c1, const TLWE<Torus, n>& c2,
+      const BootstrapKey<rTorus, N, l, n>& bk,
+      const KeySwitchKey<Torus, n, Kst::t, N>& ksk) {
+    static constexpr Torus mu(1u, 4u);
+    TRLWE<rTorus, N> tv;
+    tv.b() = testvector::generate<rTorus, N>(rTorus(mu.value() >> 1u));
+
+    TLWE<Torus, n> offset;
+    offset.b() = Torus(1u, 8u);
+
+    TLWE<Torus, n> combined = leveled::Add<Lwe>::exec_impl(
+        offset, leveled::Sub<Lwe>::exec_impl(c1, c2));
+
+    return Backend<Lwe, Rlwe, Decomp>::template exec_impl<Kst>(mu, tv, combined,
+                                                               bk, ksk);
   }
 };
 

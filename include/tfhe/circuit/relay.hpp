@@ -31,10 +31,13 @@ class Relay {
   explicit Relay(const KeySwitchKey<Torus, n, t, N>& ksk) : ksk_(&ksk) {}
 
   // Converts `bit` in place to Lwe-shaped -- a no-op if already
-  // bit.is_ready().
-  void materialize(Cipher<Lwe, Rlwe>& bit) const {
+  // bit.is_ready() -- and hands back the now-ready raw value.
+  const TLWE<Torus, n>& materialize(Cipher<Lwe, Rlwe>& bit) const {
     bit.template materialize<Kst>(*ksk_);
+    return bit.ready();
   }
+
+  const KeySwitchKey<Torus, n, t, N>& ksk() const noexcept { return *ksk_; }
 
  private:
   const KeySwitchKey<Torus, n, t, N>* ksk_;
