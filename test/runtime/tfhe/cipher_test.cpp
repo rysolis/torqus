@@ -44,7 +44,6 @@ class CipherTest : public ::testing::Test {
 
   BootstrapKey<rTorus, N, l, n> bk_;
   KeySwitchKey<Torus, n, t, N> ksk_;
-  Relay<Lwe, Rlwe, Kst> relay_;
 
   void SetUp() override {
     lwe_runtime_ = Runtime<Lwe>(eng_);
@@ -55,7 +54,12 @@ class CipherTest : public ::testing::Test {
     ksk_ = lwe_runtime_
                .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
                    rlwe_runtime_.secret());
-    relay_ = Relay<Lwe, Rlwe, Kst>(ksk_);
+  }
+
+  // Converts bit in place to Lwe-shaped via KeySwitch -- a no-op if
+  // already is_ready().
+  void materialize(Cipher<Lwe, Rlwe>& bit) const {
+    bit.template materialize<Kst>(ksk_);
   }
 
   // Thin Cipher-in/Cipher-out adapters over tfhe::gate::Hom* -- gate::HomAnd
@@ -117,7 +121,7 @@ TEST_F(CipherTest, GateResultIsNotReady) {
   EXPECT_TRUE(boundary.drop<4>(result_ct));
 }
 
-// Relay::materialize() is how a caller normalizes a Cipher back to
+// materialize() is how a caller normalizes a Cipher back to
 // Lwe-shaped -- HomAnd/HomOr/HomAndNot/HomXor never do this on their own.
 TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
   Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
@@ -126,7 +130,7 @@ TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
   Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
 
   Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
-  relay_.materialize(result_ct);
+  materialize(result_ct);
 
   EXPECT_TRUE(result_ct.is_ready());
   // drop<4>() handles either shape -- result_ct is now Lwe-shaped, but it
@@ -134,7 +138,7 @@ TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
   EXPECT_TRUE(boundary.drop<4>(result_ct));
 
   // A second call is a harmless no-op.
-  relay_.materialize(result_ct);
+  materialize(result_ct);
   EXPECT_TRUE(result_ct.is_ready());
 }
 
@@ -218,7 +222,7 @@ TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
   Cipher<Lwe, Rlwe> b_ct = full_boundary.lift<4>(true);
 
   Cipher<Lwe, Rlwe> result_ct = and_(a_ct, b_ct);
-  relay_.materialize(result_ct);
+  materialize(result_ct);
   ASSERT_TRUE(result_ct.is_ready());
 
   EXPECT_TRUE(lwe_only_boundary.drop<4>(result_ct));
@@ -246,7 +250,7 @@ TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
 
 // HomAnd/HomOr/HomAndNot/HomXor require both operands already Lwe-shaped --
 // chaining a gate's own (Rlwe-shaped) output into another gate call needs an
-// explicit Relay::materialize() first.
+// explicit materialize() first.
 TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
 
@@ -257,7 +261,7 @@ TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
   // (a AND b) AND c == false
   Cipher<Lwe, Rlwe> ab_ct = and_(a_ct, b_ct);
   ASSERT_FALSE(ab_ct.is_ready());
-  relay_.materialize(ab_ct);
+  materialize(ab_ct);
   ASSERT_TRUE(ab_ct.is_ready());
 
   Cipher<Lwe, Rlwe> abc_ct = and_(ab_ct, c_ct);

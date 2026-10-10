@@ -58,7 +58,7 @@ class GateBootstrap {
   static constexpr uint32_t l = Decomp::l;
 
   // Bootstrap only -- returns the Rlwe-dimension result. KeySwitch is the
-  // caller's job (see HomAnd/HomAndNot/BinaryExpansion's own Relay).
+  // caller's job (see HomAnd/HomAndNot/BinaryExpansion's own materialize()).
   static TLWE<rTorus, N> exec_impl(const rTorus mu, const TRLWE<rTorus, N>& tv,
                                    const TLWE<Torus, n>& tlwe,
                                    const BootstrapKey<rTorus, N, l, n>& bk) {
@@ -82,7 +82,7 @@ class GateBootstrap {
   }
 
   // Bootstrap, then an immediate KeySwitch -- returns the Lwe-dimension
-  // result directly instead of leaving it for the caller's own Relay.
+  // result directly instead of leaving the KeySwitch for the caller.
   // Opt-in: a caller (HomAnd/HomAndNot/BinaryExpansion/Reslot) reaches this
   // only by explicitly supplying Kst, same as calling this one and not the
   // plain overload above is itself the opt-in.

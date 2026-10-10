@@ -5,18 +5,17 @@
 #define TFHE_CIRCUIT_RESLOT_HPP
 
 #include "tfhe/cipher/cipher.hpp"
-#include "tfhe/circuit/relay.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/operation/bootstrap/reslot.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 
 // Wraps tfhe::bootstrap::Reslot<InResolution, OutResolution> -- the operand
 // must already be Lwe-shaped (Cipher::is_ready()). exec() returns the
 // Rlwe-shaped (not yet materialized) result, same shape any Bootstrap gate
-// result has. materialize() forwards to this instance's own Relay, for a
-// caller that wants a ready-to-use, Lwe-shaped result -- a no-op if the
-// Cipher already is one.
+// result has. materialize() converts it to a ready-to-use, Lwe-shaped
+// result -- a no-op if the Cipher already is one.
 //
 // Backend defaults to bootstrap::GateBootstrap -- see HomAnd's own doc
 // comment (tfhe/gate/hom_and.hpp) for why this is a compile-time policy.
@@ -28,9 +27,8 @@
 // Kst-templated overload when FuseKeySwitch is true.
 //
 // Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
-// own key values straight through. Holds a pointer to the BootstrapKey
-// (not a copy) and its own Relay built from the KeySwitchKey -- the
-// referenced keys must outlive this Reslot.
+// own key values straight through. Holds raw pointers to both (not
+// copies) -- the referenced keys must outlive this Reslot.
 namespace tfhe::circuit {
 
 template <uint32_t InResolution, uint32_t OutResolution, typename Lwe,
@@ -52,14 +50,14 @@ class Reslot {
   Reslot() = default;
   Reslot(const BootstrapKey<rTorus, N, l, n>& bk,
          const KeySwitchKey<Torus, n, t, N>& ksk)
-      : bk_(&bk), relay_(ksk) {}
+      : bk_(&bk), ksk_(&ksk) {}
 
   Cipher<Lwe, Rlwe> exec(const Cipher<Lwe, Rlwe>& bit) const {
     if constexpr (FuseKeySwitch) {
       return Cipher<Lwe, Rlwe>(
           tfhe::bootstrap::Reslot<Lwe, Rlwe, Decomp, Backend>::
               template exec_impl<InResolution, OutResolution, Kst>(
-                  bit.ready(), *bk_, relay_.ksk()));
+                  bit.ready(), *bk_, *ksk_));
     } else {
       return Cipher<Lwe, Rlwe>(
           tfhe::bootstrap::Reslot<Lwe, Rlwe, Decomp, Backend>::
@@ -68,13 +66,16 @@ class Reslot {
     }
   }
 
+  // Converts bit in place to Lwe-shaped via KeySwitch -- a no-op if
+  // already is_ready().
   const TLWE<Torus, n>& materialize(Cipher<Lwe, Rlwe>& bit) const {
-    return relay_.materialize(bit);
+    bit.template materialize<Kst>(*ksk_);
+    return bit.ready();
   }
 
  private:
   const BootstrapKey<rTorus, N, l, n>* bk_;
-  Relay<Lwe, Rlwe, Kst> relay_;
+  const KeySwitchKey<Torus, n, t, N>* ksk_;
 };
 
 }  // namespace tfhe::circuit
