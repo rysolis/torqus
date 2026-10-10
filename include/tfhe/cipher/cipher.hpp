@@ -22,8 +22,7 @@
 // Torus> is a boolean, the same Cipher decoded through some other
 // resolution isn't.
 // See tfhe/gate/hom_and.hpp: HomAnd/HomOr/HomAndNot/HomXor need both
-// operands already Lwe-shaped; Relay::materialize() (tfhe/circuit/relay.hpp)
-// converts one that isn't.
+// operands already Lwe-shaped; materialize() below converts one that isn't.
 template <typename Lwe, typename Rlwe>
 class Cipher {
  public:
@@ -63,9 +62,10 @@ class Cipher {
     return std::get<TLWE<rTorus, N>>(std::move(state_));
   }
 
-  // Converts in place to Lwe-shaped -- a no-op if already is_ready().
-  // Prefer calling this through Relay::materialize(), which deduces Kst
-  // from the Relay's own type.
+  // Converts in place to Lwe-shaped -- a no-op if already is_ready(). A
+  // caller calling this often against one fixed ksk (e.g.
+  // BinaryExpansion/Reslot) typically wraps it in its own materialize()
+  // method instead of respelling <Kst> at every call site.
   template <typename Kst>
   void materialize(const KeySwitchKey<Torus, n, Kst::t, N>& ksk) {
     if (is_ready()) return;

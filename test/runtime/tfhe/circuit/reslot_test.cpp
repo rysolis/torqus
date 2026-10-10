@@ -90,10 +90,10 @@ TYPED_TEST_SUITE(CircuitReslotCorrectnessTest,
 // A ciphertext lifted at Dial<2, Torus> (0 or 1/2) -- e.g. a ballot bit
 // encoded outside this library's own gate suite -- comes back moved to
 // Dial<4, Torus> (0 or 1/4), the step HomAnd/HomOr/HomAndNot/HomXor expect.
-// materialize() forwards to this instance's own Relay -- no separate Relay
-// needed by the caller (see Reslot's own doc comment; exec() alone staying
-// Rlwe-shaped/pending is covered by CipherTest's own Reslot* tests, which
-// use the same underlying tfhe::bootstrap::Reslot).
+// materialize() does the KeySwitch itself -- no separate key-switching
+// object needed by the caller (see Reslot's own doc comment; exec() alone
+// staying Rlwe-shaped/pending is covered by CipherTest's own Reslot* tests,
+// which use the same underlying tfhe::bootstrap::Reslot).
 TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;

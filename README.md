@@ -75,16 +75,16 @@ the umbrella header that pulls in its subdirectory.
 | Plaintext codec | `Dial` (names a Torus value by one of `Resolution` evenly-spaced slots) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
 | Ciphertext state | `Cipher` (hides whether a ciphertext is Lwe- or Rlwe-shaped) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
 | Plaintext/ciphertext boundary | `Boundary` (`lift()`: plaintext -> `Cipher`, always available; `drop()`: `Cipher` -> plaintext, only once constructed with the secret -- see `has_secret()`), `PublicBoundary` (`lift()`-only, no secret at all) | [`tfhe/cipher.hpp`](include/tfhe/cipher.hpp) |
-| Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Cipher`), `Relay` (materializing a `Cipher` back to Lwe-shaped as a method call, not a raw `KeySwitch` argument), `Reslot` (bootstraps a `Cipher` onto a different `Dial` resolution) | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
+| Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Cipher`), `Reslot` (bootstraps a `Cipher` onto a different `Dial` resolution) -- both own a `materialize()` method that `KeySwitch`es a `Cipher` back to Lwe-shaped | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
 | Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
 
 Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
 ciphertext out (see the `HomAnd` example below); chaining several
 together, as `BinaryExpansion` does, needs a `KeySwitch` back down to
 Lwe between calls -- `Cipher` wraps a gate's raw `TLWE` in/out so a caller
-never has to notice which shape it currently is, and `Relay::materialize()`
-does the `KeySwitch` as a method call instead of every call site juggling
-raw keys by hand.
+never has to notice which shape it currently is, and `materialize()` does
+the `KeySwitch` as a method call instead of every call site juggling raw
+keys by hand.
 
 ***
 
@@ -252,9 +252,8 @@ plaintext/ciphertext boundary through a `Boundary` built from those same
 two `Runtime`s on the spot (see [Supported Operations](#supported-operations)
 for `Boundary`/`PublicBoundary`, which a party holding only one secret, or
 none, uses directly instead). A gate's result is Rlwe-shaped until
-`materialize()`s it back down to Lwe-shaped via a `Relay` (built fresh
-from the `KeySwitchKey`, same as `Boundary` above), so it can feed into
-another gate call -- see [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp).
+`materialize()`s it back down to Lwe-shaped via `KeySwitch`
+(`Cipher::materialize<Kst>()`), so it can feed into another gate call.
 `Cipher`, `Dial`, and `Boundary` come in through the single umbrella
 header `tfhe/cipher.hpp` (see
 [Project Structure](DEVELOPING.md#project-structure)) rather than
@@ -265,7 +264,6 @@ reaching into the subdirectory it pulls in for you:
 
 #include "primitive.hpp"
 
-#include "tfhe/circuit.hpp"
 #include "tfhe/cipher.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/params.hpp"
@@ -300,11 +298,10 @@ class Party {
         .drop<4>(bit);
   }
 
-  // Built fresh per call, same as Boundary above -- not stored as a
-  // member, since Relay only holds a pointer to ksk_ and storing it would
-  // dangle if this Party were ever moved/copied.
+  // Converts bit in place to Lwe-shaped via KeySwitch -- a no-op if
+  // already ready.
   void materialize(Cipher<Lwe, Rlwe>& bit) {
-    Relay<Lwe, Rlwe, Kst>(ksk_).materialize(bit);
+    bit.template materialize<Kst>(ksk_);
   }
 
   const BootstrapKey<Rlwe::torus_type, Rlwe::N, Decomp::l, Lwe::n>&

@@ -10,18 +10,18 @@
 #include <vector>
 
 #include "tfhe/cipher/cipher.hpp"
-#include "tfhe/circuit/relay.hpp"
 #include "tfhe/gate/hom_and.hpp"
 #include "tfhe/gate/hom_and_not.hpp"
 #include "tfhe/operation/bootstrap/gate_bootstrap.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/structure/key/bootstrap_key.hpp"
+#include "tfhe/structure/key/key_switch_key.hpp"
 
 // H is the size of the one-hot output vector this expansion produces from
 // k = ceil(log2(H)) Lwe-shaped input bit-ciphertexts. Each slot chains
 // HomAnd/HomAndNot through Cipher<Lwe, Rlwe>, materializing between steps
-// (via this instance's own Relay); only the last step per slot stays
+// (via this instance's own materialize()); only the last step per slot stays
 // Rlwe-shaped, so the whole thing has the same Lwe-in/Rlwe-out shape a
 // single gate does. Output is Cipher, not raw TLWE, so chaining this
 // circuit's result into another gate call needs no manual rewrapping
@@ -37,15 +37,14 @@
 //
 // FuseKeySwitch (false by default) picks which of Backend's two exec_impl
 // overloads exec_slot_impl calls -- true calls its Kst-templated one,
-// landing already Lwe-shaped, so relay_ has nothing left to do; false
-// calls the plain one and relay_ does the KeySwitch as usual. An explicit
-// choice, not detected from Backend -- Backend must actually provide the
-// Kst-templated overload when FuseKeySwitch is true.
+// landing already Lwe-shaped, so materialize() below has nothing left to
+// do; false calls the plain one and materialize() does the KeySwitch as
+// usual. An explicit choice, not detected from Backend -- Backend must
+// actually provide the Kst-templated overload when FuseKeySwitch is true.
 //
 // Takes the BootstrapKey/KeySwitchKey directly -- a caller just passes its
-// own key values straight through. Holds a pointer to the BootstrapKey
-// (not a copy) and its own Relay built from the KeySwitchKey -- the
-// referenced keys must outlive this BinaryExpansion.
+// own key values straight through. Holds raw pointers to both (not
+// copies) -- the referenced keys must outlive this BinaryExpansion.
 namespace tfhe::circuit {
 
 template <uint32_t H, typename Lwe, typename Rlwe, typename Decomp,
@@ -69,7 +68,7 @@ class BinaryExpansion {
   BinaryExpansion() = default;
   BinaryExpansion(const BootstrapKey<rTorus, N, l, n>& bk,
                   const KeySwitchKey<Torus, n, t, N>& ksk)
-      : bk_(&bk), relay_(ksk) {}
+      : bk_(&bk), ksk_(&ksk) {}
 
   // One slot of the one-hot output. The k-step gate chain is sequential
   // (each step materializes the previous Cipher before the next gate call),
@@ -86,17 +85,17 @@ class BinaryExpansion {
       Cipher<Lwe, Rlwe> vi = v[i];
 
       // No-op if acc is already Lwe-shaped (the FuseKeySwitch branch below).
-      relay_.materialize(acc);
+      materialize(acc);
 
       if constexpr (FuseKeySwitch) {
         acc = bit ? Cipher<Lwe, Rlwe>(
                         tfhe::gate::HomAnd<Lwe, Rlwe, Decomp, Backend>::
                             template exec_impl<Kst>(acc.ready(), vi.ready(),
-                                                    *bk_, relay_.ksk()))
+                                                    *bk_, *ksk_))
                   : Cipher<Lwe, Rlwe>(
                         tfhe::gate::HomAndNot<Lwe, Rlwe, Decomp, Backend>::
                             template exec_impl<Kst>(acc.ready(), vi.ready(),
-                                                    *bk_, relay_.ksk()));
+                                                    *bk_, *ksk_));
       } else {
         acc =
             bit ? Cipher<Lwe, Rlwe>(
@@ -117,10 +116,11 @@ class BinaryExpansion {
     return exec_impl(v, std::make_index_sequence<H>{});
   }
 
-  // Forwards to this instance's own Relay -- a no-op if bit is already
-  // Lwe-shaped.
+  // Converts bit in place to Lwe-shaped via KeySwitch -- a no-op if
+  // already is_ready().
   const TLWE<Torus, n>& materialize(Cipher<Lwe, Rlwe>& bit) const {
-    return relay_.materialize(bit);
+    bit.template materialize<Kst>(*ksk_);
+    return bit.ready();
   }
 
  private:
@@ -131,7 +131,7 @@ class BinaryExpansion {
   }
 
   const BootstrapKey<rTorus, N, l, n>* bk_;
-  Relay<Lwe, Rlwe, Kst> relay_;
+  const KeySwitchKey<Torus, n, t, N>* ksk_;
 };
 
 }  // namespace tfhe::circuit

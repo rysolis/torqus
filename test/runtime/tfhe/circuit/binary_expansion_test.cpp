@@ -149,8 +149,8 @@ TYPED_TEST(BinaryExpansionCorrectnessTest, VerifyCorrectness) {
   }
 }
 
-// materialize() forwards to this instance's own Relay -- each exec()
-// output converts to Lwe-shaped in place.
+// materialize() does the KeySwitch itself -- each exec() output converts
+// to Lwe-shaped in place.
 TYPED_TEST(BinaryExpansionCorrectnessTest, MaterializeMakesAllSlotsReady) {
   using Lwe = typename TypeParam::context::lwe_params;
   using Rlwe = typename TypeParam::context::rlwe_params;
