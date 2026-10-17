@@ -58,6 +58,15 @@ which catches parameter-mismatch bugs, but that is not a substitute for
 a cryptographic review of the scheme's implementation itself. Treat it
 accordingly before relying on it for anything security-critical.
 
+`Runtime`/`PublicRuntime` take the random engine to use as an explicit
+`Engine` template parameter -- this repository's own tests all pass
+`RandomGenerator<std::mt19937>` (`tfhe/utility/random_generator.hpp`)
+purely for its fixed, reproducible seed. `std::mt19937` is **not**
+cryptographically secure (its full internal state is recoverable from
+~624 successive 32-bit outputs), so never use it for real key/noise
+generation. Pass a `SecureRandomEngine` (same header) instead -- see
+[Quick Start](#quick-start).
+
 ***
 
 ## Supported Operations
@@ -134,6 +143,21 @@ c++ -std=c++20 -Itorqus/include your_program.cpp -o your_program
 Using CMake instead: see [CMake `add_subdirectory()` /
 `FetchContent`](#cmake-add_subdirectory--fetchcontent) below for the
 `target_link_libraries(your_target PRIVATE torqus::torqus)` route.
+
+Every `Runtime`/`PublicRuntime` needs a random engine satisfying
+`std::uniform_random_bit_generator`, supplied as its own `Engine`
+template parameter -- for real key/noise generation (as opposed to a
+test wanting a fixed, reproducible seed), use `SecureRandomEngine`
+(`tfhe/utility/random_generator.hpp`), never `std::mt19937`:
+
+```cpp
+#include "tfhe/utility/random_generator.hpp"
+
+SecureRandomEngine rng;
+Runtime<Lwe, SecureRandomEngine> runtime(rng);
+```
+
+See [Security Status](#security-status) for why.
 
 Core usage (TLWE/TRLWE/TRGSW, leveled ops, gate bootstrapping) needs
 nothing beyond a C++20 compiler; Boost (`libboost-dev`) is only pulled in
