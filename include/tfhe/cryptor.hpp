@@ -14,10 +14,9 @@
 #include "tfhe/cryptor/detail/trgsw_cryptor.hpp"
 #include "tfhe/cryptor/detail/trlwe_cryptor.hpp"
 
-template <typename Params, typename... Feature>
+template <typename Params, typename Engine>
 class Cryptor {
  public:
-  using Engine = std::mt19937;
   using params_type = Params;
   using Torus = Params::torus_type;
 

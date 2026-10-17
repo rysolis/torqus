@@ -78,7 +78,7 @@ torqus/
 │   └── tfhe/
 │       ├── params.hpp          # parameter types (tlwe_core_params, dcp_params, noise_params, ...)
 │       ├── feature.hpp         # Tracking feature tag
-│       ├── runtime.hpp         # Runtime<Params, Feature...> facade (encrypt/decrypt, key generation)
+│       ├── runtime.hpp         # Runtime<Params, Engine, Feature...> facade (encrypt/decrypt, key generation)
 │       ├── public_runtime.hpp  # PublicRuntime: encrypt via a PublicKey, no secret needed
 │       ├── ciphertext.hpp      # -> structure/ciphertext/: TLWE / TRLWE / TRGSW
 │       ├── key.hpp             # -> structure/key/: bootstrap / key-switch / public keys
@@ -89,7 +89,7 @@ torqus/
 │       ├── math.hpp            # -> math/: modulus switching
 │       ├── serialize.hpp       # -> serialize/: wire (de)serialization
 │       ├── transport.hpp       # direct vs. serialized hand-off between protocol roles
-│       ├── cryptor.hpp         # Cryptor<Params, Feature...>, used internally by Runtime
+│       ├── cryptor.hpp         # Cryptor<Params, Engine>, used internally by Runtime
 │       ├── concept/            # tlwe_concept/trlwe_concept/... constraints on Params types
 │       └── utility/            # noise tracking, secret holder, random generator, ...
 ├── test/

@@ -62,7 +62,7 @@ TYPED_TEST(SerializeRoundtripTest, Tlwe) {
   using Lwe = typename TestFixture::Lwe;
   using Torus = typename Lwe::torus_type;
 
-  Runtime<Lwe, Tracking> runtime(this->eng_);
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
   TLWE<Torus, Lwe::n> ct = runtime.encrypt(Torus(1u, 2u));
 
   auto bytes = serialize::to_bytes(ct);
@@ -73,7 +73,7 @@ TYPED_TEST(SerializeRoundtripTest, Tlwe) {
 TYPED_TEST(SerializeRoundtripTest, PublicKey) {
   using Lwe = typename TestFixture::Lwe;
 
-  Runtime<Lwe, Tracking> runtime(this->eng_);
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
   auto pk = runtime.template generate_public_key<2 * Lwe::n>();
 
   auto bytes = serialize::to_bytes(pk);
@@ -86,9 +86,10 @@ TYPED_TEST(SerializeRoundtripTest, BootstrapKeyAndKeySwitchKey) {
   using Rlwe = typename TestFixture::Rlwe;
   using Decomp = typename TestFixture::Decomp;
   using Kst = typename TestFixture::Kst;
-  using RlweRuntime = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>;
+  using RlweRuntime = Runtime<ParamsPack<Rlwe, Decomp>,
+                              RandomGenerator<std::mt19937>, Tracking>;
 
-  Runtime<Lwe, Tracking> lwe_runtime(this->eng_);
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> lwe_runtime(this->eng_);
   RlweRuntime rlwe_runtime(this->eng_);
 
   auto bk = rlwe_runtime.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(

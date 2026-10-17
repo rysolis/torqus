@@ -77,14 +77,16 @@ class BlindRotateFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{10};
 
-  Runtime<Rlwe, Tracking> rlwe_runtime_;
+  Runtime<Rlwe, RandomGenerator<std::mt19937>, Tracking> rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
   Vector<ModInt<M>, n + 1> phase_ct_;
 
   void SetUp() override {
-    Runtime<Lwe> lwe_runtime = Runtime<Lwe>(eng_);
-    rlwe_runtime_ = Runtime<Rlwe, Tracking>(eng_);
+    Runtime<Lwe, RandomGenerator<std::mt19937>> lwe_runtime =
+        Runtime<Lwe, RandomGenerator<std::mt19937>>(eng_);
+    rlwe_runtime_ =
+        Runtime<Rlwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(

@@ -275,27 +275,30 @@ using Rlwe = rlwe_params<trlwe_core_params<Torus, 1024>, noise_params<25>>;
 using Decomp = dcp_params<16, 7>;
 using Kst = kst_params<2, 11>;
 
+template <typename Engine>
 class Party {
  public:
-  template <typename Engine>
   explicit Party(Engine& eng)
       : lwe_runtime_(eng),
         rlwe_runtime_(eng),
-        bk_(rlwe_runtime_.generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+        bk_(rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
             lwe_runtime_.secret())),
-        ksk_(lwe_runtime_.generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
-            rlwe_runtime_.secret())) {}
+        ksk_(lwe_runtime_
+                 .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe,
+                                                    Kst>(
+                     rlwe_runtime_.secret())) {}
 
   // 4 slots, true/false at indices 1/0, matching HomAnd's {0, 1/4}
   // message space.
   Cipher<Lwe, Rlwe> lift(bool bit) {
     return Cipher<Lwe, Rlwe>(
-        Boundary<Lwe, Rlwe, Decomp>(lwe_runtime_, rlwe_runtime_).lift<4>(bit));
+        Boundary<Lwe, Rlwe, Decomp, Engine>(lwe_runtime_, rlwe_runtime_)
+            .template lift<4>(bit));
   }
 
   uint32_t drop(const Cipher<Lwe, Rlwe>& bit) {
-    return Boundary<Lwe, Rlwe, Decomp>(lwe_runtime_, rlwe_runtime_)
-        .drop<4>(bit);
+    return Boundary<Lwe, Rlwe, Decomp, Engine>(lwe_runtime_, rlwe_runtime_)
+        .template drop<4>(bit);
   }
 
   // Converts bit in place to Lwe-shaped via KeySwitch -- a no-op if
@@ -310,8 +313,8 @@ class Party {
   }
 
  private:
-  Runtime<Lwe> lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime_;
+  Runtime<Lwe, Engine> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, Engine> rlwe_runtime_;
   BootstrapKey<Rlwe::torus_type, Rlwe::N, Decomp::l, Lwe::n> bk_;
   KeySwitchKey<Lwe::torus_type, Lwe::n, Kst::t, Rlwe::N> ksk_;
 };

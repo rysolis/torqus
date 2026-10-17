@@ -59,9 +59,12 @@ class ArithmeticFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Rlwe, Tracking> rlwe_runtime_;
+  Runtime<Rlwe, RandomGenerator<std::mt19937>, Tracking> rlwe_runtime_;
 
-  void SetUp() override { rlwe_runtime_ = Runtime<Rlwe, Tracking>(eng_); }
+  void SetUp() override {
+    rlwe_runtime_ =
+        Runtime<Rlwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
+  }
 
   struct TestCase {
     Poly<rTorus, N> lhs;

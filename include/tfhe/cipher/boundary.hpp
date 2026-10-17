@@ -24,12 +24,13 @@
 // own: it names a single value's encoding, not a property of this object,
 // so the same PublicBoundary lift<2>()s one value and lift<100>()s another
 // without needing a separate instance per resolution.
-template <typename Lwe, uint32_t PkSamples>
+template <typename Lwe, typename Engine, uint32_t PkSamples>
 class PublicBoundary {
  public:
   using Torus = typename Lwe::torus_type;
 
-  explicit PublicBoundary(PublicRuntime<Lwe, PkSamples>& pub) : pub_(&pub) {}
+  explicit PublicBoundary(PublicRuntime<Lwe, Engine, PkSamples>& pub)
+      : pub_(&pub) {}
 
   template <uint32_t Resolution>
   TLWE<Torus, Lwe::n> lift(uint32_t index) const {
@@ -37,13 +38,13 @@ class PublicBoundary {
   }
 
  private:
-  PublicRuntime<Lwe, PkSamples>* pub_;
+  PublicRuntime<Lwe, Engine, PkSamples>* pub_;
 };
 
-// Boundary<Lwe, Rlwe, Decomp, Feature...> crosses the plaintext/ciphertext
-// boundary for a party holding at least one secret -- see PublicBoundary
-// above for the no-secret-at-all case. lift() (Dial encode + encrypt)
-// always works; drop() (decrypt + Dial decode) works for whichever raw
+// Boundary<Lwe, Rlwe, Decomp, Engine, Feature...> crosses the
+// plaintext/ciphertext boundary for a party holding at least one secret -- see
+// PublicBoundary above for the no-secret-at-all case. lift() (Dial encode +
+// encrypt) always works; drop() (decrypt + Dial decode) works for whichever raw
 // ciphertext shape(s) this Boundary was built with a secret for. Built
 // with the Lwe-side secret only (e.g. a party that only ever decodes
 // Lwe-shaped ciphertexts and has no lasting need for the Rlwe side's
@@ -63,7 +64,8 @@ class PublicBoundary {
 // the matching raw overload) -- Resolution can't be deduced from either
 // (unlike lift()'s own index argument), so it's always given explicitly:
 // boundary.drop<4>(bit).
-template <typename Lwe, typename Rlwe, typename Decomp, typename... Feature>
+template <typename Lwe, typename Rlwe, typename Decomp, typename Engine,
+          typename... Feature>
 class Boundary {
  public:
   using Torus = typename Lwe::torus_type;
@@ -76,13 +78,13 @@ class Boundary {
   // that never needs to decode a gate's own still-pending output and would
   // otherwise have to keep the Rlwe-side Runtime alive as a member just to
   // satisfy the two-Runtime constructor below.
-  explicit Boundary(Runtime<Lwe, Feature...>& lwe_runtime)
+  explicit Boundary(Runtime<Lwe, Engine, Feature...>& lwe_runtime)
       : lwe_runtime_(&lwe_runtime), rlwe_runtime_(nullptr) {}
 
   // Holds the secret on both sides: lift() and drop() both work for
   // either ciphertext shape.
-  Boundary(Runtime<Lwe, Feature...>& lwe_runtime,
-           Runtime<ParamsPack<Rlwe, Decomp>, Feature...>& rlwe_runtime)
+  Boundary(Runtime<Lwe, Engine, Feature...>& lwe_runtime,
+           Runtime<ParamsPack<Rlwe, Decomp>, Engine, Feature...>& rlwe_runtime)
       : lwe_runtime_(&lwe_runtime), rlwe_runtime_(&rlwe_runtime) {}
 
   template <uint32_t Resolution>
@@ -113,8 +115,8 @@ class Boundary {
   }
 
  private:
-  Runtime<Lwe, Feature...>* lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>, Feature...>* rlwe_runtime_;
+  Runtime<Lwe, Engine, Feature...>* lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, Engine, Feature...>* rlwe_runtime_;
 };
 
 #endif  // TFHE_CIPHER_BOUNDARY_HPP

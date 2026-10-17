@@ -40,9 +40,11 @@ class TlweEncryptionFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   std::mt19937 eng_{0};
 
-  Runtime<Lwe, Tracking> lwe_runtime_;
+  Runtime<Lwe, std::mt19937, Tracking> lwe_runtime_;
 
-  void SetUp() override { lwe_runtime_ = Runtime<Lwe, Tracking>(eng_); }
+  void SetUp() override {
+    lwe_runtime_ = Runtime<Lwe, std::mt19937, Tracking>(eng_);
+  }
 };
 
 template <typename Config>

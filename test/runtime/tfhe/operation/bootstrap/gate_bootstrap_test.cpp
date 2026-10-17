@@ -67,14 +67,16 @@ class GateBootstrapFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Lwe, Tracking> lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, RandomGenerator<std::mt19937>, Tracking>
+      rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> BK_;
 
   void SetUp() override {
-    lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
-    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
+    lwe_runtime_ = Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
+    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>,
+                            RandomGenerator<std::mt19937>, Tracking>(eng_);
 
     // Prepare Bootstrapkey
     BK_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
