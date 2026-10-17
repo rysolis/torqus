@@ -20,13 +20,20 @@ inline double subgaussian_bound_for_max_of(uint32_t coefficient_count) {
   return std::sqrt(-2.0 * std::log(tail_probability));
 }
 
-// Same 99% two-sided threshold multiplier, but under the (unproven) further
-// simplification that the error sum is exactly Gaussian rather than merely
+// Noise amplitude K for max_i|X_i| over coefficient_count independent
+// samples of standard deviation `stddev`, under the (unproven)
+// simplification that each sample is exactly Gaussian rather than merely
 // sigma-subgaussian -- see the README's Bootstrap Noise Bounds section.
-// Informational only, never the basis for a pass/fail check. Defined in
-// variance_noise.hpp (needs boost::math, which production/wasm code must
-// not pull in) -- declaration only, so callers here can still name it.
-double gaussian_estimate_for_max_of(uint32_t coefficient_count);
+// Informational only, never the basis for a pass/fail check (use
+// NoiseTrackerInterface::confidence_threshold for the proven sub-Gaussian
+// bound instead). `lambda` is the target security parameter: K is defined
+// so that, under that Gaussian simplification, P(max_i|X_i| >= K) <=
+// 2^-lambda, i.e. with probability 1 - 2^-lambda every one of the
+// coefficient_count samples has |X_i| < K. Defined in variance_noise.hpp
+// (needs boost::math, which production/wasm code must not pull in) --
+// declaration only, so callers here can still name it.
+double gaussian_amplitude_for_max_of(uint32_t coefficient_count, double lambda,
+                                     double stddev);
 
 class NoiseTrackerInterface {
  public:
