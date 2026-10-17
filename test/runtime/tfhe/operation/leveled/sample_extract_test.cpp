@@ -52,12 +52,13 @@ class SampleExtractFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Rlwe> rlwe_runtime_;
-  Runtime<Lwe> lwe_runtime_;
+  Runtime<Rlwe, RandomGenerator<std::mt19937>> rlwe_runtime_;
+  Runtime<Lwe, RandomGenerator<std::mt19937>> lwe_runtime_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<Rlwe>(eng_);
-    lwe_runtime_ = Runtime<Lwe>(rlwe_runtime_, eng_);
+    rlwe_runtime_ = Runtime<Rlwe, RandomGenerator<std::mt19937>>(eng_);
+    lwe_runtime_ =
+        Runtime<Lwe, RandomGenerator<std::mt19937>>(rlwe_runtime_, eng_);
   }
 };
 

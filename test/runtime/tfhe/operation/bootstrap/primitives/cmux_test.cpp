@@ -60,10 +60,12 @@ class CMuxFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, RandomGenerator<std::mt19937>, Tracking>
+      rlwe_runtime_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
+    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>,
+                            RandomGenerator<std::mt19937>, Tracking>(eng_);
   }
 };
 

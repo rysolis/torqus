@@ -65,14 +65,16 @@ class KeySwitchFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{1};
 
-  Runtime<SrcLwe, Tracking> src_lwe_runtime_;
+  Runtime<SrcLwe, RandomGenerator<std::mt19937>, Tracking> src_lwe_runtime_;
 
-  Runtime<DstLwe, Tracking> dst_lwe_runtime_;
+  Runtime<DstLwe, RandomGenerator<std::mt19937>, Tracking> dst_lwe_runtime_;
   KeySwitchKey<Torus, n, t, N> KSK_;
 
   void SetUp() override {
-    src_lwe_runtime_ = Runtime<SrcLwe, Tracking>(eng_);
-    dst_lwe_runtime_ = Runtime<DstLwe, Tracking>(eng_);
+    src_lwe_runtime_ =
+        Runtime<SrcLwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
+    dst_lwe_runtime_ =
+        Runtime<DstLwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
 
     // Prepare Key Switch Key
     KSK_ =

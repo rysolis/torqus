@@ -24,17 +24,13 @@
 // local generator across every encrypt() call; two PublicRuntimes built from
 // the same live eng therefore never replay the same random stream the way
 // copying eng by value into each of them would.
-template <typename Params, uint32_t PkSamples>
-  requires tlwe_concept<Params>
+template <typename Params, typename Engine, uint32_t PkSamples>
+  requires tlwe_concept<Params> && std::uniform_random_bit_generator<Engine>
 class PublicRuntime {
  public:
   using params_type = Params;
   using Torus = typename Params::torus_type;
   static constexpr uint32_t n = Params::n;
-  // The concrete engine type PublicKey encryption ultimately binds to (see
-  // Cryptor::Engine, which every secret-key Runtime already fixes to this
-  // same type).
-  using Engine = std::mt19937;
 
   PublicRuntime(PublicKey<Torus, n, PkSamples> pk, Engine& eng)
       : pk_(std::move(pk)), eng_(eng) {}

@@ -275,9 +275,9 @@ using Rlwe = rlwe_params<trlwe_core_params<Torus, 1024>, noise_params<25>>;
 using Decomp = dcp_params<16, 7>;
 using Kst = kst_params<2, 11>;
 
+template <typename Engine>
 class Party {
  public:
-  template <typename Engine>
   explicit Party(Engine& eng)
       : lwe_runtime_(eng),
         rlwe_runtime_(eng),
@@ -290,11 +290,11 @@ class Party {
   // message space.
   Cipher<Lwe, Rlwe> lift(bool bit) {
     return Cipher<Lwe, Rlwe>(
-        Boundary<Lwe, Rlwe, Decomp>(lwe_runtime_, rlwe_runtime_).lift<4>(bit));
+        Boundary<Lwe, Rlwe, Decomp, Engine>(lwe_runtime_, rlwe_runtime_).lift<4>(bit));
   }
 
   uint32_t drop(const Cipher<Lwe, Rlwe>& bit) {
-    return Boundary<Lwe, Rlwe, Decomp>(lwe_runtime_, rlwe_runtime_)
+    return Boundary<Lwe, Rlwe, Decomp, Engine>(lwe_runtime_, rlwe_runtime_)
         .drop<4>(bit);
   }
 
@@ -310,8 +310,8 @@ class Party {
   }
 
  private:
-  Runtime<Lwe> lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime_;
+  Runtime<Lwe, Engine> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, Engine> rlwe_runtime_;
   BootstrapKey<Rlwe::torus_type, Rlwe::N, Decomp::l, Lwe::n> bk_;
   KeySwitchKey<Lwe::torus_type, Lwe::n, Kst::t, Rlwe::N> ksk_;
 };

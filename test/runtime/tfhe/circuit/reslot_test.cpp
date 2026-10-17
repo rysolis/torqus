@@ -51,16 +51,18 @@ class CircuitReslotFixture : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Lwe, Tracking> lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>, Tracking> rlwe_runtime_;
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, RandomGenerator<std::mt19937>, Tracking>
+      rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> bk_;
   KeySwitchKey<Torus, n, t, N> ksk_;
   tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst> reslot_;
 
   void SetUp() override {
-    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>, Tracking>(eng_);
-    lwe_runtime_ = Runtime<Lwe, Tracking>(eng_);
+    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>,
+                            RandomGenerator<std::mt19937>, Tracking>(eng_);
+    lwe_runtime_ = Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking>(eng_);
 
     bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime_.secret());
@@ -101,8 +103,8 @@ TYPED_TEST(CircuitReslotCorrectnessTest, MovesAndMaterializesInOneCall) {
 
   // One Boundary now covers both resolutions -- lift<2>()/drop<4>() name
   // the resolution per call, not per Boundary (see boundary.hpp).
-  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
-                                                 this->rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>, Tracking> boundary(
+      this->lwe_runtime_, this->rlwe_runtime_);
 
   for (const auto& tc : TestFixture::cases()) {
     Cipher<Lwe, Rlwe> ct = boundary.template lift<2>(tc.value);
@@ -136,8 +138,8 @@ TYPED_TEST(CircuitReslotCorrectnessTest, FuseKeySwitchMatchesDefault) {
   using Kst = typename TypeParam::context::kst_params;
   using Torus = typename Lwe::torus_type;
 
-  Boundary<Lwe, Rlwe, Decomp, Tracking> boundary(this->lwe_runtime_,
-                                                 this->rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>, Tracking> boundary(
+      this->lwe_runtime_, this->rlwe_runtime_);
   tfhe::circuit::Reslot<2, 4, Lwe, Rlwe, Decomp, Kst,
                         tfhe::bootstrap::GateBootstrap, true>
       fused_reslot(this->bk_, this->ksk_);

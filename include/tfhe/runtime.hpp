@@ -33,13 +33,15 @@ struct secret_size<Params> {
   static constexpr uint32_t value = Params::N;
 };
 
-// Runtime owns a Cryptor<Params> internally -- Cryptor is an implementation
-// detail of "how to encrypt/decrypt under these Params", not something a
-// caller of Runtime should need to know about or spell out.
-template <typename Params, typename... Feature>
+// Runtime owns a Cryptor<Params, Engine> internally -- Cryptor is an
+// implementation detail of "how to encrypt/decrypt under these Params and
+// this Engine", not something a caller of Runtime should need to know about
+// or spell out.
+template <typename Params, typename Engine, typename... Feature>
+  requires std::uniform_random_bit_generator<Engine>
 class Runtime {
  private:
-  using cryptor_type = Cryptor<Params>;
+  using cryptor_type = Cryptor<Params, Engine>;
 
  public:
   using params_type = Params;
@@ -47,15 +49,14 @@ class Runtime {
 
   Runtime() = default;
 
-  template <typename Engine>
-    requires std::uniform_random_bit_generator<Engine>
-  Runtime(Engine& eng) {
+  explicit Runtime(Engine& eng) {
     holder_.emplace(eng);
     cryptor_.emplace(holder_->shared_get(), eng);
   }
 
-  template <typename Engine, typename OtherParams, typename... OtherFeature>
-  Runtime(const Runtime<OtherParams, OtherFeature...>& other, Engine& eng)
+  template <typename OtherParams, typename... OtherFeature>
+  Runtime(const Runtime<OtherParams, Engine, OtherFeature...>& other,
+          Engine& eng)
       : holder_(other.holder()) {
     cryptor_.emplace(holder_->shared_get(), eng);
   }

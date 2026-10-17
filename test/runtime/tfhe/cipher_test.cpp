@@ -39,15 +39,17 @@ class CipherTest : public ::testing::Test {
   // NOLINTNEXTLINE(bugprone-random-generator-seed)
   RandomGenerator<std::mt19937> eng_{0};
 
-  Runtime<Lwe> lwe_runtime_;
-  Runtime<ParamsPack<Rlwe, Decomp>> rlwe_runtime_;
+  Runtime<Lwe, RandomGenerator<std::mt19937>> lwe_runtime_;
+  Runtime<ParamsPack<Rlwe, Decomp>, RandomGenerator<std::mt19937>>
+      rlwe_runtime_;
 
   BootstrapKey<rTorus, N, l, n> bk_;
   KeySwitchKey<Torus, n, t, N> ksk_;
 
   void SetUp() override {
-    lwe_runtime_ = Runtime<Lwe>(eng_);
-    rlwe_runtime_ = Runtime<ParamsPack<Rlwe, Decomp>>(eng_);
+    lwe_runtime_ = Runtime<Lwe, RandomGenerator<std::mt19937>>(eng_);
+    rlwe_runtime_ =
+        Runtime<ParamsPack<Rlwe, Decomp>, RandomGenerator<std::mt19937>>(eng_);
 
     bk_ = rlwe_runtime_.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
         lwe_runtime_.secret());
@@ -100,7 +102,8 @@ class CipherTest : public ::testing::Test {
 
 // A freshly-encrypted Cipher starts out Lwe-shaped.
 TEST_F(CipherTest, FreshlyEncryptedBitIsReady) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
 
@@ -110,7 +113,8 @@ TEST_F(CipherTest, FreshlyEncryptedBitIsReady) {
 // hom_and's result is Rlwe-shaped -- exactly what every tfhe/gate/Hom*
 // returns -- until something materializes it back down.
 TEST_F(CipherTest, GateResultIsNotReady) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
@@ -124,7 +128,8 @@ TEST_F(CipherTest, GateResultIsNotReady) {
 // materialize() is how a caller normalizes a Cipher back to
 // Lwe-shaped -- HomAnd/HomOr/HomAndNot/HomXor never do this on their own.
 TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
@@ -146,7 +151,8 @@ TEST_F(CipherTest, ExplicitMaterializeMakesItReady) {
 // its value -- the pure-refresh case of Reslot (see
 // tfhe/operation/bootstrap/reslot.hpp).
 TEST_F(CipherTest, ReslotWithSameResolutionPreservesValue) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
@@ -164,7 +170,8 @@ TEST_F(CipherTest, ReslotWithSameResolutionPreservesValue) {
 TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
   // One Boundary now covers both resolutions -- lift<2>()/drop<4>() name
   // the resolution per call, not per Boundary (see boundary.hpp).
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> t_ct = boundary.lift<2>(true);
   Cipher<Lwe, Rlwe> f_ct = boundary.lift<2>(false);
@@ -181,7 +188,8 @@ TEST_F(CipherTest, ReslotMovesValueToNewResolution) {
 // number of doublings) -- Dial<4, Torus> (0 or 1/4) moved into Dial<100,
 // Torus> (0 or 1/100) exercises that.
 TEST_F(CipherTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
@@ -196,7 +204,8 @@ TEST_F(CipherTest, ReslotOutResolutionNeedNotBeAPowerOfTwo) {
 }
 
 TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> t_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> f_ct = boundary.lift<4>(false);
@@ -215,8 +224,10 @@ TEST_F(CipherTest, HomOrHomAndNotHomXorAllWork) {
 // already-materialized results and has no lasting need to keep the
 // Rlwe-side Runtime alive as a member.
 TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
-  Boundary<Lwe, Rlwe, Decomp> full_boundary(lwe_runtime_, rlwe_runtime_);
-  Boundary<Lwe, Rlwe, Decomp> lwe_only_boundary(lwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> full_boundary(
+      lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> lwe_only_boundary(
+      lwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = full_boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> b_ct = full_boundary.lift<4>(true);
@@ -235,10 +246,12 @@ TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
   static constexpr uint32_t kPkSamples = 8;
   PublicKey<typename Lwe::torus_type, Lwe::n, kPkSamples> pk =
       lwe_runtime_.template generate_public_key<kPkSamples>();
-  PublicRuntime<Lwe, kPkSamples> pub(pk, eng_);
-  PublicBoundary<Lwe, kPkSamples> public_boundary(pub);
+  PublicRuntime<Lwe, RandomGenerator<std::mt19937>, kPkSamples> pub(pk, eng_);
+  PublicBoundary<Lwe, RandomGenerator<std::mt19937>, kPkSamples>
+      public_boundary(pub);
 
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> t_ct = public_boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> f_ct = public_boundary.lift<4>(false);
@@ -252,7 +265,8 @@ TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
 // chaining a gate's own (Rlwe-shaped) output into another gate call needs an
 // explicit materialize() first.
 TEST_F(CipherTest, ChainingTwoGatesNeedsExplicitMaterialize) {
-  Boundary<Lwe, Rlwe, Decomp> boundary(lwe_runtime_, rlwe_runtime_);
+  Boundary<Lwe, Rlwe, Decomp, RandomGenerator<std::mt19937>> boundary(
+      lwe_runtime_, rlwe_runtime_);
 
   Cipher<Lwe, Rlwe> a_ct = boundary.lift<4>(true);
   Cipher<Lwe, Rlwe> b_ct = boundary.lift<4>(true);
