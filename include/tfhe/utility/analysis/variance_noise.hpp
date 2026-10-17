@@ -236,13 +236,17 @@ struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
 };
 
 // Declared in tracker_if.hpp; defined here since it needs boost::math. The
-// Bonferroni bound reduces to the ordinary single-sample Gaussian z (~2.576)
-// at coefficient_count=1.
-inline double gaussian_estimate_for_max_of(uint32_t coefficient_count) {
+// Bonferroni-adjusted multiplier reduces to the ordinary single-sample
+// Gaussian z (~2.576) at coefficient_count=1, lambda=log2(100) (99%
+// two-sided); K is that multiplier times `stddev`.
+inline double gaussian_amplitude_for_max_of(uint32_t coefficient_count,
+                                            double lambda, double stddev) {
   boost::math::normal_distribution<double> standard_normal(0.0, 1.0);
-  double tail_probability = 0.005 / static_cast<double>(coefficient_count);
-  return boost::math::quantile(
+  double tail_probability =
+      std::pow(2.0, -lambda) / (2.0 * static_cast<double>(coefficient_count));
+  double multiplier = boost::math::quantile(
       boost::math::complement(standard_normal, tail_probability));
+  return multiplier * stddev;
 }
 
 #endif  // TFHE_VARIANCE_NOISE_HPP

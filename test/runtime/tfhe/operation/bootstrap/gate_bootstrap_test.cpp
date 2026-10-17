@@ -168,8 +168,11 @@ TYPED_TEST(GateBootstrapCorrectnessTest, VerifyCorrectness) {
     // Bounds section).
     double variance_threshold =
         get_variance_tracker_if()->confidence_threshold(res_ct, 1);
+    // lambda=log2(100): same 99% two-sided level confidence_threshold above
+    // uses internally, so the two printed thresholds stay comparable.
+    double lambda_99_percent = std::log2(100.0);
     double gaussian_threshold_estimate =
-        gaussian_estimate_for_max_of(1) * predicted_stddev;
+        gaussian_amplitude_for_max_of(1, lambda_99_percent, predicted_stddev);
 
     std::cout << "\n========================================\n";
     std::cout << "           Gate Bootstrap Test\n";
