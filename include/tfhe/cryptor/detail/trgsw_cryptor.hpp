@@ -5,6 +5,7 @@
 #define TFHE_TRGSW_CRYPTOR_HPP
 
 #include <memory>
+#include <random>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
@@ -15,6 +16,7 @@
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
+#include "tfhe/structure/key/public_key.hpp"
 
 namespace trgsw {
 
@@ -46,6 +48,41 @@ TRGSW<typename Params::torus_type, Params::N, Params::l> encrypt(
           gaussian_noise<Torus>(eng.get(), alpha_of<Params>::value);
     }
 
+    Torus m(static_cast<UInt::raw_value_type>(pt[0]),
+            UInt::raw_value_type{1} << (Bbit * (j + 1)));
+
+    ct[j].a()[0] = static_cast<Torus>(ct[j].a()[0]) + m;
+    ct[l + j].b()[0] = static_cast<Torus>(ct[l + j].b()[0]) + m;
+  }
+  return ct;
+}
+
+// Public-key counterpart to encrypt() above -- no secret required. A
+// random subset of pk's TRGSW(0) samples is summed (still TRGSW(0), since
+// TRGSW::operator+= is row-wise TRLWE += and TRLWE(0) is closed under
+// addition) in place of encrypt()'s own secret-derived rows, then the
+// same gadget-scaled message fold as encrypt() (see its own m/Bbit lines)
+// is applied on top.
+template <typename Params, uint32_t PkSamples, typename Engine>
+  requires trlwe_concept<Params> && decompose_concept<Params>
+TRGSW<typename Params::torus_type, Params::N, Params::l> public_encrypt(
+    const PublicKey<TRGSW<typename Params::torus_type, Params::N, Params::l>,
+                    PkSamples>& pk,
+    Engine& eng, const Poly<UInt, Params::N>& pt) {
+  using Torus = typename Params::torus_type;
+  constexpr uint32_t B = Params::B;
+  constexpr uint32_t Bbit = std::bit_width(B - 1);
+  constexpr uint32_t l = Params::l;
+
+  std::bernoulli_distribution dist(0.5);
+  TRGSW<Torus, Params::N, l> ct;
+  for (uint32_t i = 0; i < PkSamples; ++i) {
+    if (dist(eng)) {
+      ct += pk[i];
+    }
+  }
+
+  for (size_t j = 0; j < l; ++j) {
     Torus m(static_cast<UInt::raw_value_type>(pt[0]),
             UInt::raw_value_type{1} << (Bbit * (j + 1)));
 

@@ -5,23 +5,25 @@
 #define TFHE_SERIALIZE_PUBLIC_KEY_HPP
 
 #include "tfhe/serialize/serde.hpp"
-#include "tfhe/serialize/tlwe.hpp"
 #include "tfhe/structure/key/public_key.hpp"
 
 namespace serialize {
 
-template <typename Torus, uint32_t n, uint32_t PkSamples>
-struct Serde<PublicKey<Torus, n, PkSamples>> {
-  static void write(Writer& w, const PublicKey<Torus, n, PkSamples>& key) {
+// Serde<Ciphertext> must already be visible at the instantiation site --
+// serialize/tlwe.hpp, serialize/trlwe.hpp or serialize/trgsw.hpp, matching
+// whichever shape PublicKey's own samples are (see public_key.hpp).
+template <typename Ciphertext, uint32_t PkSamples>
+struct Serde<PublicKey<Ciphertext, PkSamples>> {
+  static void write(Writer& w, const PublicKey<Ciphertext, PkSamples>& key) {
     for (uint32_t i = 0; i < PkSamples; ++i) {
-      Serde<TLWE<Torus, n>>::write(w, key[i]);
+      Serde<Ciphertext>::write(w, key[i]);
     }
   }
 
-  static PublicKey<Torus, n, PkSamples> read(Reader& r) {
-    PublicKey<Torus, n, PkSamples> key;
+  static PublicKey<Ciphertext, PkSamples> read(Reader& r) {
+    PublicKey<Ciphertext, PkSamples> key;
     for (uint32_t i = 0; i < PkSamples; ++i) {
-      key[i] = Serde<TLWE<Torus, n>>::read(r);
+      key[i] = Serde<Ciphertext>::read(r);
     }
     return key;
   }

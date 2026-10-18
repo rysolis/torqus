@@ -93,6 +93,15 @@ the umbrella header that pulls in its subdirectory.
 | Circuits | `BinaryExpansion` (gate-level binary expansion, built on `Cipher`), `Reslot` (bootstraps a `Cipher` onto a different `Dial` resolution) -- both own a `materialize()` method that `KeySwitch`es a `Cipher` back to Lwe-shaped | [`tfhe/circuit.hpp`](include/tfhe/circuit.hpp) |
 | Serialization | wire (de)serialization for the ciphertext/key types above | [`tfhe/serialize.hpp`](include/tfhe/serialize.hpp) |
 
+`Runtime::generate_public_key<Plaintext, PkSamples>()` (`tfhe/structure/key/public_key.hpp`)
+works for any `Plaintext` `Runtime::encrypt()` itself supports, not just an
+Lwe-shaped `Torus` -- a party holding the resulting `PublicKey` can encrypt
+under that secret without ever seeing it, via `public_key::encrypt()` for a
+Torus/`Poly<Torus,N>` message (Tlwe/Trlwe-shaped), or
+`trgsw::public_encrypt()` (`tfhe/cryptor/detail/trgsw_cryptor.hpp`) for a
+`Poly<UInt,N>` one -- e.g. a `CMux` selector bit nobody holding the secret
+ever needs to see either.
+
 Gates take Lwe-shaped ciphertexts in and return a fresh Rlwe-domain
 ciphertext out (see the `HomAnd` example below); chaining several
 together, as `BinaryExpansion` does, needs a `KeySwitch` back down to

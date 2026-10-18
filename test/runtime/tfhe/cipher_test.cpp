@@ -244,8 +244,9 @@ TEST_F(CipherTest, LweOnlyBoundaryDropsLweShapedCiphertexts) {
 // decodes correctly through a secret-holding Boundary.
 TEST_F(CipherTest, PublicBoundaryLiftsWithoutTheSecret) {
   static constexpr uint32_t kPkSamples = 8;
-  PublicKey<typename Lwe::torus_type, Lwe::n, kPkSamples> pk =
-      lwe_runtime_.template generate_public_key<kPkSamples>();
+  PublicKey<TLWE<typename Lwe::torus_type, Lwe::n>, kPkSamples> pk =
+      lwe_runtime_
+          .template generate_public_key<typename Lwe::torus_type, kPkSamples>();
   PublicRuntime<Lwe, RandomGenerator<std::mt19937>, kPkSamples> pub(pk, eng_);
   PublicBoundary<Lwe, RandomGenerator<std::mt19937>, kPkSamples>
       public_boundary(pub);

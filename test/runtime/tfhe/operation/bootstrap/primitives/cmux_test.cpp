@@ -12,12 +12,14 @@
 #include "algebra/utility/randomize.hpp"
 #include "algebra/utility/utility.hpp"
 
+#include "tfhe/cryptor/detail/trgsw_cryptor.hpp"
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/trgsw.hpp"
 #include "tfhe/structure/ciphertext/trlwe.hpp"
+#include "tfhe/structure/key/public_key.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
 namespace cmux_test {
@@ -170,5 +172,87 @@ TYPED_TEST(CMuxCorrectnessTest, VerifyCorrectness) {
 
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
     EXPECT_LE(norm, variance_threshold);
+  }
+}
+
+// Same selection correctness as VerifyCorrectness above, but the selector
+// TRGSW is built by trgsw::public_encrypt from a publicly-generated
+// PublicKey instead of rlwe_runtime_'s secret -- a party holding only that
+// PublicKey can still produce a selector CMux accepts, without ever
+// touching rlwe_runtime_'s secret.
+TYPED_TEST(CMuxCorrectnessTest,
+           VerifyCorrectnessWithPubliclyEncryptedSelector) {
+  using Rlwe = typename TypeParam::context::rlwe_params;
+  using Decomp = typename TypeParam::context::dcp_params;
+  using Params = ParamsPack<Rlwe, Decomp>;
+
+  using rTorus = typename Rlwe::torus_type;
+  constexpr uint32_t N = Rlwe::N;
+  constexpr uint32_t l = Decomp::l;
+  static constexpr uint32_t kPkSamples = 8;
+
+  for (const auto& tc : TestFixture::cases()) {
+    // ==================================
+    // Arrange
+    // ==================================
+    UInt selector = tc.selector;
+    Poly<rTorus, N> lhs = tc.lhs;
+    Poly<rTorus, N> rhs = tc.rhs;
+
+    Poly<UInt, N> sl;
+    sl[0] = selector;
+    PublicKey<TRGSW<rTorus, N, l>, kPkSamples> pk =
+        this->rlwe_runtime_
+            .template generate_public_key<Poly<UInt, N>, kPkSamples>();
+    TRGSW<rTorus, N, l> selector_ct =
+        trgsw::public_encrypt<Params, kPkSamples>(pk, this->eng_, sl);
+
+    TRLWE<rTorus, N> lhs_ct = this->rlwe_runtime_.encrypt(lhs);
+    TRLWE<rTorus, N> rhs_ct = this->rlwe_runtime_.encrypt(rhs);
+
+    // ==================================
+    // Act
+    // ==================================
+    // No Tracking feature here (unlike VerifyCorrectness above) -- selector_ct
+    // never went through Runtime::encrypt, so it was never registered with
+    // get_noise_tracker_if()/get_variance_tracker_if() in the first place,
+    // and summing a random subset of PkSamples independent fresh-noise
+    // public-key samples doesn't carry the same single-sample noise bound
+    // those formulas assume. See the plain 0.25 decode-margin check below
+    // instead (same hard ceiling cited in README's Bootstrap Noise Bounds).
+    TRLWE<rTorus, N> res_ct =
+        tfhe::operation::Evaluator<tfhe::bootstrap::CMux<Rlwe, Decomp>>::exec(
+            selector_ct, lhs_ct, rhs_ct);
+
+    // ==================================
+    // Assert
+    // ==================================
+    Poly<rTorus, N> ref = [selector, &lhs, &rhs] {
+      if (selector == UInt(0)) {
+        return lhs;
+      } else {
+        return rhs;
+      }
+    }();
+
+    Poly<rTorus, N> res = this->rlwe_runtime_.decrypt(res_ct);
+
+    Poly<rTorus, N> err = ref - res;
+    double norm = infinity_norm(err);
+
+    std::cout << "\n=== CMux Test (publicly-encrypted selector) ===\n";
+    if (TypeParam::verbose) {
+      std::cout << std::left;
+      std::cout << std::setw(14) << "selector" << ": " << selector << "\n";
+      std::cout << std::setw(14) << "lhs" << ": " << lhs << "\n";
+      std::cout << std::setw(14) << "rhs" << ": " << rhs << "\n";
+      std::cout << std::setw(14) << "expected" << ": " << ref << "\n";
+      std::cout << std::setw(14) << "actual" << ": " << res << "\n";
+    }
+    std::cout << std::left;
+    std::cout << std::setw(14) << "infinity_norm " << ": " << norm << "\n";
+    std::cout << "===================\n\n";
+
+    EXPECT_LT(norm, 0.25);
   }
 }

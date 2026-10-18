@@ -120,17 +120,20 @@ class Runtime {
     return ksk;
   }
 
-  // Generates a public key of PkSamples TLWE(0) samples under this
-  // Runtime's own secret -- see public_key.hpp for how it lets a caller
-  // who never sees that secret encrypt under it anyway.
-  template <uint32_t PkSamples>
-    requires tlwe_concept<Params>
-  PublicKey<typename Params::torus_type, secret_length, PkSamples>
+  // Generates a public key of PkSamples fresh encryptions of zero under
+  // this Runtime's own secret -- see public_key.hpp for how it lets a
+  // caller who never sees that secret encrypt under it anyway. Plaintext
+  // picks which of encrypt()'s overloads backs each sample, exactly like
+  // encrypt()'s own explicit Plaintext argument -- Torus for an Lwe-side
+  // secret, Poly<Torus,N> or Poly<UInt,N> (Trlwe- or Trgsw-shaped,
+  // respectively) for an Rlwe-side one.
+  template <typename Plaintext, uint32_t PkSamples>
+  PublicKey<ciphertext_t<cryptor_type, Plaintext>, PkSamples>
   generate_public_key() {
-    using Torus = typename Params::torus_type;
-    PublicKey<Torus, secret_length, PkSamples> pk;
+    using Ciphertext = ciphertext_t<cryptor_type, Plaintext>;
+    PublicKey<Ciphertext, PkSamples> pk;
     for (uint32_t i = 0; i < PkSamples; ++i) {
-      pk[i] = encrypt(Torus(0u));
+      pk[i] = encrypt(Plaintext{});
     }
     return pk;
   }
