@@ -67,6 +67,12 @@ cryptographically secure (its full internal state is recoverable from
 generation. Pass a `SecureRandomEngine` (same header) instead -- see
 [Quick Start](#quick-start).
 
+Secret key bits (`tfhe/utility/secret_holder.hpp`) are zeroed on release
+and, best-effort, locked out of swap (`mlock`/`VirtualLock`) for as long
+as they're live -- the lock is best-effort only (e.g. it can fail under
+`RLIMIT_MEMLOCK` on Linux), but the zeroing-on-release guarantee holds
+regardless.
+
 ***
 
 ## Supported Operations
