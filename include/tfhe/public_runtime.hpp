@@ -32,7 +32,7 @@ class PublicRuntime {
   using Torus = typename Params::torus_type;
   static constexpr uint32_t n = Params::n;
 
-  PublicRuntime(PublicKey<Torus, n, PkSamples> pk, Engine& eng)
+  PublicRuntime(PublicKey<TLWE<Torus, n>, PkSamples> pk, Engine& eng)
       : pk_(std::move(pk)), eng_(eng) {}
 
   TLWE<Torus, n> encrypt(const Torus& pt) {
@@ -40,7 +40,7 @@ class PublicRuntime {
   }
 
  private:
-  PublicKey<Torus, n, PkSamples> pk_;
+  PublicKey<TLWE<Torus, n>, PkSamples> pk_;
   std::reference_wrapper<Engine> eng_;
 };
 

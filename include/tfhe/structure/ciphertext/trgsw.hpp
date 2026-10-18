@@ -26,6 +26,17 @@ class TRGSW {
     return trlwe_rows_[idx];
   }
 
+  // Row-wise TRLWE +=: TRGSW(0) is closed under this (each row stays a
+  // TRLWE(0)), which is what lets trgsw::public_encrypt sum a random
+  // subset of PublicKey's TRGSW(0) samples the same way public_key::encrypt
+  // already does for TLWE/TRLWE.
+  TRGSW& operator+=(const TRGSW& other) {
+    for (size_t i = 0; i < trlwe_rows_.size(); ++i) {
+      trlwe_rows_[i] += other.trlwe_rows_[i];
+    }
+    return *this;
+  }
+
   const void* identity() const noexcept { return trlwe_rows_[0].identity(); }
 
   uint32_t level() const noexcept { return 2 * l; }

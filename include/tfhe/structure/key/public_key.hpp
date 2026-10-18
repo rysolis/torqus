@@ -8,48 +8,51 @@
 #include <random>
 #include <vector>
 
-#include "primitive/concept/torus.hpp"
-
-#include "tfhe/structure/ciphertext/tlwe.hpp"
-
-// A PublicKey is PkSamples independent TLWE(0) samples under one secret --
-// fresh encryptions of zero, generated once by whoever holds that secret
-// (see Runtime::generate_public_key). Anyone holding just the PublicKey can
-// then encrypt a message under that same secret without ever seeing it: sum
-// a random subset of the samples (still TLWE(0), since TLWE(0) is closed
-// under addition) and add the message to the result's phase -- see
-// public_key::encrypt below.
-template <torus_concept Torus, uint32_t n_, uint32_t PkSamples_>
+// A PublicKey is PkSamples independent fresh encryptions of zero under one
+// secret, generated once by whoever holds that secret (see
+// Runtime::generate_public_key) -- Ciphertext is whichever shape those
+// samples are (TLWE for an Lwe-side secret, TRLWE/TRGSW for an Rlwe-side
+// one). Anyone holding just the PublicKey can then encrypt a message under
+// that same secret without ever seeing it: sum a random subset of the
+// samples (still an encryption of zero, since that's closed under
+// addition for all of TLWE/TRLWE/TRGSW) and fold the message in -- see
+// public_key::encrypt below for the TLWE/TRLWE case (message folds
+// straight into the result's phase) and trgsw::public_encrypt
+// (cryptor/detail/trgsw_cryptor.hpp) for TRGSW's own gadget-scaled fold.
+template <typename Ciphertext, uint32_t PkSamples_>
 class PublicKey {
  public:
-  static constexpr uint32_t n = n_;
   static constexpr uint32_t PkSamples = PkSamples_;
 
   PublicKey() = default;
 
-  TLWE<Torus, n>& operator[](size_t idx) noexcept { return samples_[idx]; }
-  const TLWE<Torus, n>& operator[](size_t idx) const noexcept {
+  Ciphertext& operator[](size_t idx) noexcept { return samples_[idx]; }
+  const Ciphertext& operator[](size_t idx) const noexcept {
     return samples_[idx];
   }
 
  private:
-  // TLWE isn't a numeric primitive Vector<T,Size> is built for -- see
+  // Ciphertext isn't a numeric primitive Vector<T,Size> is built for -- see
   // trgsw.hpp's own comment.
-  std::vector<TLWE<Torus, n>> samples_ = std::vector<TLWE<Torus, n>>(PkSamples);
+  std::vector<Ciphertext> samples_ = std::vector<Ciphertext>(PkSamples);
 };
 
 namespace public_key {
 
 // Encrypts `message` under `pk` -- no secret required. A random subset of
-// pk's TLWE(0) samples is summed (still TLWE(0)) and `message` is folded
-// into the result's phase, yielding a fresh TLWE(message) under the same
-// secret pk was generated from.
-template <typename Torus, uint32_t n, uint32_t PkSamples, typename Engine>
+// pk's zero-samples is summed (still an encryption of zero) and `message`
+// is folded straight into the result's phase via Ciphertext's own `.b()`,
+// yielding a fresh encryption of `message` under the same secret pk was
+// generated from. Works unchanged for both TLWE (message: Torus) and TRLWE
+// (message: Poly<Torus,N>) -- TRGSW doesn't fit this shape (its message
+// isn't a single `.b()` fold, see trgsw::public_encrypt instead).
+template <typename Ciphertext, uint32_t PkSamples, typename Engine,
+          typename Plaintext>
   requires std::uniform_random_bit_generator<Engine>
-TLWE<Torus, n> encrypt(const PublicKey<Torus, n, PkSamples>& pk, Engine& eng,
-                       const Torus& message) {
+Ciphertext encrypt(const PublicKey<Ciphertext, PkSamples>& pk, Engine& eng,
+                   const Plaintext& message) {
   std::bernoulli_distribution dist(0.5);
-  TLWE<Torus, n> ct;
+  Ciphertext ct;
   for (uint32_t i = 0; i < PkSamples; ++i) {
     if (dist(eng)) {
       ct += pk[i];

@@ -72,9 +72,10 @@ TYPED_TEST(SerializeRoundtripTest, Tlwe) {
 
 TYPED_TEST(SerializeRoundtripTest, PublicKey) {
   using Lwe = typename TestFixture::Lwe;
+  using Torus = typename Lwe::torus_type;
 
   Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
-  auto pk = runtime.template generate_public_key<2 * Lwe::n>();
+  auto pk = runtime.template generate_public_key<Torus, 2 * Lwe::n>();
 
   auto bytes = serialize::to_bytes(pk);
   auto back = serialize::from_bytes<decltype(pk)>(bytes);
