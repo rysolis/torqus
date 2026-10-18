@@ -10,16 +10,16 @@
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
+#include "support/params.hpp"
+
 namespace cipher_test {
-// Real noise enabled -- same params as tfhe/gate/hom_and_test.cpp's own
-// Context, plus binary_expansion_test.cpp's Context2 kst_params (base
-// kept small since KeySwitch noise grows with the base; see that file's
-// own comment).
-using Lwe = lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>;
-using Rlwe =
-    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>;
-using Decomp = dcp_params<16, 7>;
-using Kst = kst_params<2, 11>;
+// Real noise enabled -- ProductionParams is the README's documented
+// 128-bit row, shared with tfhe/gate/hom_and_test.cpp's own Context and
+// binary_expansion_test.cpp's Context2.
+using Lwe = ProductionParams::Lwe;
+using Rlwe = ProductionParams::Rlwe;
+using Decomp = ProductionParams::Decomp;
+using Kst = ProductionParams::Kst;
 }  // namespace cipher_test
 
 class CipherTest : public ::testing::Test {

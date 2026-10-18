@@ -10,6 +10,8 @@
 #include "tfhe/structure/ciphertext/tlwe.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
+#include "support/params.hpp"
+
 namespace hom_or_test {
 template <typename Context, bool Verbose = true>
 struct TestConfig {
@@ -25,10 +27,8 @@ struct ParameterSet {
 };
 
 // Real noise enabled (see gate_bootstrap_test.cpp's Context).
-using Context = ParameterSet<
-    lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
-    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
-    dcp_params<16, 7>>;
+using Context = ParameterSet<ProductionParams::Lwe, ProductionParams::Rlwe,
+                             ProductionParams::Decomp>;
 
 using TestContexts = ::testing::Types<TestConfig<Context>>;
 }  // namespace hom_or_test

@@ -71,6 +71,13 @@ target_link_libraries(test-${PROJECT_NAME}
     GTest::gtest_main
 )
 
+# Shared test-only headers (e.g. support/params.hpp) live under test/ itself,
+# parallel to how library headers resolve from include/.
+target_include_directories(test-${PROJECT_NAME}
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 gtest_discover_tests(test-${PROJECT_NAME})
 
 # Set by the *-native-* CMake presets (CMakePresets.json's native-base),

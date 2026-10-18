@@ -16,6 +16,8 @@
 #include "tfhe/utility/random_generator.hpp"
 #include "tfhe/utility/testvector.hpp"
 
+#include "support/params.hpp"
+
 namespace gate_bootstrap_test {
 
 template <typename Context, bool Verbose = true>
@@ -39,10 +41,8 @@ struct ParameterSet {
 // longer asserted on, see evaluator.hpp), which is exactly why the real
 // check here is VerifyCorrectness's variance-model threshold below, not
 // the worst-case one.
-using Context = ParameterSet<
-    lwe_params<tlwe_core_params<ModTorus<32>, 630>, noise_params<15>>,
-    rlwe_params<trlwe_core_params<ModTorus<32>, 1024>, noise_params<25>>,
-    dcp_params<16, 7>>;
+using Context = ParameterSet<ProductionParams::Lwe, ProductionParams::Rlwe,
+                             ProductionParams::Decomp>;
 
 using TestContexts = ::testing::Types<TestConfig<Context>>;
 
