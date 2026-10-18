@@ -61,6 +61,14 @@
       }
     },
     {
+      "name": "sanitize-base",
+      "hidden": true,
+      "inherits": "debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fno-omit-frame-pointer"
+      }
+    },
+    {
       "name": "gcc-debug",
       "displayName": "GCC Debug",
       "inherits": "gcc-base",
@@ -178,6 +186,18 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "gcc-sanitize",
+      "displayName": "GCC ASan+UBSan",
+      "inherits": ["gcc-base", "sanitize-base"],
+      "binaryDir": "${sourceDir}/build/gcc/sanitize"
+    },
+    {
+      "name": "clang-sanitize",
+      "displayName": "Clang ASan+UBSan",
+      "inherits": ["clang-base", "sanitize-base"],
+      "binaryDir": "${sourceDir}/build/clang/sanitize"
     }
   ],
   "buildPresets": [
@@ -232,6 +252,14 @@
     {
       "name": "clang-native-release",
       "configurePreset": "clang-native-release"
+    },
+    {
+      "name": "gcc-sanitize",
+      "configurePreset": "gcc-sanitize"
+    },
+    {
+      "name": "clang-sanitize",
+      "configurePreset": "clang-sanitize"
     }
   ]
 }
