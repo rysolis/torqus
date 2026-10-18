@@ -33,6 +33,16 @@ struct ParameterSet {
   using dcp_params = Decomp;
 };
 
+// Toy context -- same ToyParams already proven to exercise GateBootstrap
+// correctly via BinaryExpansion's own Hom* gates
+// (circuit/binary_expansion_test.cpp's Context1). Exists so a sanitizer
+// build can run GateBootstrap's full pipeline (BlindRotate + KeySwitch +
+// SampleExtract) quickly -- see CMakePresets.json's *-sanitize presets.
+// Correctness still gets checked the same way as Context below; it's just
+// not what the sanitizer job is there for.
+using ToyContext =
+    ParameterSet<ToyParams::Lwe, ToyParams::Rlwe, ToyParams::Decomp>;
+
 // n=630/N=1024 match the reference TFHE implementation's published
 // 128-bit-security parameter set (see the README's References), with
 // its own lattice-estimator-verified alpha for these
@@ -44,7 +54,8 @@ struct ParameterSet {
 using Context = ParameterSet<ProductionParams::Lwe, ProductionParams::Rlwe,
                              ProductionParams::Decomp>;
 
-using TestContexts = ::testing::Types<TestConfig<Context>>;
+using TestContexts =
+    ::testing::Types<TestConfig<ToyContext>, TestConfig<Context, false>>;
 
 }  // namespace gate_bootstrap_test
 
