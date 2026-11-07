@@ -6,13 +6,10 @@
 
 #include <bit>
 #include <cstdint>
-#include <vector>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
-
-#include "algebra/poly.hpp"
 
 #include "tfhe/concept/tfhe.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
@@ -22,11 +19,14 @@ namespace tfhe::leveled {
 
 namespace {
 
-// gadget_digit/reconstruct below shift in TorusWord (Torus's own
-// raw_value_type), not UInt::raw_value_type: once Torus is wider than
-// UInt (see primitive/word.hpp), a shift amount can exceed UInt's own bit
-// width. Only the final digit (< Params::K, always small) narrows down
-// to UInt.
+// Shifts in TorusWord (Torus's own raw_value_type), not UInt::raw_value_type:
+// once Torus is wider than UInt (see primitive/word.hpp), a shift amount can
+// exceed UInt's own bit width. Only the final digit (< Params::K, always
+// small) narrows down to UInt. The reconstruct counterpart to this (needed
+// only to round-trip-test this function in isolation, not by KeySwitch
+// itself) is tfhe/structure/gadget/gadget_repr.hpp's classical::reconstruct
+// -- same algorithm, B/l taken as explicit values there precisely so it's
+// reusable here with K/t.
 
 template <kst_concept Params, torus_concept Torus>
 UInt gadget_digit(const Torus& v, size_t i) {
@@ -43,21 +43,6 @@ UInt gadget_digit(const Torus& v, size_t i) {
   UInt::raw_value_type tmp =
       static_cast<UInt::raw_value_type>((w >> shift) & (Params::K - 1));
   return UInt(tmp);
-}
-
-template <kst_concept Params, torus_concept Torus>
-Torus reconstruct(const std::vector<Poly<UInt, Params::N>>& repr, size_t j) {
-  using TorusWord = typename Torus::raw_value_type;
-  static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
-  TorusWord m = 0;
-  for (size_t i = 0; i < Params::t; ++i) {
-    size_t shift = Torus::qbit - (Bbit * (i + 1));
-    assert(shift <= (Torus::qbit - Bbit));
-    TorusWord v =
-        static_cast<TorusWord>(static_cast<UInt::raw_value_type>(repr[i][j]));
-    m |= v << shift;
-  }
-  return Torus(m);
 }
 
 }  // namespace

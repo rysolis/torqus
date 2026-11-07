@@ -44,12 +44,13 @@ UInt gadget_digit(const Torus& v, size_t i) {
   return UInt(tmp);
 }
 
-template <typename Rlwe, typename Decomp, torus_concept Torus>
-  requires trlwe_concept<Rlwe> && decompose_concept<Decomp>
-Torus reconstruct(const std::vector<Poly<UInt, Rlwe::N>>& repr, size_t j) {
+// B/l taken as explicit values (not a Decomp-shaped Params type) so this
+// is reusable by any base/level pair, e.g. kst_params's K/t
+// (key_switch.hpp's own gadget_digit above is the same algorithm under
+// that naming).
+template <uint32_t B, uint32_t l, torus_concept Torus, uint32_t N>
+Torus reconstruct(const std::vector<Poly<UInt, N>>& repr, size_t j) {
   using TorusWord = typename Torus::raw_value_type;
-  static constexpr uint32_t l = Decomp::l;
-  static constexpr uint32_t B = Decomp::B;
   static constexpr uint32_t Bbit = std::bit_width(B - 1);
 
   TorusWord m = 0;
