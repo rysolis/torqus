@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <istream>
 #include <ostream>
+#include <span>
 #include <stdexcept>
 
 namespace serialize {
@@ -72,41 +73,47 @@ class Writer {
     put(detail::encode<sizeof(T)>(v));
   }
 
+  // Raw bytes as-is, no per-value encoding; the caller is responsible for
+  // them already being in the wire format.
+  void write(std::span<const std::byte> bytes) { put(bytes); }
+
  private:
-  template <size_t NumBytes>
-  void put(const std::array<std::byte, NumBytes>& buf) {
-    os_.write(reinterpret_cast<const char*>(buf.data()),
-              static_cast<std::streamsize>(NumBytes));
+  // The only place std::byte meets std::ostream's char-based API.
+  void put(std::span<const std::byte> bytes) {
+    os_.write(reinterpret_cast<const char*>(bytes.data()),
+              static_cast<std::streamsize>(bytes.size()));
   }
 
   std::ostream& os_;
 };
 
 // Reads back exactly what Writer wrote, in the same order -- a truncated
-// or corrupt stream throws rather than reading past the end. Unlike
-// Writer::write, can't overload on a return type, so the width is an
-// explicit template argument instead: read<uint32_t>()/read<uint64_t>().
+// or corrupt stream throws rather than reading past the end. Mirrors
+// Writer::write: each overload fills the destination it is given, so the
+// width comes from the argument's own type.
 class Reader {
  public:
   explicit Reader(std::istream& is) : is_(is) {}
 
   template <typename T>
     requires std::same_as<T, uint32_t> || std::same_as<T, uint64_t>
-  T read() {
-    constexpr size_t num_bytes = sizeof(T);
-    return detail::decode<num_bytes>(get<num_bytes>());
+  void read(T& v) {
+    std::array<std::byte, sizeof(T)> buf;
+    get(buf);
+    v = detail::decode<sizeof(T)>(buf);
   }
 
+  // Raw bytes as-is, no per-value decoding; fills bytes exactly.
+  void read(std::span<std::byte> bytes) { get(bytes); }
+
  private:
-  template <size_t NumBytes>
-  std::array<std::byte, NumBytes> get() {
-    std::array<std::byte, NumBytes> buf;
-    is_.read(reinterpret_cast<char*>(buf.data()),
-             static_cast<std::streamsize>(NumBytes));
-    if (static_cast<size_t>(is_.gcount()) != NumBytes) {
+  // The only place std::byte meets std::istream's char-based API.
+  void get(std::span<std::byte> bytes) {
+    is_.read(reinterpret_cast<char*>(bytes.data()),
+             static_cast<std::streamsize>(bytes.size()));
+    if (static_cast<size_t>(is_.gcount()) != bytes.size()) {
       throw std::out_of_range("serialize::Reader: buffer underrun");
     }
-    return buf;
   }
 
   std::istream& is_;

@@ -7,6 +7,7 @@
 #include <bit>
 #include <concepts>
 #include <cstdint>
+#include <span>
 
 #include "algebra/poly.hpp"
 #include "algebra/vector.hpp"
@@ -59,40 +60,82 @@ struct Serde<T> {
 
   static T deserialize(Reader& r) {
     if constexpr (std::same_as<Raw, double>) {
-      return T(std::bit_cast<double>(r.read<uint64_t>()));
+      uint64_t bits;
+      r.read(bits);
+      return T(std::bit_cast<double>(bits));
     } else {
-      return T(r.read<Raw>());
+      Raw v;
+      r.read(v);
+      return T(v);
     }
   }
 };
 
+namespace detail {
+
+// A Vector/Poly of scalars whose in-memory buffer already is the wire
+// format (little-endian raw values), so it can be copied in one call
+// instead of one stream call per element.
+template <typename C>
+concept bulk_serializable =
+    std::endian::native == std::endian::little &&
+    scalar_serializable<typename C::value_type> &&
+    std::same_as<typename C::raw_value_type,
+                 typename C::value_type::raw_value_type>;
+
+template <typename C>
+void serialize_elements(Writer& w, const C& c) {
+  using T = typename C::value_type;
+  if constexpr (bulk_serializable<C>) {
+    w.write(std::as_bytes(std::span(c.data(), c.size())));
+  } else {
+    for (uint32_t i = 0; i < c.size(); ++i) {
+      Serde<T>::serialize(w, c[i]);
+    }
+  }
+}
+
+template <typename C>
+C deserialize_elements(Reader& r) {
+  using T = typename C::value_type;
+  if constexpr (bulk_serializable<C>) {
+    C c;
+    auto* d = c.data();
+    r.read(std::as_writable_bytes(std::span(d, c.size())));
+    // Same normalization T(raw) applies on the per-element path, so a
+    // corrupt stream can't leave out-of-range raw values behind.
+    for (uint32_t i = 0; i < c.size(); ++i) {
+      d[i] = T(d[i]).value();
+    }
+    return c;
+  } else {
+    return C([&] { return Serde<T>::deserialize(r); });
+  }
+}
+
+}  // namespace detail
+
 // Vector<T, Size> / Poly<T, Size>: Size copies of T back to back, each
-// recursing through Serde<T> -- one specialization handles every nesting
-// depth this library actually has (Vector<Torus,n>, Vector<TRLWE<Torus,N>,
-// 2l>, Vector<Vector<TLWE<Torus,n>,t>,m>, ...) uniformly.
+// recursing through Serde<T>; a buffer of scalars is copied in one call.
 template <typename T, uint32_t Size>
 struct Serde<Vector<T, Size>> {
   static void serialize(Writer& w, const Vector<T, Size>& v) {
-    for (uint32_t i = 0; i < Size; ++i) {
-      Serde<T>::serialize(w, v[i]);
-    }
+    detail::serialize_elements(w, v);
   }
 
   static Vector<T, Size> deserialize(Reader& r) {
-    return Vector<T, Size>([&] { return Serde<T>::deserialize(r); });
+    return detail::deserialize_elements<Vector<T, Size>>(r);
   }
 };
 
 template <typename T, uint32_t Size>
 struct Serde<Poly<T, Size>> {
   static void serialize(Writer& w, const Poly<T, Size>& v) {
-    for (uint32_t i = 0; i < Size; ++i) {
-      Serde<T>::serialize(w, v[i]);
-    }
+    detail::serialize_elements(w, v);
   }
 
   static Poly<T, Size> deserialize(Reader& r) {
-    return Poly<T, Size>([&] { return Serde<T>::deserialize(r); });
+    return detail::deserialize_elements<Poly<T, Size>>(r);
   }
 };
 
