@@ -75,7 +75,7 @@ class Writer {
 
   // Raw bytes as-is, no per-value encoding; the caller is responsible for
   // them already being in the wire format.
-  void write_bytes(std::span<const std::byte> bytes) { put(bytes); }
+  void write(std::span<const std::byte> bytes) { put(bytes); }
 
  private:
   // The only place std::byte meets std::ostream's char-based API.
@@ -88,23 +88,23 @@ class Writer {
 };
 
 // Reads back exactly what Writer wrote, in the same order -- a truncated
-// or corrupt stream throws rather than reading past the end. Unlike
-// Writer::write, can't overload on a return type, so the width is an
-// explicit template argument instead: read<uint32_t>()/read<uint64_t>().
+// or corrupt stream throws rather than reading past the end. Mirrors
+// Writer::write: each overload fills the destination it is given, so the
+// width comes from the argument's own type.
 class Reader {
  public:
   explicit Reader(std::istream& is) : is_(is) {}
 
   template <typename T>
     requires std::same_as<T, uint32_t> || std::same_as<T, uint64_t>
-  T read() {
+  void read(T& v) {
     std::array<std::byte, sizeof(T)> buf;
     get(buf);
-    return detail::decode<sizeof(T)>(buf);
+    v = detail::decode<sizeof(T)>(buf);
   }
 
-  // Fills bytes exactly, throwing on underrun like read().
-  void read_bytes(std::span<std::byte> bytes) { get(bytes); }
+  // Raw bytes as-is, no per-value decoding; fills bytes exactly.
+  void read(std::span<std::byte> bytes) { get(bytes); }
 
  private:
   // The only place std::byte meets std::istream's char-based API.

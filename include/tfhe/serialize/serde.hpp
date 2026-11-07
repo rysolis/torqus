@@ -60,9 +60,13 @@ struct Serde<T> {
 
   static T deserialize(Reader& r) {
     if constexpr (std::same_as<Raw, double>) {
-      return T(std::bit_cast<double>(r.read<uint64_t>()));
+      uint64_t bits;
+      r.read(bits);
+      return T(std::bit_cast<double>(bits));
     } else {
-      return T(r.read<Raw>());
+      Raw v;
+      r.read(v);
+      return T(v);
     }
   }
 };
@@ -83,7 +87,7 @@ template <typename C>
 void serialize_elements(Writer& w, const C& c) {
   using T = typename C::value_type;
   if constexpr (bulk_serializable<C>) {
-    w.write_bytes(std::as_bytes(std::span(c.data(), c.size())));
+    w.write(std::as_bytes(std::span(c.data(), c.size())));
   } else {
     for (uint32_t i = 0; i < c.size(); ++i) {
       Serde<T>::serialize(w, c[i]);
@@ -97,7 +101,7 @@ C deserialize_elements(Reader& r) {
   if constexpr (bulk_serializable<C>) {
     C c;
     auto* d = c.data();
-    r.read_bytes(std::as_writable_bytes(std::span(d, c.size())));
+    r.read(std::as_writable_bytes(std::span(d, c.size())));
     // Same normalization T(raw) applies on the per-element path, so a
     // corrupt stream can't leave out-of-range raw values behind.
     for (uint32_t i = 0; i < c.size(); ++i) {
