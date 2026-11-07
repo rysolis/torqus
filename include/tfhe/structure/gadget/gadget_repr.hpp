@@ -32,7 +32,7 @@ namespace {
 namespace classical {
 
 template <decompose_concept Params, torus_concept Torus>
-UInt decompose(const Torus& v, size_t i) {
+UInt gadget_digit(const Torus& v, size_t i) {
   using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -72,7 +72,7 @@ namespace balanced {
 // (Bg/2) * sum_i (B^i).
 // Therfore, we add an offset of (Bg/2) * sum_i (B^i) to v before decomposition.
 template <decompose_concept Params, torus_concept Torus>
-UInt decompose(const Torus& v, size_t i) {
+UInt gadget_digit(const Torus& v, size_t i) {
   using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::B - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -143,7 +143,7 @@ class GadgetRepr {
     for (size_t j = 0; j < N; ++j) {
       for (size_t i = 0; i < l; ++i) {
         repr_[i][j] =
-            balanced::decompose<Decomp>(static_cast<Torus>(poly[j]), i);
+            balanced::gadget_digit<Decomp>(static_cast<Torus>(poly[j]), i);
       }
     }
   }

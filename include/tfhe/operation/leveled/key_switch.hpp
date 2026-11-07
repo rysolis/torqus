@@ -22,14 +22,14 @@ namespace tfhe::leveled {
 
 namespace {
 
-// decompose/reconstruct below shift in TorusWord (Torus's own
+// gadget_digit/reconstruct below shift in TorusWord (Torus's own
 // raw_value_type), not UInt::raw_value_type: once Torus is wider than
 // UInt (see primitive/word.hpp), a shift amount can exceed UInt's own bit
 // width. Only the final digit (< Params::K, always small) narrows down
 // to UInt.
 
 template <kst_concept Params, torus_concept Torus>
-UInt decompose(const Torus& v, size_t i) {
+UInt gadget_digit(const Torus& v, size_t i) {
   using TorusWord = typename Torus::raw_value_type;
   static constexpr uint32_t Bbit = std::bit_width(Params::K - 1);
   size_t shift = Torus::qbit - (Bbit * (i + 1));
@@ -83,7 +83,7 @@ class KeySwitch {
     for (size_t i = 0; i < SrcLwe::n; ++i) {
       DstTorus ai = mod_switch<DstTorus>(src.a()[i]);
       for (size_t j = 0; j < t; ++j) {
-        UInt d = decompose<Kst>(ai, j);
+        UInt d = gadget_digit<Kst>(ai, j);
         dst -= d * ksk[i][j];
       }
     }
