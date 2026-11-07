@@ -142,15 +142,15 @@ Changing that one alias switches every call site.
 
 ## Secret keys
 
-`serialize::write_secret` / `read_secret<N>`
+`serialize::write_secret` / `read_secret<SecretLength>`
 ([`secret.hpp`](https://github.com/rysolis/torqus/blob/main/include/tfhe/serialize/secret.hpp))
-save and load a `SecretHolder<N>`:
+save and load a `SecretHolder<SecretLength>`:
 
 | Field | Size | Value |
 |---|---|---|
-| element `[i]` for `i` in `0..N-1` | u32 | `0` or `1` |
+| element `[i]` for `i` in `0..SecretLength-1` | u32 | `0` or `1` |
 
-The length is `serialize::secret_size<N>()` = `4N` bytes, whatever
+The length is `serialize::secret_size<SecretLength>()` = `4 * SecretLength` bytes, whatever
 `TORQUS_TORUS_BITS` is. There is no header and no encryption, as in
 other FHE libraries; protecting the file at rest is up to the
 application. `read_secret` rejects an element other than 0 or 1

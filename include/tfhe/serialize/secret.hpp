@@ -31,9 +31,9 @@ namespace serialize {
 // stream overloads with an encrypting std::streambuf. Going through
 // std::ostringstream leaves unzeroed copies of the plaintext in freed
 // heap memory.
-template <uint32_t N>
+template <uint32_t SecretLength>
 constexpr std::size_t secret_size() {
-  return std::size_t{N} * sizeof(uint32_t);
+  return std::size_t{SecretLength} * sizeof(uint32_t);
 }
 
 namespace detail {
@@ -48,34 +48,35 @@ inline uint32_t checked_secret_bit(uint32_t v) {
 
 }  // namespace detail
 
-template <uint32_t N>
-void write_secret(std::ostream& os, const SecretHolder<N>& holder) {
+template <uint32_t SecretLength>
+void write_secret(std::ostream& os, const SecretHolder<SecretLength>& holder) {
   Writer w(os);
-  for (uint32_t i = 0; i < N; ++i) {
+  for (uint32_t i = 0; i < SecretLength; ++i) {
     w.write(static_cast<uint32_t>(holder.get()[i]));
   }
 }
 
-template <uint32_t N>
-SecretHolder<N> read_secret(std::istream& is) {
-  using Raw = typename SecretHolder<N>::raw_value_type;
+template <uint32_t SecretLength>
+SecretHolder<SecretLength> read_secret(std::istream& is) {
+  using Raw = typename SecretHolder<SecretLength>::raw_value_type;
   Reader r(is);
-  return SecretHolder<N>(secret_fill, [&] {
+  return SecretHolder<SecretLength>(secret_fill, [&] {
     uint32_t v;
     r.read(v);
     return static_cast<Raw>(detail::checked_secret_bit(v));
   });
 }
 
-// out must be exactly secret_size<N>() bytes.
-template <uint32_t N>
-void write_secret(std::span<std::byte> out, const SecretHolder<N>& holder) {
-  if (out.size() != secret_size<N>()) {
+// out must be exactly secret_size<SecretLength>() bytes.
+template <uint32_t SecretLength>
+void write_secret(std::span<std::byte> out,
+                  const SecretHolder<SecretLength>& holder) {
+  if (out.size() != secret_size<SecretLength>()) {
     throw std::invalid_argument(
         "serialize::write_secret: buffer is " + std::to_string(out.size()) +
-        " bytes, expected " + std::to_string(secret_size<N>()));
+        " bytes, expected " + std::to_string(secret_size<SecretLength>()));
   }
-  for (uint32_t i = 0; i < N; ++i) {
+  for (uint32_t i = 0; i < SecretLength; ++i) {
     const auto v = static_cast<uint32_t>(holder.get()[i]);
     for (std::size_t k = 0; k < sizeof(uint32_t); ++k) {
       out[i * sizeof(uint32_t) + k] = static_cast<std::byte>(v >> (8 * k));
@@ -83,17 +84,17 @@ void write_secret(std::span<std::byte> out, const SecretHolder<N>& holder) {
   }
 }
 
-// Rejects input whose length isn't exactly secret_size<N>().
-template <uint32_t N>
-SecretHolder<N> read_secret(std::span<const std::byte> in) {
-  using Raw = typename SecretHolder<N>::raw_value_type;
-  if (in.size() != secret_size<N>()) {
+// Rejects input whose length isn't exactly secret_size<SecretLength>().
+template <uint32_t SecretLength>
+SecretHolder<SecretLength> read_secret(std::span<const std::byte> in) {
+  using Raw = typename SecretHolder<SecretLength>::raw_value_type;
+  if (in.size() != secret_size<SecretLength>()) {
     throw format_error("serialize::read_secret: expected " +
-                       std::to_string(secret_size<N>()) + " bytes, got " +
-                       std::to_string(in.size()));
+                       std::to_string(secret_size<SecretLength>()) +
+                       " bytes, got " + std::to_string(in.size()));
   }
   std::size_t pos = 0;
-  return SecretHolder<N>(secret_fill, [&] {
+  return SecretHolder<SecretLength>(secret_fill, [&] {
     uint32_t v = 0;
     for (std::size_t k = 0; k < sizeof(uint32_t); ++k) {
       v |= static_cast<uint32_t>(in[pos++]) << (8 * k);

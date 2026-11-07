@@ -27,22 +27,23 @@ using Engine = std::mt19937;
 using LweRuntime = Runtime<Lwe, Engine, Tracking>;
 using RlweRuntime = Runtime<ParamsPack<Rlwe, Decomp>, Engine, Tracking>;
 
-template <uint32_t N>
-bool same_secret(const SecretHolder<N>& a, const SecretHolder<N>& b) {
-  return std::equal(a.get(), a.get() + N, b.get());
+template <uint32_t SecretLength>
+bool same_secret(const SecretHolder<SecretLength>& a,
+                 const SecretHolder<SecretLength>& b) {
+  return std::equal(a.get(), a.get() + SecretLength, b.get());
 }
 
-template <uint32_t N>
-std::string saved(const SecretHolder<N>& holder) {
+template <uint32_t SecretLength>
+std::string saved(const SecretHolder<SecretLength>& holder) {
   std::ostringstream oss(std::ios::binary);
   serialize::write_secret(oss, holder);
   return std::move(oss).str();
 }
 
-template <uint32_t N>
-SecretHolder<N> loaded(const std::string& s) {
+template <uint32_t SecretLength>
+SecretHolder<SecretLength> loaded(const std::string& s) {
   std::istringstream iss(s, std::ios::binary);
-  return serialize::read_secret<N>(iss);
+  return serialize::read_secret<SecretLength>(iss);
 }
 
 }  // namespace
