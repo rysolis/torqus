@@ -81,9 +81,9 @@ TYPED_TEST(SerializeRoundtripTest, Tlwe) {
   Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
   TLWE<Torus, Lwe::n> ct = runtime.encrypt(Torus(1u, 2u));
 
-  auto bytes = serialize::to_bytes(ct);
-  auto back = serialize::from_bytes<decltype(ct)>(bytes);
-  EXPECT_EQ(bytes, serialize::to_bytes(back));
+  auto bytes = serialize::write(ct);
+  auto back = serialize::read<decltype(ct)>(bytes);
+  EXPECT_EQ(bytes, serialize::write(back));
 }
 
 TYPED_TEST(SerializeRoundtripTest, PublicKey) {
@@ -93,9 +93,9 @@ TYPED_TEST(SerializeRoundtripTest, PublicKey) {
   Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
   auto pk = runtime.template generate_public_key<Torus, 2 * Lwe::n>();
 
-  auto bytes = serialize::to_bytes(pk);
-  auto back = serialize::from_bytes<decltype(pk)>(bytes);
-  EXPECT_EQ(bytes, serialize::to_bytes(back));
+  auto bytes = serialize::write(pk);
+  auto back = serialize::read<decltype(pk)>(bytes);
+  EXPECT_EQ(bytes, serialize::write(back));
 }
 
 TYPED_TEST(SerializeRoundtripTest, BootstrapKeyAndKeySwitchKey) {
@@ -111,22 +111,22 @@ TYPED_TEST(SerializeRoundtripTest, BootstrapKeyAndKeySwitchKey) {
 
   auto bk = rlwe_runtime.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
       lwe_runtime.secret());
-  auto bk_bytes = serialize::to_bytes(bk);
-  auto bk_back = serialize::from_bytes<decltype(bk)>(bk_bytes);
-  EXPECT_EQ(bk_bytes, serialize::to_bytes(bk_back));
+  auto bk_bytes = serialize::write(bk);
+  auto bk_back = serialize::read<decltype(bk)>(bk_bytes);
+  EXPECT_EQ(bk_bytes, serialize::write(bk_back));
 
   auto ksk =
       lwe_runtime
           .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
               rlwe_runtime.secret());
-  auto ksk_bytes = serialize::to_bytes(ksk);
-  auto ksk_back = serialize::from_bytes<decltype(ksk)>(ksk_bytes);
-  EXPECT_EQ(ksk_bytes, serialize::to_bytes(ksk_back));
+  auto ksk_bytes = serialize::write(ksk);
+  auto ksk_back = serialize::read<decltype(ksk)>(ksk_bytes);
+  EXPECT_EQ(ksk_bytes, serialize::write(ksk_back));
 }
 
 // write(ostream&, ...)/read<T>(istream&) (#51) against std::ostringstream/
-// std::istringstream -- same bytes as to_bytes/from_bytes, just without
-// ever materializing the whole value as a byte buffer first.
+// std::istringstream -- same bytes as write/read on a vector<byte>, just
+// without ever materializing the whole value as a byte buffer first.
 TYPED_TEST(SerializeRoundtripTest, StreamRoundtrip) {
   using Lwe = typename TestFixture::Lwe;
   using Torus = typename Lwe::torus_type;
@@ -140,7 +140,7 @@ TYPED_TEST(SerializeRoundtripTest, StreamRoundtrip) {
   std::istringstream iss(std::move(oss).str(), std::ios::binary);
   auto back = serialize::read<decltype(ct)>(iss);
 
-  EXPECT_EQ(serialize::to_bytes(ct), serialize::to_bytes(back));
+  EXPECT_EQ(serialize::write(ct), serialize::write(back));
 }
 
 // Same, against a real file -- the actual motivating case: a huge key
@@ -165,5 +165,5 @@ TYPED_TEST(SerializeRoundtripTest, StreamRoundtripViaFile) {
   }
   std::filesystem::remove(path);
 
-  EXPECT_EQ(serialize::to_bytes(ct), serialize::to_bytes(back));
+  EXPECT_EQ(serialize::write(ct), serialize::write(back));
 }

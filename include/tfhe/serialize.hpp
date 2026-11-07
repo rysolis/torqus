@@ -7,9 +7,11 @@
 // of this library, where each party runs on its own host (see
 // tfhe/transport.hpp).
 //
-// Usage: serialize::to_bytes(value) -> std::vector<std::byte>,
-// serialize::from_bytes<T>(bytes) -> T. write/read against an existing
-// Writer/Reader pack several values into one buffer. See serialize/
+// Usage: serialize::write(value) -> std::vector<std::byte>,
+// serialize::read<T>(bytes) -> T. Both are also overloaded on a
+// Writer&/Reader& (to pack several values into one buffer) or a
+// std::ostream&/std::istream& (a real file, with no second
+// fully-materialized byte-buffer copy of a huge value). See serialize/
 // serde.hpp for the extension point (Serde<T>) new serializable types
 // hook into.
 

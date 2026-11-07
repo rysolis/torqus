@@ -8,7 +8,6 @@
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -98,14 +97,20 @@ struct Serde<Poly<T, Size>> {
   }
 };
 
-// Public entry points: write/read work against an existing Writer/Reader
-// (e.g. to pack several values into one buffer), or directly against a
-// std::ostream/std::istream -- a real file, so a huge key never needs a
-// second, fully-materialized copy of itself as a byte buffer just to
-// reach disk; to_bytes/from_bytes are the one-shot convenience wrapping a
-// single value in its own buffer, the shape a REST call would actually
-// send/receive -- one extra in-memory copy (string <-> vector<byte>),
-// fine for that size of value, not the huge-key path above.
+// Public entry points, all named write/read, overloaded on the
+// destination/source rather than given separate names per shape -- the
+// only thing that varies is where the bytes go:
+//   - Writer&/Reader&: an existing one, e.g. to pack several values into
+//     one buffer.
+//   - std::ostream&/std::istream&: a real file, so a huge key never
+//     needs a second, fully-materialized copy of itself as a byte
+//     buffer just to reach disk.
+//   - no destination at all: returns/takes a std::vector<std::byte>
+//     directly (via an in-memory std::ostringstream/istringstream under
+//     the hood) -- the one-shot convenience for the shape a REST call
+//     would actually send/receive. One extra in-memory copy (string <->
+//     vector<byte>), fine for that size of value, not the huge-key path
+//     above.
 template <typename T>
 void write(Writer& w, const T& value) {
   Serde<T>::write(w, value);
@@ -128,21 +133,29 @@ T read(std::istream& is) {
   return read<T>(r);
 }
 
+namespace detail {
+
+inline std::vector<std::byte> to_byte_vector(const std::string& s) {
+  const auto* begin = reinterpret_cast<const std::byte*>(s.data());
+  return std::vector<std::byte>(begin, begin + s.size());
+}
+
+inline std::string to_string(const std::vector<std::byte>& bytes) {
+  return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+}
+
+}  // namespace detail
+
 template <typename T>
-std::vector<std::byte> to_bytes(const T& value) {
+std::vector<std::byte> write(const T& value) {
   std::ostringstream oss(std::ios::binary);
   write(oss, value);
-  std::string s = std::move(oss).str();
-  std::vector<std::byte> bytes(s.size());
-  std::memcpy(bytes.data(), s.data(), s.size());
-  return bytes;
+  return detail::to_byte_vector(std::move(oss).str());
 }
 
 template <typename T>
-T from_bytes(const std::vector<std::byte>& bytes) {
-  std::istringstream iss(
-      std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
-      std::ios::binary);
+T read(const std::vector<std::byte>& bytes) {
+  std::istringstream iss(detail::to_string(bytes), std::ios::binary);
   return read<T>(iss);
 }
 
