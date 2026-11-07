@@ -39,34 +39,24 @@ struct DirectTransport {
   }
 };
 
-struct SerializedTransport {
+// Bytes in the given serialize format (serialize/format.hpp).
+template <typename Format>
+struct BytesTransport {
   template <typename T>
   using wire_type = std::vector<std::byte>;
 
   template <typename T>
   static std::vector<std::byte> send(const T& value) {
-    return serialize::to_bytes(value);
+    return Format::to_bytes(value);
   }
 
   template <typename T>
   static T receive(const std::vector<std::byte>& bytes) {
-    return serialize::from_bytes<T>(bytes);
+    return Format::template from_bytes<T>(bytes);
   }
 };
 
-struct EnvelopedTransport {
-  template <typename T>
-  using wire_type = std::vector<std::byte>;
-
-  template <typename T>
-  static std::vector<std::byte> send(const T& value) {
-    return serialize::to_bytes_enveloped(value);
-  }
-
-  template <typename T>
-  static T receive(const std::vector<std::byte>& bytes) {
-    return serialize::from_bytes_enveloped<T>(bytes);
-  }
-};
+using SerializedTransport = BytesTransport<serialize::Raw>;
+using EnvelopedTransport = BytesTransport<serialize::Enveloped>;
 
 #endif  // TFHE_TRANSPORT_HPP

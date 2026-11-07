@@ -14,8 +14,9 @@
 // copy of a huge value (see serialize/io.hpp). The raw format has no
 // header; from_bytes checks the length, and write_enveloped/
 // read_enveloped (serialize/envelope.hpp) additionally check the exact
-// type. See serialize/serde.hpp for the extension point (Serde<T>) new
-// serializable types hook into. The byte layout is specified in
+// type; serialize::Raw/Enveloped (serialize/format.hpp) pick between
+// them in one place. See serialize/serde.hpp for the extension point (Serde<T>)
+// new serializable types hook into. The byte layout is specified in
 // https://github.com/rysolis/torqus/wiki/Serialization-Format.
 
 #ifndef TFHE_SERIALIZE_HPP
@@ -26,6 +27,7 @@
 #include "tfhe/serialize/descriptor.hpp"
 #include "tfhe/serialize/envelope.hpp"
 #include "tfhe/serialize/error.hpp"
+#include "tfhe/serialize/format.hpp"
 #include "tfhe/serialize/io.hpp"
 #include "tfhe/serialize/key_switch_key.hpp"
 #include "tfhe/serialize/public_key.hpp"

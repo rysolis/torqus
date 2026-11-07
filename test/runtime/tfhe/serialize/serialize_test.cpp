@@ -396,3 +396,40 @@ TEST(SerializeEnvelopeTest, RejectsRawInput) {
   EXPECT_THROW((read_enveloped_from<TLWE<T, 8>>(std::move(oss).str())),
                serialize::format_error);
 }
+
+// Code written once against a Format round-trips under either one, and
+// each Format produces the same bytes as the functions it stands for.
+template <typename Format, typename T>
+T stream_roundtrip(const T& value) {
+  std::ostringstream oss(std::ios::binary);
+  Format::write(oss, value);
+  std::istringstream iss(std::move(oss).str(), std::ios::binary);
+  return Format::template read<T>(iss);
+}
+
+template <typename Format>
+class SerializeFormatTest : public ::testing::Test {};
+
+using Formats = ::testing::Types<serialize::Raw, serialize::Enveloped>;
+TYPED_TEST_SUITE(SerializeFormatTest, Formats);
+
+TYPED_TEST(SerializeFormatTest, Roundtrip) {
+  using T = ModTorus<32, uint32_t>;
+  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  TLWE<T, 8> ct;
+  ct.a() = Vector<T, 8>([&] { return T(static_cast<uint32_t>(rng())); });
+
+  auto via_stream = stream_roundtrip<TypeParam>(ct);
+  EXPECT_EQ(serialize::to_bytes(via_stream), serialize::to_bytes(ct));
+
+  auto via_bytes =
+      TypeParam::template from_bytes<decltype(ct)>(TypeParam::to_bytes(ct));
+  EXPECT_EQ(serialize::to_bytes(via_bytes), serialize::to_bytes(ct));
+}
+
+TEST(SerializeFormatTest, FormatsMatchTheirFunctions) {
+  TLWE<ModTorus<32, uint32_t>, 8> ct;
+  EXPECT_EQ(serialize::Raw::to_bytes(ct), serialize::to_bytes(ct));
+  EXPECT_EQ(serialize::Enveloped::to_bytes(ct),
+            serialize::to_bytes_enveloped(ct));
+}
