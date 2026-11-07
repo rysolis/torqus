@@ -6,8 +6,9 @@ accepts. There are two layers:
 - **Raw format** (`serialize::write` / `read` / `to_bytes` /
   `from_bytes`): the values only, with no header. Use it to exchange
   data with other libraries.
-- **Envelope** (`serialize::write_enveloped` / `read_enveloped`): the
-  raw format with a header in front. The header identifies the exact
+- **Envelope** (`serialize::write_enveloped` / `read_enveloped` /
+  `to_bytes_enveloped` / `from_bytes_enveloped`): the raw format with a
+  header in front. The header identifies the exact
   type. It is opt-in, for torqus-to-torqus storage and exchange.
 
 Secret keys (`SecretHolder`) have no encoding in either layer.
@@ -83,6 +84,8 @@ to be caught.
 | body | `serialized_size<T>()` | the raw format of the value, byte for byte |
 
 Removing the first `12 + 4 × desc_len` bytes leaves the raw format.
+`serialize::enveloped_size<T>()` returns the total length, and
+`from_bytes_enveloped<T>` rejects input of any other length.
 
 `read_enveloped<T>` checks magic, version, desc_len and the descriptor
 in that order against what `T` expects. It throws on the first mismatch,
@@ -121,11 +124,22 @@ Example: `TLWE<ModTorus<32, uint32_t>, 630>` has the descriptor
 <2524 bytes of raw TLWE>
 ```
 
+## Transport
+
+`tfhe/transport.hpp` picks the format for a protocol hand-off by
+template parameter:
+
+| Transport | Wire bytes |
+|---|---|
+| `DirectTransport` | none (the C++ value is passed as is) |
+| `SerializedTransport` | raw format |
+| `EnvelopedTransport` | envelope |
+
 ## Errors
 
 | Exception | When |
 |---|---|
-| `serialize::format_error` | `from_bytes` length mismatch; envelope with a bad magic, an unsupported version or a descriptor mismatch |
+| `serialize::format_error` | `from_bytes` or `from_bytes_enveloped` length mismatch; envelope with a bad magic, an unsupported version or a descriptor mismatch |
 | `std::out_of_range` | a stream that ends before the value is complete |
 
 ## Changing the format

@@ -12,9 +12,12 @@
 #include <span>
 #include <sstream>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "tfhe/serialize/buffer.hpp"
 #include "tfhe/serialize/error.hpp"
+#include "tfhe/serialize/io.hpp"
 #include "tfhe/serialize/serde.hpp"
 
 namespace serialize {
@@ -32,6 +35,13 @@ namespace serialize {
 inline constexpr std::array<std::byte, 4> kEnvelopeMagic{
     std::byte{'T'}, std::byte{'Q'}, std::byte{'S'}, std::byte{'E'}};
 inline constexpr uint32_t kEnvelopeVersion = 1;
+
+// Total length of T's envelope: header plus serialized_size<T>().
+template <typename T>
+constexpr std::size_t enveloped_size() {
+  return kEnvelopeMagic.size() + 4 + 4 + 4 * Serde<T>::descriptor().size() +
+         serialized_size<T>();
+}
 
 template <typename T>
 void write_enveloped(std::ostream& os, const T& value) {
@@ -99,6 +109,27 @@ T read_enveloped(std::istream& is) {
   }
 
   return Serde<T>::deserialize(r);
+}
+
+// Byte-vector counterparts of write_enveloped/read_enveloped, as to_bytes/
+// from_bytes are for write/read. from_bytes_enveloped also rejects input
+// whose length isn't exactly enveloped_size<T>().
+template <typename T>
+std::vector<std::byte> to_bytes_enveloped(const T& value) {
+  std::ostringstream oss(std::ios::binary);
+  write_enveloped(oss, value);
+  return detail::extract_bytes(std::move(oss));
+}
+
+template <typename T>
+T from_bytes_enveloped(const std::vector<std::byte>& bytes) {
+  if (bytes.size() != enveloped_size<T>()) {
+    throw format_error("serialize::from_bytes_enveloped: expected " +
+                       std::to_string(enveloped_size<T>()) + " bytes, got " +
+                       std::to_string(bytes.size()));
+  }
+  std::istringstream iss = detail::as_istringstream(bytes);
+  return read_enveloped<T>(iss);
 }
 
 }  // namespace serialize
