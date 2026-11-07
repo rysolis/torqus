@@ -11,14 +11,14 @@ namespace serialize {
 
 template <typename Torus, uint32_t N>
 struct Serde<TRLWE<Torus, N>> {
-  static void write(Writer& w, const TRLWE<Torus, N>& ct) {
-    Serde<Poly<Torus, N>>::write(w, ct.a());
-    Serde<Poly<Torus, N>>::write(w, ct.b());
+  static void serialize(Writer& w, const TRLWE<Torus, N>& ct) {
+    Serde<Poly<Torus, N>>::serialize(w, ct.a());
+    Serde<Poly<Torus, N>>::serialize(w, ct.b());
   }
 
-  static TRLWE<Torus, N> read(Reader& r) {
-    Poly<Torus, N> a = Serde<Poly<Torus, N>>::read(r);
-    Poly<Torus, N> b = Serde<Poly<Torus, N>>::read(r);
+  static TRLWE<Torus, N> deserialize(Reader& r) {
+    Poly<Torus, N> a = Serde<Poly<Torus, N>>::deserialize(r);
+    Poly<Torus, N> b = Serde<Poly<Torus, N>>::deserialize(r);
     return TRLWE<Torus, N>(a, b);
   }
 };

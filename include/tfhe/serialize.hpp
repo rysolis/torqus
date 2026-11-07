@@ -8,16 +8,18 @@
 // tfhe/transport.hpp).
 //
 // Usage: serialize::to_bytes(value) -> std::vector<std::byte>,
-// serialize::from_bytes<T>(bytes) -> T. write/read against an existing
-// Writer/Reader pack several values into one buffer. See serialize/
-// serde.hpp for the extension point (Serde<T>) new serializable types
-// hook into.
+// serialize::from_bytes<T>(bytes) -> T. write(Writer&/std::ostream&, ...)/
+// read<T>(Reader&/std::istream&) write/read an existing destination
+// instead -- a real file, with no second fully-materialized byte-buffer
+// copy of a huge value (see serialize/io.hpp). See serialize/serde.hpp
+// for the extension point (Serde<T>) new serializable types hook into.
 
 #ifndef TFHE_SERIALIZE_HPP
 #define TFHE_SERIALIZE_HPP
 
 #include "tfhe/serialize/bootstrap_key.hpp"
 #include "tfhe/serialize/buffer.hpp"
+#include "tfhe/serialize/io.hpp"
 #include "tfhe/serialize/key_switch_key.hpp"
 #include "tfhe/serialize/public_key.hpp"
 #include "tfhe/serialize/serde.hpp"
