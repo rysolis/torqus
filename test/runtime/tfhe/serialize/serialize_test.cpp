@@ -167,3 +167,61 @@ TYPED_TEST(SerializeRoundtripTest, StreamRoundtripViaFile) {
 
   EXPECT_EQ(serialize::to_bytes(ct), serialize::to_bytes(back));
 }
+
+// The one-call buffer copy for Vector/Poly of scalars must produce exactly
+// the per-element little-endian encoding Writer::write does.
+template <typename Torus, typename Container>
+std::vector<std::byte> per_element_bytes(const Container& c) {
+  std::ostringstream oss(std::ios::binary);
+  serialize::Writer w(oss);
+  for (size_t i = 0; i < c.size(); ++i) {
+    serialize::Serde<Torus>::serialize(w, c[i]);
+  }
+  std::string s = std::move(oss).str();
+  const auto* begin = reinterpret_cast<const std::byte*>(s.data());
+  return std::vector<std::byte>(begin, begin + s.size());
+}
+
+TEST(SerializeBulkTest, PolyMatchesPerElementEncoding) {
+  using T = ModTorus<32, uint32_t>;
+  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  Poly<T, 64> p([&] { return T(static_cast<uint32_t>(rng())); });
+
+  auto bytes = serialize::to_bytes(p);
+  EXPECT_EQ(bytes, per_element_bytes<T>(p));
+  EXPECT_EQ(serialize::to_bytes(serialize::from_bytes<decltype(p)>(bytes)),
+            bytes);
+}
+
+TEST(SerializeBulkTest, VectorMatchesPerElementEncoding) {
+  using T = ModTorus<64, uint64_t>;
+  std::mt19937_64 rng(0);  // NOLINT(cert-msc51-cpp)
+  Vector<T, 37> v([&] { return T(static_cast<uint64_t>(rng())); });
+
+  auto bytes = serialize::to_bytes(v);
+  EXPECT_EQ(bytes, per_element_bytes<T>(v));
+  EXPECT_EQ(serialize::to_bytes(serialize::from_bytes<decltype(v)>(bytes)),
+            bytes);
+}
+
+// Raw values outside ModTorus<16>'s range are masked on read, the same as
+// constructing ModTorus<16>(raw) does.
+TEST(SerializeBulkTest, ReadNormalizesOutOfRangeRawValues) {
+  using T = ModTorus<16, uint32_t>;
+  Vector<ModTorus<32, uint32_t>, 4> wide(
+      [](size_t i) { return ModTorus<32, uint32_t>(0xabcd0000u + i); });
+
+  const auto back =
+      serialize::from_bytes<Vector<T, 4>>(serialize::to_bytes(wide));
+  for (size_t i = 0; i < 4; ++i) {
+    EXPECT_EQ(back[i].value(), T(0xabcd0000u + i).value());
+  }
+}
+
+TEST(SerializeBulkTest, TruncatedInputThrows) {
+  using T = ModTorus<32, uint32_t>;
+  Poly<T, 8> p;
+  auto bytes = serialize::to_bytes(p);
+  bytes.pop_back();
+  EXPECT_THROW(serialize::from_bytes<decltype(p)>(bytes), std::out_of_range);
+}
