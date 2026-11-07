@@ -124,6 +124,21 @@ Example: `TLWE<ModTorus<32, uint32_t>, 630>` has the descriptor
 <2524 bytes of raw TLWE>
 ```
 
+## Choosing the format in one place
+
+`serialize::Raw` and `serialize::Enveloped`
+([`format.hpp`](https://github.com/rysolis/torqus/blob/main/include/tfhe/serialize/format.hpp))
+are the two layers as types. Each has `write`, `read<T>`, `to_bytes`
+and `from_bytes<T>`. Name the format once and call it everywhere:
+
+```cpp
+using Format = serialize::Enveloped;  // or serialize::Raw
+Format::write(file, bootstrap_key);
+auto bk = Format::read<decltype(bootstrap_key)>(file);
+```
+
+Changing that one alias switches every call site.
+
 ## Transport
 
 `tfhe/transport.hpp` picks the format for a protocol hand-off by
@@ -134,6 +149,9 @@ template parameter:
 | `DirectTransport` | none (the C++ value is passed as is) |
 | `SerializedTransport` | raw format |
 | `EnvelopedTransport` | envelope |
+
+`SerializedTransport` and `EnvelopedTransport` are
+`BytesTransport<serialize::Raw>` and `BytesTransport<serialize::Enveloped>`.
 
 ## Errors
 
