@@ -58,7 +58,7 @@ uint_for_size_t<NumBytes> decode(const std::array<std::byte, NumBytes>& buf) {
 }  // namespace detail
 
 // Writes exactly the bytes detail::encode produces to any std::ostream (a
-// real file, an in-memory std::ostringstream, ...). Overloaded on v's own
+// real file, an in-memory std::ostringstream, ...). Templated on v's own
 // type (uint32_t vs uint64_t) rather than two differently-named methods,
 // so a caller never has to spell out which width -- the argument already
 // says so.
@@ -66,8 +66,11 @@ class Writer {
  public:
   explicit Writer(std::ostream& os) : os_(os) {}
 
-  void write(uint32_t v) { put(detail::encode<4>(v)); }
-  void write(uint64_t v) { put(detail::encode<8>(v)); }
+  template <typename T>
+    requires std::same_as<T, uint32_t> || std::same_as<T, uint64_t>
+  void write(T v) {
+    put(detail::encode<sizeof(T)>(v));
+  }
 
  private:
   template <size_t NumBytes>
