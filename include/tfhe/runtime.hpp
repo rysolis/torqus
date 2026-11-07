@@ -5,6 +5,7 @@
 #define TFHE_RUNTIME_HPP
 
 #include <memory>
+#include <utility>
 
 #include "primitive/concept/torus.hpp"
 #include "primitive/uint.hpp"
@@ -51,6 +52,13 @@ class Runtime {
 
   explicit Runtime(Engine& eng) {
     holder_.emplace(eng);
+    cryptor_.emplace(holder_->shared_get(), eng);
+  }
+
+  // From a saved secret (see serialize/secret.hpp); eng supplies only the
+  // encryption randomness.
+  Runtime(SecretHolder<secret_length> holder, Engine& eng)
+      : holder_(std::move(holder)) {
     cryptor_.emplace(holder_->shared_get(), eng);
   }
 

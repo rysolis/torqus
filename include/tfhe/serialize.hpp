@@ -31,6 +31,7 @@
 #include "tfhe/serialize/io.hpp"
 #include "tfhe/serialize/key_switch_key.hpp"
 #include "tfhe/serialize/public_key.hpp"
+#include "tfhe/serialize/secret.hpp"
 #include "tfhe/serialize/serde.hpp"
 #include "tfhe/serialize/tlwe.hpp"
 #include "tfhe/serialize/trgsw.hpp"
