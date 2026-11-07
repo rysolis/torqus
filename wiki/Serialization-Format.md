@@ -116,7 +116,7 @@ A ciphertext or key descriptor names only its own dimensions and its
 are fully determined by those, so they aren't listed separately.
 
 Example: `TLWE<ModTorus<32, uint32_t>, 630>` has the descriptor
-`32, 630, 1, 32, 4`, so its envelope starts with these bytes:
+`32, 630, 1, 32, 4`, so its envelope starts with these bytes (hex, little-endian):
 
 ```
 54 51 53 45  01 00 00 00  05 00 00 00
