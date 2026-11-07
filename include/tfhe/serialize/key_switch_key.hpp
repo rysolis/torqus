@@ -12,6 +12,14 @@ namespace serialize {
 
 template <typename Torus, uint32_t n, uint32_t t, uint32_t m>
 struct Serde<KeySwitchKey<Torus, n, t, m>> {
+  static constexpr std::size_t byte_size() {
+    return std::size_t{m} * t * Serde<TLWE<Torus, n>>::byte_size();
+  }
+  static constexpr auto descriptor() {
+    return detail::concat(detail::head(TypeTag::kKeySwitchKey, n, t, m),
+                          Serde<Torus>::descriptor());
+  }
+
   static void serialize(Writer& w, const KeySwitchKey<Torus, n, t, m>& key) {
     for (uint32_t i = 0; i < m; ++i) {
       for (uint32_t j = 0; j < t; ++j) {
