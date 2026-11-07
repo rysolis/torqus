@@ -7,19 +7,19 @@
 // of this library, where each party runs on its own host (see
 // tfhe/transport.hpp).
 //
-// Usage: serialize::write(value) -> std::vector<std::byte>,
-// serialize::read<T>(bytes) -> T. Both are also overloaded on a
-// Writer&/Reader& (to pack several values into one buffer) or a
-// std::ostream&/std::istream& (a real file, with no second
-// fully-materialized byte-buffer copy of a huge value). See serialize/
-// serde.hpp for the extension point (Serde<T>) new serializable types
-// hook into.
+// Usage: serialize::to_bytes(value) -> std::vector<std::byte>,
+// serialize::from_bytes<T>(bytes) -> T. write(Writer&/std::ostream&, ...)/
+// read<T>(Reader&/std::istream&) write/read an existing destination
+// instead -- a real file, with no second fully-materialized byte-buffer
+// copy of a huge value (see serialize/io.hpp). See serialize/serde.hpp
+// for the extension point (Serde<T>) new serializable types hook into.
 
 #ifndef TFHE_SERIALIZE_HPP
 #define TFHE_SERIALIZE_HPP
 
 #include "tfhe/serialize/bootstrap_key.hpp"
 #include "tfhe/serialize/buffer.hpp"
+#include "tfhe/serialize/io.hpp"
 #include "tfhe/serialize/key_switch_key.hpp"
 #include "tfhe/serialize/public_key.hpp"
 #include "tfhe/serialize/serde.hpp"

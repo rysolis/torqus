@@ -6,11 +6,7 @@
 
 #include <bit>
 #include <concepts>
-#include <cstddef>
 #include <cstdint>
-#include <sstream>
-#include <string>
-#include <vector>
 
 #include "algebra/poly.hpp"
 #include "algebra/vector.hpp"
@@ -20,10 +16,13 @@
 namespace serialize {
 
 // Serde<T> is the extension point every serializable type specializes:
-// Serde<T>::write(Writer&, const T&) and Serde<T>::read(Reader&) -> T. The
-// primary template is deliberately left undefined -- trying to serialize a
-// type nobody has written a specialization for is a compile error rather
-// than a silent no-op.
+// Serde<T>::serialize(Writer&, const T&) and Serde<T>::deserialize(Reader&)
+// -> T -- named for what Serde itself stands for (SERialize/DEserialize),
+// distinct from the write/read entry points below (which are about the
+// destination/source -- a Writer/Reader, a stream, a byte vector -- not
+// about T itself). The primary template is deliberately left undefined --
+// trying to serialize a type nobody has written a specialization for is a
+// compile error rather than a silent no-op.
 template <typename T>
 struct Serde;
 
@@ -49,7 +48,7 @@ template <scalar_serializable T>
 struct Serde<T> {
   using Raw = typename T::raw_value_type;
 
-  static void write(Writer& w, const T& value) {
+  static void serialize(Writer& w, const T& value) {
     if constexpr (std::same_as<Raw, double>) {
       w.write(std::bit_cast<uint64_t>(value.value()));
     } else {
@@ -58,7 +57,7 @@ struct Serde<T> {
     }
   }
 
-  static T read(Reader& r) {
+  static T deserialize(Reader& r) {
     if constexpr (std::same_as<Raw, double>) {
       return T(std::bit_cast<double>(r.read<uint64_t>()));
     } else {
@@ -73,91 +72,29 @@ struct Serde<T> {
 // 2l>, Vector<Vector<TLWE<Torus,n>,t>,m>, ...) uniformly.
 template <typename T, uint32_t Size>
 struct Serde<Vector<T, Size>> {
-  static void write(Writer& w, const Vector<T, Size>& v) {
+  static void serialize(Writer& w, const Vector<T, Size>& v) {
     for (uint32_t i = 0; i < Size; ++i) {
-      Serde<T>::write(w, v[i]);
+      Serde<T>::serialize(w, v[i]);
     }
   }
 
-  static Vector<T, Size> read(Reader& r) {
-    return Vector<T, Size>([&] { return Serde<T>::read(r); });
+  static Vector<T, Size> deserialize(Reader& r) {
+    return Vector<T, Size>([&] { return Serde<T>::deserialize(r); });
   }
 };
 
 template <typename T, uint32_t Size>
 struct Serde<Poly<T, Size>> {
-  static void write(Writer& w, const Poly<T, Size>& v) {
+  static void serialize(Writer& w, const Poly<T, Size>& v) {
     for (uint32_t i = 0; i < Size; ++i) {
-      Serde<T>::write(w, v[i]);
+      Serde<T>::serialize(w, v[i]);
     }
   }
 
-  static Poly<T, Size> read(Reader& r) {
-    return Poly<T, Size>([&] { return Serde<T>::read(r); });
+  static Poly<T, Size> deserialize(Reader& r) {
+    return Poly<T, Size>([&] { return Serde<T>::deserialize(r); });
   }
 };
-
-// Public entry points, all named write/read, overloaded on the
-// destination/source rather than given separate names per shape -- the
-// only thing that varies is where the bytes go:
-//   - Writer&/Reader&: an existing one, e.g. to pack several values into
-//     one buffer.
-//   - std::ostream&/std::istream&: a real file, so a huge key never
-//     needs a second, fully-materialized copy of itself as a byte
-//     buffer just to reach disk.
-//   - no destination at all: returns/takes a std::vector<std::byte>
-//     directly (via an in-memory std::ostringstream/istringstream under
-//     the hood) -- the one-shot convenience for the shape a REST call
-//     would actually send/receive. One extra in-memory copy (string <->
-//     vector<byte>), fine for that size of value, not the huge-key path
-//     above.
-template <typename T>
-void write(Writer& w, const T& value) {
-  Serde<T>::write(w, value);
-}
-
-template <typename T>
-T read(Reader& r) {
-  return Serde<T>::read(r);
-}
-
-template <typename T>
-void write(std::ostream& os, const T& value) {
-  Writer w(os);
-  write(w, value);
-}
-
-template <typename T>
-T read(std::istream& is) {
-  Reader r(is);
-  return read<T>(r);
-}
-
-namespace detail {
-
-inline std::vector<std::byte> to_byte_vector(const std::string& s) {
-  const auto* begin = reinterpret_cast<const std::byte*>(s.data());
-  return std::vector<std::byte>(begin, begin + s.size());
-}
-
-inline std::string to_string(const std::vector<std::byte>& bytes) {
-  return std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-}
-
-}  // namespace detail
-
-template <typename T>
-std::vector<std::byte> write(const T& value) {
-  std::ostringstream oss(std::ios::binary);
-  write(oss, value);
-  return detail::to_byte_vector(std::move(oss).str());
-}
-
-template <typename T>
-T read(const std::vector<std::byte>& bytes) {
-  std::istringstream iss(detail::to_string(bytes), std::ios::binary);
-  return read<T>(iss);
-}
 
 }  // namespace serialize
 

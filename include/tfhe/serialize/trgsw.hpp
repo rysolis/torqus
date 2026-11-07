@@ -12,16 +12,16 @@ namespace serialize {
 
 template <typename Torus, uint32_t N, uint32_t l>
 struct Serde<TRGSW<Torus, N, l>> {
-  static void write(Writer& w, const TRGSW<Torus, N, l>& key) {
+  static void serialize(Writer& w, const TRGSW<Torus, N, l>& key) {
     for (uint32_t i = 0; i < key.level(); ++i) {
-      Serde<TRLWE<Torus, N>>::write(w, key[i]);
+      Serde<TRLWE<Torus, N>>::serialize(w, key[i]);
     }
   }
 
-  static TRGSW<Torus, N, l> read(Reader& r) {
+  static TRGSW<Torus, N, l> deserialize(Reader& r) {
     TRGSW<Torus, N, l> key;
     for (uint32_t i = 0; i < key.level(); ++i) {
-      key[i] = Serde<TRLWE<Torus, N>>::read(r);
+      key[i] = Serde<TRLWE<Torus, N>>::deserialize(r);
     }
     return key;
   }

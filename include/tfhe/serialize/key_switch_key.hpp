@@ -12,19 +12,19 @@ namespace serialize {
 
 template <typename Torus, uint32_t n, uint32_t t, uint32_t m>
 struct Serde<KeySwitchKey<Torus, n, t, m>> {
-  static void write(Writer& w, const KeySwitchKey<Torus, n, t, m>& key) {
+  static void serialize(Writer& w, const KeySwitchKey<Torus, n, t, m>& key) {
     for (uint32_t i = 0; i < m; ++i) {
       for (uint32_t j = 0; j < t; ++j) {
-        Serde<TLWE<Torus, n>>::write(w, key[i][j]);
+        Serde<TLWE<Torus, n>>::serialize(w, key[i][j]);
       }
     }
   }
 
-  static KeySwitchKey<Torus, n, t, m> read(Reader& r) {
+  static KeySwitchKey<Torus, n, t, m> deserialize(Reader& r) {
     KeySwitchKey<Torus, n, t, m> key;
     for (uint32_t i = 0; i < m; ++i) {
       for (uint32_t j = 0; j < t; ++j) {
-        key[i][j] = Serde<TLWE<Torus, n>>::read(r);
+        key[i][j] = Serde<TLWE<Torus, n>>::deserialize(r);
       }
     }
     return key;
