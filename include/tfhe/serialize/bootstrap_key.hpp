@@ -16,7 +16,7 @@ struct Serde<BootstrapKey<Torus, N, l, n>> {
     return n * Serde<TRGSW<Torus, N, l>>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kBootstrapKey, N, l, n),
+    return detail::concat(detail::head(TypeTag::BootstrapKey, N, l, n),
                           Serde<Torus>::descriptor());
   }
 

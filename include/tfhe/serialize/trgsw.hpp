@@ -16,7 +16,7 @@ struct Serde<TRGSW<Torus, N, l>> {
     return 2 * l * Serde<TRLWE<Torus, N>>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kTrgsw, N, l),
+    return detail::concat(detail::head(TypeTag::Trgsw, N, l),
                           Serde<Torus>::descriptor());
   }
 

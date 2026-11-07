@@ -20,17 +20,17 @@ namespace serialize {
 // Tag values are part of the envelope format: never renumber or reuse one.
 // uint32_t because descriptors are written as u32 values.
 enum class TypeTag : uint32_t {  // NOLINT(performance-enum-size)
-  kModTorus = 1,
-  kDoubleTorus = 2,
-  kModInt = 3,
-  kVector = 16,
-  kPoly = 17,
-  kTlwe = 32,
-  kTrlwe = 33,
-  kTrgsw = 34,
-  kBootstrapKey = 48,
-  kKeySwitchKey = 49,
-  kPublicKey = 50,
+  ModTorus = 1,
+  DoubleTorus = 2,
+  ModInt = 3,
+  Vector = 16,
+  Poly = 17,
+  Tlwe = 32,
+  Trlwe = 33,
+  Trgsw = 34,
+  BootstrapKey = 48,
+  KeySwitchKey = 49,
+  PublicKey = 50,
 };
 
 namespace detail {
@@ -64,18 +64,18 @@ struct scalar_descriptor;
 
 template <uint32_t QBit, typename Word>
 struct scalar_descriptor<ModTorus<QBit, Word>> {
-  static constexpr auto value = head(TypeTag::kModTorus, QBit, sizeof(Word));
+  static constexpr auto value = head(TypeTag::ModTorus, QBit, sizeof(Word));
 };
 
 template <>
 struct scalar_descriptor<dbl::Torus> {
-  static constexpr auto value = head(TypeTag::kDoubleTorus);
+  static constexpr auto value = head(TypeTag::DoubleTorus);
 };
 
 template <uint64_t P, typename Word>
 struct scalar_descriptor<ModInt<P, Word>> {
   static constexpr auto value =
-      head(TypeTag::kModInt, P & 0xffffffffu, P >> 32, sizeof(Word));
+      head(TypeTag::ModInt, P & 0xffffffffu, P >> 32, sizeof(Word));
 };
 
 }  // namespace detail

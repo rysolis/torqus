@@ -133,7 +133,7 @@ struct Serde<Vector<T, Size>> {
     return Size * Serde<T>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kVector, Size),
+    return detail::concat(detail::head(TypeTag::Vector, Size),
                           Serde<T>::descriptor());
   }
 
@@ -152,7 +152,7 @@ struct Serde<Poly<T, Size>> {
     return Size * Serde<T>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kPoly, Size),
+    return detail::concat(detail::head(TypeTag::Poly, Size),
                           Serde<T>::descriptor());
   }
 

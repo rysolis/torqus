@@ -16,7 +16,7 @@ struct Serde<KeySwitchKey<Torus, n, t, m>> {
     return std::size_t{m} * t * Serde<TLWE<Torus, n>>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kKeySwitchKey, n, t, m),
+    return detail::concat(detail::head(TypeTag::KeySwitchKey, n, t, m),
                           Serde<Torus>::descriptor());
   }
 

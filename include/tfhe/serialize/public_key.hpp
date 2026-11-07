@@ -18,7 +18,7 @@ struct Serde<PublicKey<Ciphertext, PkSamples>> {
     return PkSamples * Serde<Ciphertext>::byte_size();
   }
   static constexpr auto descriptor() {
-    return detail::concat(detail::head(TypeTag::kPublicKey, PkSamples),
+    return detail::concat(detail::head(TypeTag::PublicKey, PkSamples),
                           Serde<Ciphertext>::descriptor());
   }
 
