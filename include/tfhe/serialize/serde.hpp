@@ -6,6 +6,7 @@
 
 #include <bit>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 
@@ -13,6 +14,7 @@
 #include "algebra/vector.hpp"
 
 #include "tfhe/serialize/buffer.hpp"
+#include "tfhe/serialize/descriptor.hpp"
 
 namespace serialize {
 
@@ -24,6 +26,9 @@ namespace serialize {
 // about T itself). The primary template is deliberately left undefined --
 // trying to serialize a type nobody has written a specialization for is a
 // compile error rather than a silent no-op.
+//
+// Each specialization also provides byte_size() (the fixed length of its
+// raw encoding) and descriptor() (its type descriptor, see descriptor.hpp).
 template <typename T>
 struct Serde;
 
@@ -48,6 +53,11 @@ concept scalar_serializable =
 template <scalar_serializable T>
 struct Serde<T> {
   using Raw = typename T::raw_value_type;
+
+  static constexpr std::size_t byte_size() { return sizeof(Raw); }
+  static constexpr auto descriptor() {
+    return detail::scalar_descriptor<T>::value;
+  }
 
   static void serialize(Writer& w, const T& value) {
     if constexpr (std::same_as<Raw, double>) {
@@ -119,6 +129,14 @@ C deserialize_elements(Reader& r) {
 // recursing through Serde<T>; a buffer of scalars is copied in one call.
 template <typename T, uint32_t Size>
 struct Serde<Vector<T, Size>> {
+  static constexpr std::size_t byte_size() {
+    return Size * Serde<T>::byte_size();
+  }
+  static constexpr auto descriptor() {
+    return detail::concat(detail::head(TypeTag::Vector, Size),
+                          Serde<T>::descriptor());
+  }
+
   static void serialize(Writer& w, const Vector<T, Size>& v) {
     detail::serialize_elements(w, v);
   }
@@ -130,6 +148,14 @@ struct Serde<Vector<T, Size>> {
 
 template <typename T, uint32_t Size>
 struct Serde<Poly<T, Size>> {
+  static constexpr std::size_t byte_size() {
+    return Size * Serde<T>::byte_size();
+  }
+  static constexpr auto descriptor() {
+    return detail::concat(detail::head(TypeTag::Poly, Size),
+                          Serde<T>::descriptor());
+  }
+
   static void serialize(Writer& w, const Poly<T, Size>& v) {
     detail::serialize_elements(w, v);
   }

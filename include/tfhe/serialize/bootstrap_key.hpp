@@ -12,6 +12,14 @@ namespace serialize {
 
 template <typename Torus, uint32_t N, uint32_t l, uint32_t n>
 struct Serde<BootstrapKey<Torus, N, l, n>> {
+  static constexpr std::size_t byte_size() {
+    return n * Serde<TRGSW<Torus, N, l>>::byte_size();
+  }
+  static constexpr auto descriptor() {
+    return detail::concat(detail::head(TypeTag::BootstrapKey, N, l, n),
+                          Serde<Torus>::descriptor());
+  }
+
   static void serialize(Writer& w, const BootstrapKey<Torus, N, l, n>& key) {
     for (uint32_t i = 0; i < n; ++i) {
       Serde<TRGSW<Torus, N, l>>::serialize(w, key[i]);

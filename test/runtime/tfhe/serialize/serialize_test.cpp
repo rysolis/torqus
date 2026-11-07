@@ -1,11 +1,13 @@
 #include "tfhe/serialize.hpp"
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <random>
 #include <sstream>
 
+#include "primitive/modint.hpp"
 #include "primitive/torus.hpp"
 
 #include "tfhe/feature.hpp"
@@ -218,10 +220,216 @@ TEST(SerializeBulkTest, ReadNormalizesOutOfRangeRawValues) {
   }
 }
 
-TEST(SerializeBulkTest, TruncatedInputThrows) {
+TEST(SerializeBulkTest, TruncatedStreamThrows) {
   using T = ModTorus<32, uint32_t>;
   Poly<T, 8> p;
-  auto bytes = serialize::to_bytes(p);
-  bytes.pop_back();
-  EXPECT_THROW(serialize::from_bytes<decltype(p)>(bytes), std::out_of_range);
+  std::ostringstream oss(std::ios::binary);
+  serialize::write(oss, p);
+  std::string s = std::move(oss).str();
+  s.pop_back();
+  std::istringstream iss(s, std::ios::binary);
+  EXPECT_THROW(serialize::read<decltype(p)>(iss), std::out_of_range);
+}
+
+// serialized_size<T>() is the exact length of T's raw encoding.
+TYPED_TEST(SerializeRoundtripTest, SerializedSizeMatchesEncoding) {
+  using Lwe = typename TestFixture::Lwe;
+  using Rlwe = typename TestFixture::Rlwe;
+  using Decomp = typename TestFixture::Decomp;
+  using Kst = typename TestFixture::Kst;
+  using Torus = typename Lwe::torus_type;
+  using RlweRuntime = Runtime<ParamsPack<Rlwe, Decomp>,
+                              RandomGenerator<std::mt19937>, Tracking>;
+
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> lwe_runtime(this->eng_);
+  RlweRuntime rlwe_runtime(this->eng_);
+
+  auto ct = lwe_runtime.encrypt(Torus(1u, 2u));
+  EXPECT_EQ(serialize::to_bytes(ct).size(),
+            serialize::serialized_size<decltype(ct)>());
+
+  auto pk = lwe_runtime.template generate_public_key<Torus, 2 * Lwe::n>();
+  EXPECT_EQ(serialize::to_bytes(pk).size(),
+            serialize::serialized_size<decltype(pk)>());
+
+  auto bk = rlwe_runtime.template generate_bootstrap_key<Lwe, Rlwe, Decomp>(
+      lwe_runtime.secret());
+  EXPECT_EQ(serialize::to_bytes(bk).size(),
+            serialize::serialized_size<decltype(bk)>());
+
+  auto ksk =
+      lwe_runtime
+          .template generate_key_switch_key<ExtractedLwe<Rlwe>, Lwe, Kst>(
+              rlwe_runtime.secret());
+  EXPECT_EQ(serialize::to_bytes(ksk).size(),
+            serialize::serialized_size<decltype(ksk)>());
+}
+
+TEST(SerializeLengthTest, FromBytesRejectsWrongLength) {
+  using T = ModTorus<32, uint32_t>;
+  TLWE<T, 8> ct;
+  auto bytes = serialize::to_bytes(ct);
+
+  EXPECT_THROW((serialize::from_bytes<TLWE<T, 9>>(bytes)),
+               serialize::format_error);
+  EXPECT_THROW((serialize::from_bytes<TLWE<T, 7>>(bytes)),
+               serialize::format_error);
+
+  auto shorter = bytes;
+  shorter.pop_back();
+  EXPECT_THROW((serialize::from_bytes<TLWE<T, 8>>(shorter)),
+               serialize::format_error);
+
+  auto longer = bytes;
+  longer.push_back(std::byte{0});
+  EXPECT_THROW((serialize::from_bytes<TLWE<T, 8>>(longer)),
+               serialize::format_error);
+}
+
+// Descriptors are part of the envelope format; pin a few so a renumbered
+// tag or reordered dimension fails to compile.
+static_assert(serialize::Serde<ModTorus<16, uint32_t>>::descriptor() ==
+              std::array<uint32_t, 3>{1, 16, 4});
+static_assert(serialize::Serde<dbl::Torus>::descriptor() ==
+              std::array<uint32_t, 1>{2});
+static_assert(
+    serialize::Serde<ModInt<(1ull << 40) + 7, uint64_t>>::descriptor() ==
+    std::array<uint32_t, 4>{3, 7, 1u << 8, 8});
+static_assert(
+    serialize::Serde<TLWE<ModTorus<32, uint32_t>, 630>>::descriptor() ==
+    std::array<uint32_t, 5>{32, 630, 1, 32, 4});
+static_assert(serialize::Serde<BootstrapKey<ModTorus<32, uint32_t>, 1024, 3,
+                                            630>>::descriptor() ==
+              std::array<uint32_t, 7>{48, 1024, 3, 630, 1, 32, 4});
+static_assert(serialize::Serde<KeySwitchKey<ModTorus<32, uint32_t>, 630, 8,
+                                            1024>>::descriptor() ==
+              std::array<uint32_t, 7>{49, 630, 8, 1024, 1, 32, 4});
+static_assert(serialize::Serde<PublicKey<TLWE<ModTorus<32, uint32_t>, 4>,
+                                         8>>::descriptor() ==
+              std::array<uint32_t, 7>{50, 8, 32, 4, 1, 32, 4});
+
+namespace {
+
+template <typename T>
+std::string enveloped(const T& value) {
+  std::ostringstream oss(std::ios::binary);
+  serialize::write_enveloped(oss, value);
+  return std::move(oss).str();
+}
+
+template <typename T>
+T read_enveloped_from(const std::string& s) {
+  std::istringstream iss(s, std::ios::binary);
+  return serialize::read_enveloped<T>(iss);
+}
+
+}  // namespace
+
+TYPED_TEST(SerializeRoundtripTest, EnvelopeRoundtrip) {
+  using Lwe = typename TestFixture::Lwe;
+  using Torus = typename Lwe::torus_type;
+
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
+  auto ct = runtime.encrypt(Torus(1u, 2u));
+
+  auto back = read_enveloped_from<decltype(ct)>(enveloped(ct));
+  EXPECT_EQ(serialize::to_bytes(back), serialize::to_bytes(ct));
+  EXPECT_EQ(runtime.decrypt(back), Torus(1u, 2u));
+}
+
+// Stripping the envelope header leaves exactly the raw encoding.
+TEST(SerializeEnvelopeTest, BodyIsRawEncoding) {
+  using T = ModTorus<32, uint32_t>;
+  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  TLWE<T, 8> ct;
+  ct.a() = Vector<T, 8>([&] { return T(static_cast<uint32_t>(rng())); });
+
+  std::string env = enveloped(ct);
+  auto raw = serialize::to_bytes(ct);
+  constexpr std::size_t header =
+      4 + 4 + 4 + 4 * serialize::Serde<TLWE<T, 8>>::descriptor().size();
+  ASSERT_EQ(env.size(), header + raw.size());
+  EXPECT_EQ(std::memcmp(env.data() + header, raw.data(), raw.size()), 0);
+  EXPECT_EQ(env.substr(0, 4), "TQSE");
+}
+
+TEST(SerializeEnvelopeTest, RejectsDimensionMismatch) {
+  using T = ModTorus<32, uint32_t>;
+  TLWE<T, 8> ct;
+  std::string env = enveloped(ct);
+  EXPECT_THROW((read_enveloped_from<TLWE<T, 9>>(env)), serialize::format_error);
+  EXPECT_THROW((read_enveloped_from<TRLWE<T, 8>>(env)),
+               serialize::format_error);
+}
+
+// Same length, different QBit: invisible to from_bytes, caught here.
+TEST(SerializeEnvelopeTest, RejectsSameLengthTorusMismatch) {
+  TLWE<ModTorus<32, uint32_t>, 8> ct;
+  static_assert(serialize::serialized_size<decltype(ct)>() ==
+                serialize::serialized_size<TLWE<ModTorus<16, uint32_t>, 8>>());
+  std::string env = enveloped(ct);
+  EXPECT_THROW((read_enveloped_from<TLWE<ModTorus<16, uint32_t>, 8>>(env)),
+               serialize::format_error);
+}
+
+TEST(SerializeEnvelopeTest, RejectsBadMagicAndVersion) {
+  using T = ModTorus<32, uint32_t>;
+  TLWE<T, 8> ct;
+
+  std::string bad_magic = enveloped(ct);
+  bad_magic[0] = 'X';
+  EXPECT_THROW((read_enveloped_from<TLWE<T, 8>>(bad_magic)),
+               serialize::format_error);
+
+  std::string bad_version = enveloped(ct);
+  bad_version[4] = static_cast<char>(2);
+  EXPECT_THROW((read_enveloped_from<TLWE<T, 8>>(bad_version)),
+               serialize::format_error);
+}
+
+// Raw bytes without an envelope are rejected rather than misread.
+TEST(SerializeEnvelopeTest, RejectsRawInput) {
+  using T = ModTorus<32, uint32_t>;
+  TLWE<T, 8> ct;
+  std::ostringstream oss(std::ios::binary);
+  serialize::write(oss, ct);
+  EXPECT_THROW((read_enveloped_from<TLWE<T, 8>>(std::move(oss).str())),
+               serialize::format_error);
+}
+
+// Code written once against a Format round-trips under either one, and
+// each Format produces the same bytes as the functions it stands for.
+template <typename Format, typename T>
+T stream_roundtrip(const T& value) {
+  std::ostringstream oss(std::ios::binary);
+  Format::write(oss, value);
+  std::istringstream iss(std::move(oss).str(), std::ios::binary);
+  return Format::template read<T>(iss);
+}
+
+template <typename Format>
+class SerializeFormatTest : public ::testing::Test {};
+
+using Formats = ::testing::Types<serialize::Raw, serialize::Enveloped>;
+TYPED_TEST_SUITE(SerializeFormatTest, Formats);
+
+TYPED_TEST(SerializeFormatTest, Roundtrip) {
+  using T = ModTorus<32, uint32_t>;
+  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  TLWE<T, 8> ct;
+  ct.a() = Vector<T, 8>([&] { return T(static_cast<uint32_t>(rng())); });
+
+  auto via_stream = stream_roundtrip<TypeParam>(ct);
+  EXPECT_EQ(serialize::to_bytes(via_stream), serialize::to_bytes(ct));
+
+  auto via_bytes =
+      TypeParam::template from_bytes<decltype(ct)>(TypeParam::to_bytes(ct));
+  EXPECT_EQ(serialize::to_bytes(via_bytes), serialize::to_bytes(ct));
+}
+
+TEST(SerializeFormatTest, FormatsMatchTheirFunctions) {
+  TLWE<ModTorus<32, uint32_t>, 8> ct;
+  EXPECT_EQ(serialize::Raw::to_bytes(ct), serialize::to_bytes(ct));
+  EXPECT_EQ(serialize::Enveloped::to_bytes(ct),
+            serialize::to_bytes_enveloped(ct));
 }

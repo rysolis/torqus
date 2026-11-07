@@ -14,6 +14,14 @@ namespace serialize {
 // whichever shape PublicKey's own samples are (see public_key.hpp).
 template <typename Ciphertext, uint32_t PkSamples>
 struct Serde<PublicKey<Ciphertext, PkSamples>> {
+  static constexpr std::size_t byte_size() {
+    return PkSamples * Serde<Ciphertext>::byte_size();
+  }
+  static constexpr auto descriptor() {
+    return detail::concat(detail::head(TypeTag::PublicKey, PkSamples),
+                          Serde<Ciphertext>::descriptor());
+  }
+
   static void serialize(Writer& w,
                         const PublicKey<Ciphertext, PkSamples>& key) {
     for (uint32_t i = 0; i < PkSamples; ++i) {

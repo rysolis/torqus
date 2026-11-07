@@ -10,9 +10,20 @@
 #include <vector>
 
 #include "tfhe/serialize/buffer.hpp"
+#include "tfhe/serialize/error.hpp"
 #include "tfhe/serialize/serde.hpp"
 
 namespace serialize {
+
+// Every raw encoding has a fixed length determined by T alone. A mismatch
+// in N/l/n/t/m/PkSamples or coefficient width changes it; a mix-up that
+// keeps the same length (e.g. ModTorus<16, uint32_t> vs ModTorus<32,
+// uint32_t>) does not -- use write_enveloped/read_enveloped
+// (envelope.hpp) when that has to be caught.
+template <typename T>
+constexpr std::size_t serialized_size() {
+  return Serde<T>::byte_size();
+}
 
 // write/read actually write/read a destination (a Writer/Reader already
 // in hand, or a std::ostream/std::istream -- a real file, so a huge key
@@ -76,8 +87,15 @@ std::vector<std::byte> to_bytes(const T& value) {
   return detail::extract_bytes(std::move(oss));
 }
 
+// Rejects input whose length isn't exactly serialized_size<T>(). The
+// stream read<T> above can't, since more data may legitimately follow.
 template <typename T>
 T from_bytes(const std::vector<std::byte>& bytes) {
+  if (bytes.size() != serialized_size<T>()) {
+    throw format_error("serialize::from_bytes: expected " +
+                       std::to_string(serialized_size<T>()) + " bytes, got " +
+                       std::to_string(bytes.size()));
+  }
   std::istringstream iss = detail::as_istringstream(bytes);
   Reader r(iss);
   return Serde<T>::deserialize(r);

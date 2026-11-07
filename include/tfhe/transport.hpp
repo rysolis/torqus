@@ -4,7 +4,8 @@
 #ifndef TFHE_TRANSPORT_HPP
 #define TFHE_TRANSPORT_HPP
 
-#include <utility>
+#include <cstddef>
+#include <vector>
 
 #include "tfhe/serialize.hpp"
 
@@ -18,7 +19,11 @@
 //   - SerializedTransport (the default): serialize::to_bytes'd/from_bytes'd
 //     (tfhe/serialize.hpp) -- the shape the same hand-off would need to
 //     take crossing a real network, for a protocol whose roles are meant
-//     to be splittable across machines.
+//     to be splittable across machines. Raw format, interoperable with
+//     other libraries; a mismatch is caught only if it changes the length.
+//   - EnvelopedTransport: the same, wrapped in serialize's envelope
+//     (serialize/envelope.hpp), so receive<T> rejects bytes sent as any
+//     other type. For hand-offs where both ends are torqus.
 struct DirectTransport {
   template <typename T>
   using wire_type = T;
@@ -34,19 +39,24 @@ struct DirectTransport {
   }
 };
 
-struct SerializedTransport {
+// Bytes in the given serialize format (serialize/format.hpp).
+template <typename Format>
+struct BytesTransport {
   template <typename T>
   using wire_type = std::vector<std::byte>;
 
   template <typename T>
   static std::vector<std::byte> send(const T& value) {
-    return serialize::to_bytes(value);
+    return Format::to_bytes(value);
   }
 
   template <typename T>
   static T receive(const std::vector<std::byte>& bytes) {
-    return serialize::from_bytes<T>(bytes);
+    return Format::template from_bytes<T>(bytes);
   }
 };
+
+using SerializedTransport = BytesTransport<serialize::Raw>;
+using EnvelopedTransport = BytesTransport<serialize::Enveloped>;
 
 #endif  // TFHE_TRANSPORT_HPP
