@@ -197,6 +197,27 @@ inline constexpr ModTorus<QBit, Word>::operator dbl::Torus() const noexcept {
                     std::pow(2., ModTorus<QBit, Word>::qbit));
 }
 
+// ModTorus counterpart to tfhe/math/modswitch.hpp's own mod_switch for
+// ModInt -- same shift-and-round. DstModTorus is the only explicit
+// template argument (SrcModTorus deduces from `t`): mod_switch<DstTorus>(v).
+template <typename DstModTorus, typename SrcModTorus>
+inline constexpr DstModTorus mod_switch(const SrcModTorus& t) {
+  using DstWord = typename DstModTorus::raw_value_type;
+  constexpr uint32_t DstQBit = DstModTorus::qbit;
+  constexpr uint32_t SrcQBit = SrcModTorus::qbit;
+
+  const uint64_t raw = static_cast<uint64_t>(t.value());
+
+  if constexpr (DstQBit >= SrcQBit) {
+    return DstModTorus(static_cast<DstWord>(raw << (DstQBit - SrcQBit)));
+  } else {
+    // Round to nearest before dropping the low bits.
+    constexpr uint32_t drop = SrcQBit - DstQBit;
+    constexpr uint64_t half = uint64_t{1} << (drop - 1);
+    return DstModTorus(static_cast<DstWord>((raw + half) >> drop));
+  }
+}
+
 inline constexpr dbl::Torus operator+(dbl::Torus lhs,
                                       const dbl::Torus& rhs) noexcept {
   return lhs += rhs;

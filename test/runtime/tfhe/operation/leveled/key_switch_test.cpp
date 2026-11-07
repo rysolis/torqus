@@ -4,11 +4,16 @@
 #include <bit>
 #include <random>
 
+#include "primitive/torus.hpp"
+
+#include "algebra/poly.hpp"
+
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/structure/ciphertext/tlwe.hpp"
+#include "tfhe/structure/gadget/gadget_repr.hpp"
 #include "tfhe/structure/key/key_switch_key.hpp"
 #include "tfhe/utility/random_generator.hpp"
 
@@ -42,8 +47,16 @@ using Context2 = ParameterSet<
     lwe_params<tlwe_core_params<ModTorus<32>, 200>, noise_params<15>>,
     kst_params<4, 12>>;
 
+// Same Dst/Kst as Context1, SrcLwe's torus widened to 32 -- a cross-width
+// KeySwitch (issue #50).
+using Context3 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<32>, 8>>,
+    lwe_params<tlwe_core_params<ModTorus<16>, 5>, noise_params<11>>,
+    kst_params<8, 5>>;
+
 using TestContexts =
-    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>,
+                     TestConfig<Context3>>;
 
 }  // namespace key_switch_test
 
@@ -120,7 +133,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     rTorus pt = tc.pt;
 
     // Prepare source TLWE (contains pt)
-    TLWE<rTorus, N> tlwe = this->src_lwe_runtime_.encrypt(Torus(0u));
+    TLWE<rTorus, N> tlwe = this->src_lwe_runtime_.encrypt(rTorus(0u));
     tlwe.b() = static_cast<rTorus>(tlwe.b()) + pt;
 
     // // ==================================
@@ -133,7 +146,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     // Assert
     // ==================================
     // compute reference result
-    Torus ref(static_cast<rTorus::raw_value_type>(pt));
+    Torus ref = mod_switch<Torus>(pt);
 
     // compute actual result
     Torus res = this->dst_lwe_runtime_.decrypt(res_ct);
@@ -162,4 +175,25 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     EXPECT_LE(norm, get_noise_tracker_if()->get(res_ct));
     EXPECT_LE(norm, variance_threshold);
   }
+}
+
+// gadget_digit (key_switch.hpp) round-tripped through
+// classical::reconstruct (gadget_repr.hpp, same algorithm, reused here
+// under Kst's own K/t) -- checks the digit math itself in isolation,
+// independent of any actual LWE encryption/KSK noise.
+TEST(KeySwitchGadgetDigitTest, RoundTripRecoversValue) {
+  using Kst = kst_params<8, 5>;
+  using Torus = ModTorus<16>;
+
+  Torus v(12345u);
+
+  std::vector<Poly<UInt, 1>> repr(Kst::t);
+  for (size_t i = 0; i < Kst::t; ++i) {
+    repr[i] = Poly<UInt, 1>{tfhe::leveled::gadget_digit<Kst>(v, i)};
+  }
+  Torus res = classical::reconstruct<Kst::K, Kst::t, Torus>(repr, 0);
+
+  constexpr uint32_t Bbit = std::bit_width(Kst::K - 1);
+  double threshold = 1.0 / (1ULL << (Bbit * Kst::t));
+  EXPECT_LE(infinity_norm(v - res), threshold);
 }
