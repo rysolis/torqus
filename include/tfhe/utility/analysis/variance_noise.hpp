@@ -214,7 +214,8 @@ template <typename Src, typename Dst, typename Kst>
   requires tlwe_concept<Src> && tlwe_concept<Dst> && kst_concept<Kst>
 struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
   static constexpr uint32_t n = Dst::n;
-  using Torus = typename Src::torus_type;
+  using SrcTorus = typename Src::torus_type;
+  using DstTorus = typename Dst::torus_type;  // ksk's own torus.
   static constexpr uint32_t N = Src::n;
   static constexpr uint32_t K = Kst::K;
   static constexpr uint32_t t = Kst::t;
@@ -226,8 +227,8 @@ struct VarianceNoisePolicy<tfhe::leveled::KeySwitch<Src, Dst, Kst>> {
   }
 
   template <typename Tracker>
-  static double compute(const Tracker* tracker, const TLWE<Torus, N>& src,
-                        const KeySwitchKey<Torus, n, t, N>& ksk) {
+  static double compute(const Tracker* tracker, const TLWE<SrcTorus, N>& src,
+                        const KeySwitchKey<DstTorus, n, t, N>& ksk) {
     double digit = static_cast<double>(K) - 1.0;
     double ksk_key_variance = get_key_variance_tracker_if()->get(ksk[0][0]);
     return tracker->get(src) + N * t * (digit * digit) * ksk_key_variance +

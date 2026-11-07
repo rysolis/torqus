@@ -4,6 +4,8 @@
 #include <bit>
 #include <random>
 
+#include "primitive/torus.hpp"
+
 #include "tfhe/feature.hpp"
 #include "tfhe/operation/evaluator.hpp"
 #include "tfhe/params.hpp"
@@ -42,8 +44,16 @@ using Context2 = ParameterSet<
     lwe_params<tlwe_core_params<ModTorus<32>, 200>, noise_params<15>>,
     kst_params<4, 12>>;
 
+// Same Dst/Kst as Context1, SrcLwe's torus widened to 32 -- a cross-width
+// KeySwitch (issue #50).
+using Context3 = ParameterSet<
+    lwe_params<tlwe_core_params<ModTorus<32>, 8>>,
+    lwe_params<tlwe_core_params<ModTorus<16>, 5>, noise_params<11>>,
+    kst_params<8, 5>>;
+
 using TestContexts =
-    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>>;
+    ::testing::Types<TestConfig<Context1>, TestConfig<Context2, false>,
+                     TestConfig<Context3>>;
 
 }  // namespace key_switch_test
 
@@ -120,7 +130,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     rTorus pt = tc.pt;
 
     // Prepare source TLWE (contains pt)
-    TLWE<rTorus, N> tlwe = this->src_lwe_runtime_.encrypt(Torus(0u));
+    TLWE<rTorus, N> tlwe = this->src_lwe_runtime_.encrypt(rTorus(0u));
     tlwe.b() = static_cast<rTorus>(tlwe.b()) + pt;
 
     // // ==================================
@@ -133,7 +143,7 @@ TYPED_TEST(KeySwitchCorrectnessTest, VerifyCorrectness) {
     // Assert
     // ==================================
     // compute reference result
-    Torus ref(static_cast<rTorus::raw_value_type>(pt));
+    Torus ref = mod_switch<Torus>(pt);
 
     // compute actual result
     Torus res = this->dst_lwe_runtime_.decrypt(res_ct);

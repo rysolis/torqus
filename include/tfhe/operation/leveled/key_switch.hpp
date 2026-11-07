@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "primitive/concept/torus.hpp"
+#include "primitive/torus.hpp"
 #include "primitive/uint.hpp"
 
 #include "algebra/poly.hpp"
@@ -77,9 +78,10 @@ class KeySwitch {
       const TLWE<SrcTorus, SrcLwe::n>& src,
       const KeySwitchKey<DstTorus, n, t, SrcLwe::n>& ksk) {
     TLWE<DstTorus, n> dst;
-    dst.b() = DstTorus(static_cast<SrcTorus::raw_value_type>(src.b()));
+    // ksk's rows are DstTorus-shaped regardless of SrcTorus.
+    dst.b() = mod_switch<DstTorus>(src.b());
     for (size_t i = 0; i < SrcLwe::n; ++i) {
-      DstTorus ai = src.a()[i];
+      DstTorus ai = mod_switch<DstTorus>(src.a()[i]);
       for (size_t j = 0; j < t; ++j) {
         UInt d = decompose<Kst>(ai, j);
         dst -= d * ksk[i][j];
