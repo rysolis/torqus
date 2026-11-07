@@ -6,7 +6,11 @@
 
 #include <bit>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "algebra/poly.hpp"
@@ -48,21 +52,18 @@ struct Serde<T> {
 
   static void write(Writer& w, const T& value) {
     if constexpr (std::same_as<Raw, double>) {
-      w.write_u64(std::bit_cast<uint64_t>(value.value()));
-    } else if constexpr (std::same_as<Raw, uint64_t>) {
-      w.write_u64(value.value());
+      w.write(std::bit_cast<uint64_t>(value.value()));
     } else {
-      w.write_u32(value.value());
+      w.write(value.value());  // Raw is uint32_t or uint64_t; overload
+                               // resolution picks the matching write().
     }
   }
 
   static T read(Reader& r) {
     if constexpr (std::same_as<Raw, double>) {
-      return T(std::bit_cast<double>(r.read_u64()));
-    } else if constexpr (std::same_as<Raw, uint64_t>) {
-      return T(r.read_u64());
+      return T(std::bit_cast<double>(r.read<uint64_t>()));
     } else {
-      return T(r.read_u32());
+      return T(r.read<Raw>());
     }
   }
 };
@@ -98,9 +99,13 @@ struct Serde<Poly<T, Size>> {
 };
 
 // Public entry points: write/read work against an existing Writer/Reader
-// (e.g. to pack several values into one buffer); to_bytes/from_bytes are
-// the one-shot convenience wrapping a single value in its own buffer, the
-// shape a REST call would actually send/receive.
+// (e.g. to pack several values into one buffer), or directly against a
+// std::ostream/std::istream -- a real file, so a huge key never needs a
+// second, fully-materialized copy of itself as a byte buffer just to
+// reach disk; to_bytes/from_bytes are the one-shot convenience wrapping a
+// single value in its own buffer, the shape a REST call would actually
+// send/receive -- one extra in-memory copy (string <-> vector<byte>),
+// fine for that size of value, not the huge-key path above.
 template <typename T>
 void write(Writer& w, const T& value) {
   Serde<T>::write(w, value);
@@ -112,16 +117,33 @@ T read(Reader& r) {
 }
 
 template <typename T>
-std::vector<std::byte> to_bytes(const T& value) {
-  Writer w;
+void write(std::ostream& os, const T& value) {
+  Writer w(os);
   write(w, value);
-  return w.release();
+}
+
+template <typename T>
+T read(std::istream& is) {
+  Reader r(is);
+  return read<T>(r);
+}
+
+template <typename T>
+std::vector<std::byte> to_bytes(const T& value) {
+  std::ostringstream oss(std::ios::binary);
+  write(oss, value);
+  std::string s = std::move(oss).str();
+  std::vector<std::byte> bytes(s.size());
+  std::memcpy(bytes.data(), s.data(), s.size());
+  return bytes;
 }
 
 template <typename T>
 T from_bytes(const std::vector<std::byte>& bytes) {
-  Reader r(bytes);
-  return read<T>(r);
+  std::istringstream iss(
+      std::string(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
+      std::ios::binary);
+  return read<T>(iss);
 }
 
 }  // namespace serialize

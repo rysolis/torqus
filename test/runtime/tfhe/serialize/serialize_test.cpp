@@ -1,7 +1,10 @@
 #include "tfhe/serialize.hpp"
 #include <gtest/gtest.h>
 
+#include <filesystem>
+#include <fstream>
 #include <random>
+#include <sstream>
 
 #include "primitive/torus.hpp"
 
@@ -9,6 +12,19 @@
 #include "tfhe/params.hpp"
 #include "tfhe/runtime.hpp"
 #include "tfhe/utility/random_generator.hpp"
+
+// encode<N>/decode<N> (buffer.hpp) are plain byte-array<->integer
+// conversion, no stream involved -- checked directly here rather than
+// only indirectly through a Writer/Reader round-trip.
+TEST(SerializeBufferDetailTest, EncodeDecodeU32RoundTrips) {
+  uint32_t v = 0x12345678u;
+  EXPECT_EQ(serialize::detail::decode<4>(serialize::detail::encode<4>(v)), v);
+}
+
+TEST(SerializeBufferDetailTest, EncodeDecodeU64RoundTrips) {
+  uint64_t v = 0x0123456789abcdefull;
+  EXPECT_EQ(serialize::detail::decode<8>(serialize::detail::encode<8>(v)), v);
+}
 
 namespace serialize_test {
 
@@ -106,4 +122,48 @@ TYPED_TEST(SerializeRoundtripTest, BootstrapKeyAndKeySwitchKey) {
   auto ksk_bytes = serialize::to_bytes(ksk);
   auto ksk_back = serialize::from_bytes<decltype(ksk)>(ksk_bytes);
   EXPECT_EQ(ksk_bytes, serialize::to_bytes(ksk_back));
+}
+
+// write(ostream&, ...)/read<T>(istream&) (#51) against std::ostringstream/
+// std::istringstream -- same bytes as to_bytes/from_bytes, just without
+// ever materializing the whole value as a byte buffer first.
+TYPED_TEST(SerializeRoundtripTest, StreamRoundtrip) {
+  using Lwe = typename TestFixture::Lwe;
+  using Torus = typename Lwe::torus_type;
+
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
+  TLWE<Torus, Lwe::n> ct = runtime.encrypt(Torus(1u, 2u));
+
+  std::ostringstream oss(std::ios::binary);
+  serialize::write(oss, ct);
+
+  std::istringstream iss(std::move(oss).str(), std::ios::binary);
+  auto back = serialize::read<decltype(ct)>(iss);
+
+  EXPECT_EQ(serialize::to_bytes(ct), serialize::to_bytes(back));
+}
+
+// Same, against a real file -- the actual motivating case: a huge key
+// should reach disk without a second full in-memory copy of itself.
+TYPED_TEST(SerializeRoundtripTest, StreamRoundtripViaFile) {
+  using Lwe = typename TestFixture::Lwe;
+  using Torus = typename Lwe::torus_type;
+
+  Runtime<Lwe, RandomGenerator<std::mt19937>, Tracking> runtime(this->eng_);
+  TLWE<Torus, Lwe::n> ct = runtime.encrypt(Torus(1u, 2u));
+
+  std::filesystem::path path =
+      std::filesystem::temp_directory_path() / "torqus_serialize_test_tlwe.bin";
+  {
+    std::ofstream ofs(path, std::ios::binary);
+    serialize::write(ofs, ct);
+  }
+  TLWE<Torus, Lwe::n> back;
+  {
+    std::ifstream ifs(path, std::ios::binary);
+    back = serialize::read<decltype(ct)>(ifs);
+  }
+  std::filesystem::remove(path);
+
+  EXPECT_EQ(serialize::to_bytes(ct), serialize::to_bytes(back));
 }
