@@ -186,7 +186,7 @@ std::vector<std::byte> per_element_bytes(const Container& c) {
 
 TEST(SerializeBulkTest, PolyMatchesPerElementEncoding) {
   using T = ModTorus<32, uint32_t>;
-  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  std::mt19937 rng(0);  // NOLINT(bugprone-random-generator-seed)
   Poly<T, 64> p([&] { return T(static_cast<uint32_t>(rng())); });
 
   auto bytes = serialize::to_bytes(p);
@@ -197,7 +197,7 @@ TEST(SerializeBulkTest, PolyMatchesPerElementEncoding) {
 
 TEST(SerializeBulkTest, VectorMatchesPerElementEncoding) {
   using T = ModTorus<64, uint64_t>;
-  std::mt19937_64 rng(0);  // NOLINT(cert-msc51-cpp)
+  std::mt19937_64 rng(0);  // NOLINT(bugprone-random-generator-seed)
   Vector<T, 37> v([&] { return T(static_cast<uint64_t>(rng())); });
 
   auto bytes = serialize::to_bytes(v);
@@ -340,7 +340,7 @@ TYPED_TEST(SerializeRoundtripTest, EnvelopeRoundtrip) {
 // Stripping the envelope header leaves exactly the raw encoding.
 TEST(SerializeEnvelopeTest, BodyIsRawEncoding) {
   using T = ModTorus<32, uint32_t>;
-  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  std::mt19937 rng(0);  // NOLINT(bugprone-random-generator-seed)
   TLWE<T, 8> ct;
   ct.a() = Vector<T, 8>([&] { return T(static_cast<uint32_t>(rng())); });
 
@@ -415,7 +415,7 @@ TYPED_TEST_SUITE(SerializeFormatTest, Formats);
 
 TYPED_TEST(SerializeFormatTest, Roundtrip) {
   using T = ModTorus<32, uint32_t>;
-  std::mt19937 rng(0);  // NOLINT(cert-msc51-cpp)
+  std::mt19937 rng(0);  // NOLINT(bugprone-random-generator-seed)
   TLWE<T, 8> ct;
   ct.a() = Vector<T, 8>([&] { return T(static_cast<uint32_t>(rng())); });
 

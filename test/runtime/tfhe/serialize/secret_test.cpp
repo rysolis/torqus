@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstring>
 #include <random>
 #include <sstream>
@@ -47,7 +48,7 @@ SecretHolder<N> loaded(const std::string& s) {
 }  // namespace
 
 TEST(SerializeSecretTest, StreamRoundtrip) {
-  Engine eng(0);  // NOLINT(cert-msc51-cpp)
+  Engine eng(0);  // NOLINT(bugprone-random-generator-seed)
   SecretHolder<Lwe::n> holder(eng);
 
   std::string s = saved(holder);
@@ -58,7 +59,7 @@ TEST(SerializeSecretTest, StreamRoundtrip) {
 // Each element is a little-endian u32 0 or 1, and the span overloads
 // produce and accept the same bytes as the stream ones.
 TEST(SerializeSecretTest, SpanMatchesStreamEncoding) {
-  Engine eng(0);  // NOLINT(cert-msc51-cpp)
+  Engine eng(0);  // NOLINT(bugprone-random-generator-seed)
   SecretHolder<Lwe::n> holder(eng);
 
   std::vector<std::byte> buf(serialize::secret_size<Lwe::n>());
@@ -67,11 +68,11 @@ TEST(SerializeSecretTest, SpanMatchesStreamEncoding) {
   std::string s = saved(holder);
   ASSERT_EQ(buf.size(), s.size());
   EXPECT_EQ(std::memcmp(buf.data(), s.data(), s.size()), 0);
-  for (uint32_t i = 0; i < Lwe::n; ++i) {
+  for (std::size_t i = 0; i < Lwe::n; ++i) {
     EXPECT_EQ(buf[4 * i], static_cast<std::byte>(holder.get()[i]));
-    EXPECT_EQ(buf[4 * i + 1], std::byte{0});
-    EXPECT_EQ(buf[4 * i + 2], std::byte{0});
-    EXPECT_EQ(buf[4 * i + 3], std::byte{0});
+    EXPECT_EQ(buf[(4 * i) + 1], std::byte{0});
+    EXPECT_EQ(buf[(4 * i) + 2], std::byte{0});
+    EXPECT_EQ(buf[(4 * i) + 3], std::byte{0});
   }
 
   auto back = serialize::read_secret<Lwe::n>(std::span<const std::byte>(buf));
@@ -79,11 +80,11 @@ TEST(SerializeSecretTest, SpanMatchesStreamEncoding) {
 }
 
 TEST(SerializeSecretTest, RejectsElementOtherThanZeroOrOne) {
-  Engine eng(0);  // NOLINT(cert-msc51-cpp)
+  Engine eng(0);  // NOLINT(bugprone-random-generator-seed)
   SecretHolder<Lwe::n> holder(eng);
 
   std::string s = saved(holder);
-  s[4 * 3] = static_cast<char>(2);
+  s[std::size_t{4} * 3] = static_cast<char>(2);  // element [3]
   EXPECT_THROW(loaded<Lwe::n>(s), serialize::format_error);
 
   std::vector<std::byte> buf(s.size());
@@ -94,7 +95,7 @@ TEST(SerializeSecretTest, RejectsElementOtherThanZeroOrOne) {
 }
 
 TEST(SerializeSecretTest, RejectsWrongLength) {
-  Engine eng(0);  // NOLINT(cert-msc51-cpp)
+  Engine eng(0);  // NOLINT(bugprone-random-generator-seed)
   SecretHolder<Lwe::n> holder(eng);
 
   std::string s = saved(holder);
@@ -112,7 +113,7 @@ TEST(SerializeSecretTest, RejectsWrongLength) {
 // A Runtime made from a loaded secret decrypts what the original
 // encrypted, for both an Lwe- and an Rlwe-side secret.
 TEST(SerializeSecretTest, RuntimeFromLoadedSecretDecrypts) {
-  Engine eng(0);  // NOLINT(cert-msc51-cpp)
+  Engine eng(0);  // NOLINT(bugprone-random-generator-seed)
   LweRuntime lwe(eng);
   RlweRuntime rlwe(eng);
 
