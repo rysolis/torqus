@@ -11,7 +11,8 @@ accepts. There are two layers:
   header in front. The header identifies the exact
   type. It is opt-in, for torqus-to-torqus storage and exchange.
 
-Secret keys (`SecretHolder`) have no encoding in either layer.
+Secret keys (`SecretHolder`) are in neither layer; they have their own
+named functions (see [Secret keys](#secret-keys)).
 
 ## Conventions
 
@@ -138,6 +139,37 @@ auto bk = Format::read<decltype(bootstrap_key)>(file);
 ```
 
 Changing that one alias switches every call site.
+
+## Secret keys
+
+`serialize::write_secret` / `read_secret<SecretLength>`
+([`secret.hpp`](https://github.com/rysolis/torqus/blob/main/include/tfhe/serialize/secret.hpp))
+save and load a `SecretHolder<SecretLength>`:
+
+| Field | Size | Value |
+|---|---|---|
+| element `[i]` for `i` in `0..SecretLength-1` | u32 | `0` or `1` |
+
+The length is `serialize::secret_size<SecretLength>()` = `4 * SecretLength` bytes, whatever
+`TORQUS_TORUS_BITS` is. There is no header and no encryption, as in
+other FHE libraries; protecting the file at rest is up to the
+application. `read_secret` rejects an element other than 0 or 1
+(`format_error`) and writes straight into the secret's locked,
+zeroed-on-release buffer.
+
+These are deliberately not a `Serde` specialization, so a secret can't
+be passed to `to_bytes`, the envelope or a Transport.
+
+To encrypt the saved secret without leaving plaintext in memory, use the
+`std::span` overloads with a locked buffer that is zeroed on free (for
+example libsodium's `sodium_malloc`), or the stream overloads with a
+`std::streambuf` that encrypts as it writes. Don't go through
+`std::ostringstream`: the plaintext ends up in a `std::string` whose
+freed buffers aren't zeroed.
+
+A `Runtime` is made from a loaded secret with
+`Runtime(SecretHolder<secret_length>, Engine&)`. The engine supplies
+only the encryption randomness.
 
 ## Transport
 

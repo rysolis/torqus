@@ -4,10 +4,13 @@
 #ifndef TFHE_UTILITY_SECRET_HOLDER_HPP
 #define TFHE_UTILITY_SECRET_HOLDER_HPP
 
+#include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <random>
+#include <type_traits>
 
 // Best-effort swap protection for the secret buffer below -- see
 // detail::LockedSecretDeleter. Guard style follows
@@ -69,6 +72,13 @@ std::shared_ptr<T[]> make_locked_secret(std::size_t count) {
 
 }  // namespace detail
 
+// Tag for SecretHolder's constructor that fills the secret from a
+// caller-supplied source (e.g. a saved key) instead of an Engine.
+struct secret_fill_t {
+  explicit secret_fill_t() = default;
+};
+inline constexpr secret_fill_t secret_fill{};
+
 template <uint32_t SecretSize>
 class SecretHolder {
  public:
@@ -81,6 +91,17 @@ class SecretHolder {
     std::uniform_int_distribution<raw_value_type> dist{0, 1};
     std::generate(secret_.get(), secret_.get() + SecretSize,
                   [&] { return dist(eng); });
+  }
+
+  // Fills element i with next(), in order, straight into the locked
+  // buffer. If next() throws, the partly filled buffer is zeroed on
+  // release like any other.
+  template <typename Next>
+    requires std::convertible_to<std::invoke_result_t<Next&>, raw_value_type>
+  SecretHolder(secret_fill_t /*tag*/, Next&& next)
+      : secret_(detail::make_locked_secret<raw_value_type>(SecretSize)) {
+    std::generate(secret_.get(), secret_.get() + SecretSize,
+                  [&] { return static_cast<raw_value_type>(next()); });
   }
 
   const raw_value_type* get() const noexcept { return secret_.get(); }
